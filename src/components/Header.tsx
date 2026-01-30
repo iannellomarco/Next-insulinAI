@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { History, Settings, LogIn } from 'lucide-react';
 import { SignedIn, SignedOut, UserButton, SignInButton } from '@clerk/nextjs';
