@@ -4,6 +4,7 @@ import { useState } from 'react';
 import ScanView from '@/components/ScanView';
 import ResultsView from '@/components/ResultsView';
 import HistoryView from '@/components/HistoryView';
+import Header from '@/components/Header';
 import SettingsModal from '@/components/SettingsModal';
 import TextInputModal from '@/components/TextInputModal';
 import ErrorModal from '@/components/ErrorModal';
@@ -88,22 +89,11 @@ export default function AppLogic() {
         <>
             <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-            {/* We need to portal or control the Header buttons. 
-            For now, let's render a local Header here and remove the one in Layout? 
-            Or proper way: UIContext. 
-            Lets just put a header here for simplicity of migration. 
-        */}
-            <header className="app-header">
-                <h1>InsulinAI</h1>
-                <div className="header-actions">
-                    <button className="icon-btn" aria-label="History" onClick={() => setCurrentView('history')}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </button>
-                    <button className="icon-btn" aria-label="Settings" onClick={() => setShowSettings(true)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                    </button>
-                </div>
-            </header>
+            {/* Header with Auth & Navigation */}
+            <Header
+                onHistoryClick={() => setCurrentView('history')}
+                onSettingsClick={() => setShowSettings(true)}
+            />
 
             <main>
                 {currentView === 'scan' && (
