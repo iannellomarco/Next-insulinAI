@@ -31,20 +31,12 @@ const GREETINGS_ANONYMOUS = [
     "Let's count those carbs!",
 ];
 
-// Get time of day
-const getTimeOfDay = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'morning';
-    if (hour < 17) return 'afternoon';
-    return 'evening';
-};
+
 
 export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: HomeViewProps) {
     const { history } = useStore();
     const { user, isLoaded } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [aiGreeting, setAiGreeting] = useState<string | null>(null);
-    const [isLoadingGreeting, setIsLoadingGreeting] = useState(false);
 
     // Fallback greeting (stable per session)
     const fallbackGreeting = useMemo(() => {
@@ -55,57 +47,10 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
         }
         const idx = Math.floor(Math.random() * GREETINGS_ANONYMOUS.length);
         return GREETINGS_ANONYMOUS[idx];
-    }, [user, user?.firstName]);
+    }, [user]);
 
-    // Fetch AI greeting when user logs in
-    useEffect(() => {
-        if (!isLoaded || !user) return;
-
-        // Check sessionStorage cache first (DISABLED FOR DEBUGGING)
-        // const cachedGreeting = sessionStorage.getItem('aiGreeting');
-        // const cachedUserId = sessionStorage.getItem('aiGreetingUserId');
-
-        // if (cachedGreeting && cachedUserId === user.id) {
-        //     setAiGreeting(cachedGreeting);
-        //     return;
-        // }
-
-        // Fetch new AI greeting
-        const fetchGreeting = async () => {
-            setIsLoadingGreeting(true);
-            try {
-                // Use /api/analyze (merged endpoint) to guarantee availability
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: 'greeting', // Trigger greeting logic
-                        firstName: user.firstName || 'Friend',
-                        timeOfDay: getTimeOfDay()
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.greeting) {
-                        setAiGreeting(data.greeting);
-                        // Cache for this session
-                        sessionStorage.setItem('aiGreeting', data.greeting);
-                        sessionStorage.setItem('aiGreetingUserId', user.id);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch AI greeting:', error);
-            } finally {
-                setIsLoadingGreeting(false);
-            }
-        };
-
-        fetchGreeting();
-    }, [isLoaded, user, user?.firstName, user?.id]);
-
-    // Use AI greeting if available, otherwise fallback
-    const greeting = aiGreeting || fallbackGreeting;
+    // Use stable local greeting
+    const greeting = fallbackGreeting;
 
     const handleScanClick = () => {
         fileInputRef.current?.click();
