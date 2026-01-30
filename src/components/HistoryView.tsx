@@ -76,6 +76,14 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         </div>
                         <div className="history-stats">
                             <span>{item.total_carbs}g Carbs</span>
+                            {item.pre_glucose && (
+                                <span className="stat-pre-glucose" style={{
+                                    color: '#818cf8',
+                                    fontSize: '0.85rem',
+                                }}>
+                                    Pre: {item.pre_glucose}
+                                </span>
+                            )}
                             {item.post_glucose ? (
                                 <span className={`stat-glucose`} style={{
                                     color: (item.post_glucose > settings.highThreshold || item.post_glucose < settings.lowThreshold)
@@ -84,7 +92,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                     fontWeight: 600,
                                     marginLeft: 'auto'
                                 }}>
-                                    {item.post_glucose} mg/dL
+                                    2h: {item.post_glucose}
                                     {(item.post_glucose < settings.lowThreshold) && ' 📉'}
                                     {(item.post_glucose > settings.highThreshold) && ' 📈'}
                                 </span>

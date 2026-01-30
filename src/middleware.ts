@@ -2,7 +2,8 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
 const isPublicRoute = createRouteMatcher([
     '/',
-    '/api/analyze(.*)', // Keep analysis public if you want, or protect it. For now, public to match current behavior.
+    '/api/analyze(.*)',
+    '/api/welcome(.*)',
     '/sign-in(.*)',
     '/sign-up(.*)'
 ]);

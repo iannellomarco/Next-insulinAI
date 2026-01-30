@@ -61,6 +61,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return [];
     });
 
+    // Blacklist for dismissed auto-suggested favorites (name-based)
+    const [dismissedFavorites, setDismissedFavorites] = useState<string[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('dismissedFavorites');
+            return saved ? JSON.parse(saved) : [];
+        }
+        return [];
+    });
+
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -69,15 +78,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return analyzeHistoryForFavorites(history);
     }, [history]);
 
-    // Combined favorites: manual + auto-suggested (avoiding duplicates)
+    // Combined favorites: manual + auto-suggested (avoiding duplicates and dismissed)
     const favorites = useMemo(() => {
         const manualIds = new Set(manualFavorites.map(f => f.name.toLowerCase()));
+        const dismissedSet = new Set(dismissedFavorites.map(n => n.toLowerCase()));
         const autoFiltered = autoSuggestedFavorites.filter(
-            f => !manualIds.has(f.name.toLowerCase())
+            f => !manualIds.has(f.name.toLowerCase()) && !dismissedSet.has(f.name.toLowerCase())
         );
         const combined = [...manualFavorites, ...autoFiltered];
         return getTimeRelevantFavorites(combined);
-    }, [manualFavorites, autoSuggestedFavorites]);
+    }, [manualFavorites, autoSuggestedFavorites, dismissedFavorites]);
 
     // Initial Load & Auth Sync
     useEffect(() => {
@@ -160,9 +170,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
 
     const removeFavorite = (id: string) => {
-        const newFavorites = manualFavorites.filter(f => f.id !== id);
-        setManualFavorites(newFavorites);
-        localStorage.setItem('favorites', JSON.stringify(newFavorites));
+        // Check if it's a manual favorite
+        const manualFav = manualFavorites.find(f => f.id === id);
+        if (manualFav) {
+            const newFavorites = manualFavorites.filter(f => f.id !== id);
+            setManualFavorites(newFavorites);
+            localStorage.setItem('favorites', JSON.stringify(newFavorites));
+        }
+
+        // Check if it's an auto-suggested favorite - add to blacklist
+        const autoFav = autoSuggestedFavorites.find(f => f.id === id);
+        if (autoFav) {
+            const newDismissed = [...dismissedFavorites, autoFav.name.toLowerCase()];
+            setDismissedFavorites(newDismissed);
+            localStorage.setItem('dismissedFavorites', JSON.stringify(newDismissed));
+        }
     };
 
     return (

@@ -22,10 +22,12 @@ export default function SmartFavorites({ onSelect, onAddNew }: SmartFavoritesPro
             <h3>Smart Favorites</h3>
             <div className="favorites-scroll">
                 {favorites.map((item) => (
-                    <button
+                    <div
                         key={item.id}
                         className="quick-eat-card"
                         onClick={() => onSelect(item)}
+                        role="button"
+                        tabIndex={0}
                     >
                         {item.isAutoSuggested && (
                             <span className="auto-badge" title="AI Suggested">
@@ -43,7 +45,7 @@ export default function SmartFavorites({ onSelect, onAddNew }: SmartFavoritesPro
                         <span className="card-icon">{item.icon}</span>
                         <span className="card-name">{item.name}</span>
                         <span className="card-carbs">{item.carbs}g Carbs</span>
-                    </button>
+                    </div>
                 ))}
                 <button className="quick-eat-card add-card" onClick={onAddNew}>
                     <Plus size={32} />

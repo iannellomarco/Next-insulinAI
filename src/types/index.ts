@@ -30,6 +30,7 @@ export interface HistoryItem extends AnalysisResult {
     id: string;
     timestamp: number;
     actual_insulin?: number; // User override
+    pre_glucose?: number; // Glucose at meal time
     post_glucose?: number; // 2h check
 }
 

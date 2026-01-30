@@ -14,6 +14,7 @@ import { AIService } from '@/lib/ai-service';
 import { fileToBase64, resizeImage } from '@/lib/utils';
 import { HistoryItem } from '@/types';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
+import SoftLoginModal from '@/components/SoftLoginModal';
 
 type ViewType = 'home' | 'results' | 'history' | 'insights';
 type NavType = 'home' | 'log' | 'insights' | 'settings';
@@ -55,13 +56,7 @@ export default function AppLogic() {
             const result = await AIService.analyze(payload, type, settings, historyContext);
 
             setAnalysisResult(result);
-
-            const newItem: HistoryItem = {
-                id: Date.now().toString(),
-                timestamp: Date.now(),
-                ...result
-            };
-            addHistoryItem(newItem);
+            // Note: User will save manually from ResultsView to include pre_glucose
 
         } catch (error) {
             const msg = error instanceof Error ? error.message : "Analysis failed. Please try again.";
@@ -123,6 +118,7 @@ export default function AppLogic() {
 
             <BottomNav active={activeNav} onNavigate={handleNavigation} />
 
+            {/* Modals */}
             {showSettings && (
                 <SettingsModal onClose={() => setShowSettings(false)} />
             )}
@@ -140,7 +136,9 @@ export default function AppLogic() {
                     onClose={() => setErrorModal({ ...errorModal, open: false })}
                 />
             )}
+
+            {/* Login Prompt Wall */}
+            <SoftLoginModal />
         </div>
     );
 }
-

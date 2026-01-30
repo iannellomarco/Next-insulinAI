@@ -1,12 +1,20 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Activity, Check } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { AnalysisResult } from '@/types';
+import { AnalysisResult, HistoryItem } from '@/types';
 import FunFactLoader from '@/components/ui/FunFactLoader';
 
-export default function ResultsView({ onBack }: { onBack: () => void }) {
-    const { analysisResult, isLoading } = useStore();
+interface ResultsViewProps {
+    onBack: () => void;
+    onSave?: () => void;
+}
+
+export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
+    const { analysisResult, isLoading, addHistoryItem } = useStore();
+    const [preGlucose, setPreGlucose] = useState<string>('');
+    const [saved, setSaved] = useState(false);
 
     if (isLoading) {
         return (
@@ -28,6 +36,18 @@ export default function ResultsView({ onBack }: { onBack: () => void }) {
         warnings,
     } = analysisResult;
 
+    const handleSave = () => {
+        const historyItem: HistoryItem = {
+            ...analysisResult,
+            id: `meal-${Date.now()}`,
+            timestamp: Date.now(),
+            pre_glucose: preGlucose ? parseInt(preGlucose, 10) : undefined,
+        };
+        addHistoryItem(historyItem);
+        setSaved(true);
+        if (onSave) onSave();
+    };
+
     return (
         <section id="results-view" className="view">
             <div className="view-header">
@@ -42,6 +62,25 @@ export default function ResultsView({ onBack }: { onBack: () => void }) {
                     <h3>Suggested Insulin</h3>
                     <div className="insulin-dose">{suggested_insulin} <span className="unit">units</span></div>
                     <p>{friendly_description}</p>
+                </div>
+
+                {/* Pre-meal glucose input */}
+                <div className="glucose-input-card">
+                    <div className="glucose-header">
+                        <Activity size={20} />
+                        <h3>Current Glucose</h3>
+                        <span className="optional-badge">Optional</span>
+                    </div>
+                    <div className="glucose-input-row">
+                        <input
+                            type="number"
+                            placeholder="e.g. 120"
+                            value={preGlucose}
+                            onChange={(e) => setPreGlucose(e.target.value)}
+                            className="glucose-input"
+                        />
+                        <span className="glucose-unit">mg/dL</span>
+                    </div>
                 </div>
 
                 {split_bolus_recommendation?.recommended && (
@@ -91,6 +130,24 @@ export default function ResultsView({ onBack }: { onBack: () => void }) {
                         ⚠️ {warnings.join(' ')}
                     </div>
                 )}
+            </div>
+
+            {/* Fixed Save Button Footer */}
+            <div className="save-footer">
+                <button
+                    className={`save-meal-btn ${saved ? 'saved' : ''}`}
+                    onClick={handleSave}
+                    disabled={saved}
+                >
+                    {saved ? (
+                        <>
+                            <Check size={20} />
+                            Saved!
+                        </>
+                    ) : (
+                        'Save to History'
+                    )}
+                </button>
             </div>
         </section>
     );
