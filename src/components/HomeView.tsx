@@ -7,6 +7,7 @@ import RecentHistory from './RecentHistory';
 import { useStore } from '@/lib/store';
 import { useUser } from '@clerk/nextjs';
 import { HistoryItem, Favorite } from '@/types';
+import { generateGreeting } from '@/app/actions';
 
 interface HomeViewProps {
     onAnalyze: (input: File | string, type: 'image' | 'text') => void;
@@ -61,38 +62,21 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
     useEffect(() => {
         if (!isLoaded || !user) return;
 
-        // Check sessionStorage cache first (DISABLED FOR DEBUGGING)
-        // const cachedGreeting = sessionStorage.getItem('aiGreeting');
-        // const cachedUserId = sessionStorage.getItem('aiGreetingUserId');
-
-        // if (cachedGreeting && cachedUserId === user.id) {
-        //     setAiGreeting(cachedGreeting);
-        //     return;
-        // }
-
         // Fetch new AI greeting
         const fetchGreeting = async () => {
             setIsLoadingGreeting(true);
             try {
-                // Use /api/analyze (merged endpoint) to guarantee availability
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: 'greeting', // Trigger greeting logic
-                        firstName: user.firstName || 'Friend',
-                        timeOfDay: getTimeOfDay()
-                    })
-                });
+                // Use Server Action directly
+                const { greeting } = await generateGreeting(
+                    user.firstName || 'Friend',
+                    getTimeOfDay()
+                );
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.greeting) {
-                        setAiGreeting(data.greeting);
-                        // Cache for this session
-                        sessionStorage.setItem('aiGreeting', data.greeting);
-                        sessionStorage.setItem('aiGreetingUserId', user.id);
-                    }
+                if (greeting) {
+                    setAiGreeting(greeting);
+                    // Cache for this session
+                    sessionStorage.setItem('aiGreeting', greeting);
+                    sessionStorage.setItem('aiGreetingUserId', user.id);
                 }
             } catch (error) {
                 console.error('Failed to fetch AI greeting:', error);
