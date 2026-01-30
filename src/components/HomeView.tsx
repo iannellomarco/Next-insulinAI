@@ -48,17 +48,18 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
 
     // Fallback greeting (stable per session)
     const fallbackGreeting = useMemo(() => {
-        if (user?.firstName) {
+        if (user) {
+            const name = user.firstName || 'Friend';
             const idx = Math.floor(Math.random() * GREETINGS_WITH_NAME.length);
-            return GREETINGS_WITH_NAME[idx](user.firstName);
+            return GREETINGS_WITH_NAME[idx](name);
         }
         const idx = Math.floor(Math.random() * GREETINGS_ANONYMOUS.length);
         return GREETINGS_ANONYMOUS[idx];
-    }, [user?.firstName]);
+    }, [user, user?.firstName]);
 
     // Fetch AI greeting when user logs in
     useEffect(() => {
-        if (!isLoaded || !user?.firstName) return;
+        if (!isLoaded || !user) return;
 
         // Check sessionStorage cache first
         const cachedGreeting = sessionStorage.getItem('aiGreeting');
@@ -77,7 +78,7 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        firstName: user.firstName,
+                        firstName: user.firstName || 'Friend',
                         timeOfDay: getTimeOfDay()
                     })
                 });
@@ -99,7 +100,7 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
         };
 
         fetchGreeting();
-    }, [isLoaded, user?.firstName, user?.id]);
+    }, [isLoaded, user, user?.firstName, user?.id]);
 
     // Use AI greeting if available, otherwise fallback
     const greeting = aiGreeting || fallbackGreeting;
