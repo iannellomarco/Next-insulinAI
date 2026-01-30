@@ -4,6 +4,7 @@ const isPublicRoute = createRouteMatcher([
     '/',
     '/api/analyze(.*)',
     '/api/welcome(.*)',
+    '/api/greeting(.*)', // New route fallback
     '/sign-in(.*)',
     '/sign-up(.*)'
 ]);
