@@ -1,7 +1,7 @@
-import { Store } from './store.js?v=16';
-import { UI } from './ui.js?v=16';
-import { AIService } from './ai-service.js?v=16';
-import { fileToBase64, resizeImage } from './utils.js?v=16';
+import { Store } from './store.js?v=17';
+import { UI } from './ui.js?v=17';
+import { AIService } from './ai-service.js?v=17';
+import { fileToBase64, resizeImage } from './utils.js?v=17';
 
 class App {
     constructor() {

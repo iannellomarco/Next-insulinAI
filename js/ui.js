@@ -233,6 +233,7 @@ export class UI {
 
     toggleLoading(active) {
         if (active) {
+            this.elements.loading.classList.remove('hidden');
             this.elements.loading.style.display = 'flex';
             this.elements.analysisContent.style.display = 'none';
 
@@ -251,6 +252,7 @@ export class UI {
                 }, 4000); // Change every 4s
             }
         } else {
+            this.elements.loading.classList.add('hidden');
             this.elements.loading.style.display = 'none';
             this.elements.analysisContent.style.display = 'block';
 
