@@ -1,16 +1,5 @@
 import { NextResponse } from 'next/server';
 
-export const runtime = 'nodejs';
-// export const dynamic = 'force-dynamic'; // Let's try default behavior with explicit runtime
-
-export async function GET() {
-    return NextResponse.json({ status: 'online', message: 'Welcome API is active' });
-}
-
-export async function OPTIONS() {
-    return NextResponse.json({}, { status: 200 });
-}
-
 export async function POST(request: Request) {
     try {
         const body = await request.json();
@@ -54,7 +43,7 @@ Examples:
         const response = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${apiKey} `,
+                'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload)
