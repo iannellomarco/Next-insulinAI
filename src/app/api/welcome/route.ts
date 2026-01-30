@@ -15,13 +15,13 @@ export async function POST(request: Request) {
         }
 
         // Create a personalized prompt
-        const prompt = `Generate a short, friendly, and fun welcome message for a diabetes management app user named "${firstName || 'friend'}". 
-The time of day is ${timeOfDay} (morning/afternoon/evening).
-The app helps them track carbs and insulin doses.
-Keep it under 15 words, casual and encouraging. Just the message, no quotes.
-Examples of the style:
-- "Hey ${firstName}, ready to crush those carbs today?"
-- "Morning ${firstName}! Let's make today a good one 💪"`;
+        const prompt = `Generate a short, distinct, and creative welcome message for a diabetes management app user named "${firstName || 'friend'}". 
+The time of day is ${timeOfDay}.
+Make it sound cyberpunk or futuristic but friendly.
+Keep it under 15 words.
+Examples:
+- "System online, ${firstName}. Glucose sensors calibrated."
+- "Greetings ${firstName}. Ready to hack your metabolism?"`;
 
         // Use sonar (cheapest model) instead of sonar-pro
         const payload = {
@@ -43,7 +43,7 @@ Examples of the style:
         const response = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${apiKey}`,
+                'Authorization': `Bearer ${apiKey} `,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload)
