@@ -74,11 +74,12 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
         const fetchGreeting = async () => {
             setIsLoadingGreeting(true);
             try {
-                // Use /api/greeting to bypass potential 501/cache issues on /api/welcome
-                const response = await fetch('/api/greeting', {
+                // Use /api/analyze (merged endpoint) to guarantee availability
+                const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        type: 'greeting', // Trigger greeting logic
                         firstName: user.firstName || 'Friend',
                         timeOfDay: getTimeOfDay()
                     })

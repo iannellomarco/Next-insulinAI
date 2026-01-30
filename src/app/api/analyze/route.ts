@@ -14,6 +14,48 @@ export async function POST(request: Request) {
 
         // 2. Parse Body
         const body = await request.json();
+
+        // --- GREETING LOGIC (Merged to bypass deployment issues with new routes) ---
+        if (body.type === 'greeting') {
+            const { firstName, timeOfDay } = body;
+            const prompt = `Generate a short, distinct, and creative welcome message for a diabetes management app user named "${firstName || 'friend'}". 
+The time of day is ${timeOfDay}.
+Make it sound cyberpunk or futuristic but friendly.
+Keep it under 15 words.
+Examples:
+- "System online, ${firstName}. Glucose sensors calibrated."
+- "Greetings ${firstName}. Ready to hack your metabolism?"`;
+
+            const payload = {
+                model: 'sonar',
+                messages: [
+                    { role: 'system', content: 'You are a friendly assistant for a diabetes management app. Keep responses very short and encouraging.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.8,
+                max_tokens: 50
+            };
+
+            const response = await fetch('https://api.perplexity.ai/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Perplexity Greeting Error:', response.status, errorText);
+                return NextResponse.json({ error: 'Failed' }, { status: response.status });
+            }
+            const data = await response.json();
+            const greeting = data.choices?.[0]?.message?.content?.trim() || null;
+            return NextResponse.json({ greeting });
+        }
+        // --------------------------------------------------------------------------
+
         const { messages, model } = body;
 
         // 3. Construct Payload (Strict OpenAI Compatibility)
