@@ -3,6 +3,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AnalysisResult, Settings, HistoryItem, DEFAULT_SETTINGS } from '@/types';
 import { useUser } from '@clerk/nextjs';
+import {
+    syncHistoryItemAction,
+    getRemoteHistoryAction,
+    syncSettingsAction,
+    getRemoteSettingsAction,
+    clearRemoteHistoryAction
+} from '@/app/actions';
 
 interface StoreContextType {
     settings: Settings;
