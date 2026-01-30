@@ -48,11 +48,14 @@ Examples:
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Perplexity Greeting Error:', response.status, errorText);
-                return NextResponse.json({ error: 'Failed' }, { status: response.status });
+                // Fallback to offline greeting if API fails
+                return NextResponse.json({
+                    greeting: `System access granted, ${firstName || 'User'}. Time to optimize.`
+                });
             }
             const data = await response.json();
             const greeting = data.choices?.[0]?.message?.content?.trim() || null;
-            return NextResponse.json({ greeting });
+            return NextResponse.json({ greeting: greeting || `Welcome back, ${firstName || 'User'}.` });
         }
         // --------------------------------------------------------------------------
 
