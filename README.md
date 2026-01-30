@@ -9,6 +9,7 @@ An AI-powered insulin dosage calculator that helps people with diabetes make inf
 - **🧮 Smart Insulin Dosing** - Calculates suggested insulin doses based on your personal carb ratio and correction factor
 - **🍕 Split Bolus Detection** - Automatically detects high-fat meals and recommends split dosing strategies
 - **📊 History Tracking** - Keep a log of all your meals and insulin doses with cloud sync
+- **📈 Advanced Reporting** - View charts and statistics of your glucose trends, insulin usage, and carb intake over 7, 30, and 90 days
 - **⏱️ 2-Hour Post-Meal Checks** - Track glucose levels after meals to validate dosing accuracy
 - **🔄 Multi-Device Sync** - Access your data from any device with cloud synchronization
 - **🔐 Secure Authentication** - Powered by Clerk for safe, encrypted user data
@@ -21,6 +22,7 @@ An AI-powered insulin dosage calculator that helps people with diabetes make inf
 - **Database**: PostgreSQL (Prisma Postgres)
 - **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
 - **AI**: [Perplexity AI](https://www.perplexity.ai/) for food analysis
+- **Data Visualization**: [Recharts](https://recharts.org/)
 - **Styling**: Tailwind CSS
 - **State Management**: Zustand
 - **Deployment**: [Vercel](https://vercel.com/)
@@ -96,7 +98,8 @@ Vercel will automatically detect Next.js and configure the build settings.
 3. **Insulin Calculation**: The app calculates recommended insulin doses based on your personal settings
 4. **Split Bolus Detection**: For high-fat meals, the app suggests splitting your dose over time
 5. **Track & Sync**: All your data is saved to the cloud and synced across devices
-6. **Post-Meal Tracking**: Add 2-hour glucose checks to validate your dosing accuracy
+6. **Detailed Reports**: Visualize your health data with interactive charts and summaries
+7. **Post-Meal Tracking**: Add 2-hour glucose checks to validate your dosing accuracy
 
 ## ⚙️ Configuration
 
