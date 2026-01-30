@@ -3,7 +3,7 @@
 import { db } from '@/db';
 import { historyItems, userSettings } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, gte, asc } from 'drizzle-orm';
 import { HistoryItem, Settings } from '@/types';
 
 // HISTORY ACTIONS
@@ -130,8 +130,115 @@ export async function getRemoteSettingsAction() {
             smartHistory: row.smartHistory ?? true,
         };
         return settings;
+
     } catch (error) {
         console.error('Failed to fetch settings:', error);
         return null;
     }
 }
+
+export async function getReportDataAction(days: number) {
+    const { userId } = await auth();
+    if (!userId) return { error: 'Unauthorized' };
+
+    try {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        startDate.setHours(0, 0, 0, 0); // Start of the day
+
+        const records = await db.select()
+            .from(historyItems)
+            .where(eq(historyItems.userId, userId))
+            .orderBy(asc(historyItems.timestamp));
+
+        // Filter by date in memory (since we want flexible date logic)
+        const filteredRecords = records.filter(r => new Date(r.timestamp) >= startDate);
+
+        // Aggregate Data
+        let totalPreGlucose = 0;
+        let countPreGlucose = 0;
+        let totalPostGlucose = 0;
+        let countPostGlucose = 0;
+        let totalInsulin = 0;
+        let totalCarbs = 0;
+
+        const dailyStatsMap = new Map<string, { date: string, timestamp: number, totalInsulin: number, piCount: number, glucoseSum: number }>();
+
+        // Initialize map with all days in range to ensure continuous chart
+        for (let i = 0; i <= days; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - (days - i));
+            const dateKey = d.toLocaleDateString();
+            dailyStatsMap.set(dateKey, {
+                date: dateKey,
+                timestamp: d.getTime(),
+                totalInsulin: 0,
+                piCount: 0,
+                glucoseSum: 0
+            });
+        }
+
+        for (const record of filteredRecords) {
+            const data = record.data as HistoryItem;
+
+            // Averages
+            if (data.pre_glucose) {
+                totalPreGlucose += data.pre_glucose;
+                countPreGlucose++;
+            }
+            if (data.post_glucose) {
+                totalPostGlucose += data.post_glucose;
+                countPostGlucose++;
+            }
+
+            // Totals
+            if (data.suggested_insulin) {
+                totalInsulin += data.suggested_insulin;
+            }
+            if (data.total_carbs) {
+                totalCarbs += data.total_carbs;
+            }
+
+            // Daily Stats for Chart
+            const rDate = new Date(data.timestamp);
+            const dateKey = rDate.toLocaleDateString();
+
+            if (dailyStatsMap.has(dateKey)) {
+                const dayStat = dailyStatsMap.get(dateKey)!;
+                dayStat.totalInsulin += data.suggested_insulin || 0;
+
+                // Use post glucose for daily average if available, else pre
+                const glucose = data.post_glucose || data.pre_glucose;
+                if (glucose) {
+                    dayStat.glucoseSum += glucose;
+                    dayStat.piCount++;
+                }
+            }
+        }
+
+        // Calculate final daily averages and sort by date
+        const dailyStats = Array.from(dailyStatsMap.values())
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .map(day => ({
+                date: day.date, // You might want to format this for the chart, e.g. "Mon" or "Jun 1"
+                avgGlucose: day.piCount > 0 ? Math.round(day.glucoseSum / day.piCount) : 0,
+                totalInsulin: day.totalInsulin,
+            }));
+
+        return {
+            summary: {
+                avgPreGlucose: countPreGlucose > 0 ? Math.round(totalPreGlucose / countPreGlucose) : 0,
+                avgPostGlucose: countPostGlucose > 0 ? Math.round(totalPostGlucose / countPostGlucose) : 0,
+                totalInsulin: Math.round(totalInsulin * 10) / 10,
+                totalCarbs: Math.round(totalCarbs),
+                count: filteredRecords.length
+            },
+            dailyStats
+        };
+
+    } catch (error) {
+        console.error('Failed to get report data:', error);
+        return { error: 'Failed to generate report' };
+    }
+}
+

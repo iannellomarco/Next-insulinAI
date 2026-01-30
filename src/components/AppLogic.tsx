@@ -4,6 +4,7 @@ import { useState } from 'react';
 import HomeView from '@/components/HomeView';
 import ResultsView from '@/components/ResultsView';
 import HistoryView from '@/components/HistoryView';
+import ReportView from '@/components/ReportView';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import SettingsModal from '@/components/SettingsModal';
@@ -109,10 +110,10 @@ export default function AppLogic() {
                 )}
 
                 {currentView === 'insights' && (
-                    <div className="insights-placeholder">
-                        <h2>📊 Insights</h2>
-                        <p>Coming soon! Track your trends and patterns here.</p>
-                    </div>
+                    <ReportView onBack={() => {
+                        setCurrentView('home');
+                        setActiveNav('home');
+                    }} />
                 )}
             </main>
 
