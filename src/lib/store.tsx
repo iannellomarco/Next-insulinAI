@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AnalysisResult, Settings, HistoryItem, DEFAULT_SETTINGS } from '@/types';
+import { useUser } from '@clerk/nextjs';
 
 interface StoreContextType {
     settings: Settings;
