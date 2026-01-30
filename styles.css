@@ -316,6 +316,11 @@ textarea {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
+    overflow-y: auto;
+    padding-bottom: 20px;
+    min-height: 0;
+    /* Important for flex scrolling */
+    /* Add some padding for scroll end */
 }
 
 .input-group {
