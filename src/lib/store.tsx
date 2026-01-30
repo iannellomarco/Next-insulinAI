@@ -19,55 +19,100 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-    const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-    const [history, setHistory] = useState<HistoryItem[]>([]);
+    const { user, isLoaded: isAuthLoaded } = useUser();
+
+    const [settings, setSettings] = useState<Settings>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('settings');
+            return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+        }
+        return DEFAULT_SETTINGS;
+    });
+
+    const [history, setHistory] = useState<HistoryItem[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('history');
+            return saved ? JSON.parse(saved) : [];
+        }
+        return [];
+    });
+
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [loaded, setLoaded] = useState(false);
 
-    // Load from localStorage on mount
+    // Initial Load & Auth Sync
     useEffect(() => {
-        try {
-            const storedSettings = localStorage.getItem('insulin-calc-ai-settings');
-            if (storedSettings) {
-                setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) });
-            }
+        if (!isAuthLoaded) return;
 
-            const storedHistory = localStorage.getItem('insulin_calc_history');
-            if (storedHistory) {
-                setHistory(JSON.parse(storedHistory));
-            }
-        } catch (e) {
-            console.error('Failed to load storage:', e);
-        } finally {
-            setLoaded(true);
-        }
-    }, []);
+        const loadRemoteData = async () => {
+            if (user) {
+                console.log("User logged in, syncing with cloud...");
 
-    // Save changes to localStorage
+                // 1. Fetch Remote Settings
+                const remoteSettings = await getRemoteSettingsAction();
+                if (remoteSettings) {
+                    setSettings(remoteSettings);
+                    localStorage.setItem('settings', JSON.stringify(remoteSettings));
+                } else {
+                    // First time? Sync local settings to cloud
+                    await syncSettingsAction(settings);
+                }
+
+                // 2. Fetch Remote History
+                // Strategy: Remote is source of truth if we want full sync across devices.
+                // Or merge? For simplicity, let's load Remote and replace Local representation.
+                const remoteHistory = await getRemoteHistoryAction();
+                if (remoteHistory && remoteHistory.length > 0) {
+                    setHistory(remoteHistory);
+                    localStorage.setItem('history', JSON.stringify(remoteHistory));
+                } else if (history.length > 0) {
+                    // If remote is empty but we have local, push local to remote (Initial Sync)
+                    // Push sequentially to order
+                    for (const item of history) {
+                        await syncHistoryItemAction(item);
+                    }
+                }
+            }
+        };
+
+        loadRemoteData();
+    }, [isAuthLoaded, user]); // Only run when auth state settles
+
+    // Save Settings
     const updateSettings = (newSettings: Partial<Settings>) => {
         const updated = { ...settings, ...newSettings };
         setSettings(updated);
-        localStorage.setItem('insulin-calc-ai-settings', JSON.stringify(updated));
+        localStorage.setItem('settings', JSON.stringify(updated));
+        if (user) syncSettingsAction(updated);
     };
 
+    // History Actions
     const addHistoryItem = (item: HistoryItem) => {
-        const updated = [item, ...history].slice(0, 50); // Keep last 50
-        setHistory(updated);
-        localStorage.setItem('insulin_calc_history', JSON.stringify(updated));
+        const newHistory = [item, ...history].slice(0, 50); // Keep last 50
+        setHistory(newHistory);
+        localStorage.setItem('history', JSON.stringify(newHistory));
+        if (user) syncHistoryItemAction(item);
     };
 
     const updateHistoryItem = (id: string, updates: Partial<HistoryItem>) => {
-        const updated = history.map((item) =>
-            item.id === id ? { ...item, ...updates } : item
-        );
-        setHistory(updated);
-        localStorage.setItem('insulin_calc_history', JSON.stringify(updated));
+        setHistory(prev => {
+            const newHistory = prev.map(item => {
+                if (item.id === id) {
+                    const updated = { ...item, ...updates };
+                    if (user) syncHistoryItemAction(updated); // Sync the update
+                    return updated;
+                }
+                return item;
+            });
+            localStorage.setItem('history', JSON.stringify(newHistory));
+            return newHistory;
+        });
     };
 
     const clearHistory = () => {
         setHistory([]);
-        localStorage.removeItem('insulin_calc_history');
+        localStorage.removeItem('history');
+        if (user) clearRemoteHistoryAction();
     };
 
     // Prevent flash of default content until loaded (optional, handled in UI usually)

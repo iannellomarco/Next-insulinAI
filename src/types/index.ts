@@ -37,6 +37,7 @@ export interface Settings {
     apiKey: string;
     carbRatio: number;
     correctionFactor: number;
+    targetGlucose: number;
     highThreshold: number;
     lowThreshold: number;
     smartHistory: boolean;
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
     apiKey: '',
     carbRatio: 10,
     correctionFactor: 50,
+    targetGlucose: 110,
     highThreshold: 180,
     lowThreshold: 70,
     smartHistory: true,
