@@ -61,14 +61,14 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
     useEffect(() => {
         if (!isLoaded || !user) return;
 
-        // Check sessionStorage cache first
-        const cachedGreeting = sessionStorage.getItem('aiGreeting');
-        const cachedUserId = sessionStorage.getItem('aiGreetingUserId');
+        // Check sessionStorage cache first (DISABLED FOR DEBUGGING)
+        // const cachedGreeting = sessionStorage.getItem('aiGreeting');
+        // const cachedUserId = sessionStorage.getItem('aiGreetingUserId');
 
-        if (cachedGreeting && cachedUserId === user.id) {
-            setAiGreeting(cachedGreeting);
-            return;
-        }
+        // if (cachedGreeting && cachedUserId === user.id) {
+        //     setAiGreeting(cachedGreeting);
+        //     return;
+        // }
 
         // Fetch new AI greeting
         const fetchGreeting = async () => {
