@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import ScanView from '@/components/ScanView';
+import HomeView from '@/components/HomeView';
 import ResultsView from '@/components/ResultsView';
 import HistoryView from '@/components/HistoryView';
 import Header from '@/components/Header';
+import BottomNav from '@/components/BottomNav';
 import SettingsModal from '@/components/SettingsModal';
 import TextInputModal from '@/components/TextInputModal';
 import ErrorModal from '@/components/ErrorModal';
@@ -14,24 +15,30 @@ import { fileToBase64, resizeImage } from '@/lib/utils';
 import { HistoryItem } from '@/types';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
 
+type ViewType = 'home' | 'results' | 'history' | 'insights';
+type NavType = 'home' | 'log' | 'insights' | 'settings';
+
 export default function AppLogic() {
     const { settings, history, addHistoryItem, setAnalysisResult, setIsLoading } = useStore();
-    const [currentView, setCurrentView] = useState<'scan' | 'results' | 'history'>('scan');
+    const [currentView, setCurrentView] = useState<ViewType>('home');
+    const [activeNav, setActiveNav] = useState<NavType>('home');
     const [showSettings, setShowSettings] = useState(false);
     const [showTextModal, setShowTextModal] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
     const { toasts, addToast, removeToast } = useToast();
 
-    // Hook into Header buttons (simplistic approach: global event listener or just moving header inside here)
-    // For now, let's assume Header is outside, but we need a way to trigger views. 
-    // ACTUALLY: The Header is in `layout.tsx`, which is hard to communicate with. 
-    // Let's replace the global header in layout with one here, or use a Context for UI state.
-    // FASTEST FIX: Move Header logic into this component or a specific UI Context. 
-    // Let's create a temporary "ClientHeader" inside here or just override the layout one?
-    // No, better to listen to custom events or just render Header here.
-    // I'll Render a specific Header within the Views or just floating buttons?
-    // The original app had a sticky header. 
-    // Let's use a simple State for now.
+    const handleNavigation = (item: NavType) => {
+        setActiveNav(item);
+        if (item === 'home') {
+            setCurrentView('home');
+        } else if (item === 'log') {
+            setCurrentView('history');
+        } else if (item === 'insights') {
+            setCurrentView('insights');
+        } else if (item === 'settings') {
+            setShowSettings(true);
+        }
+    };
 
     const handleAnalyze = async (input: File | string, type: 'image' | 'text') => {
         setIsLoading(true);
@@ -44,14 +51,11 @@ export default function AppLogic() {
                 payload = await resizeImage(base64);
             }
 
-            // We need to access the 'history' from the store (via destructured props)
             const historyContext = settings.smartHistory ? history.slice(0, 5) : [];
-
             const result = await AIService.analyze(payload, type, settings, historyContext);
 
             setAnalysisResult(result);
 
-            // Add to history
             const newItem: HistoryItem = {
                 id: Date.now().toString(),
                 timestamp: Date.now(),
@@ -61,74 +65,82 @@ export default function AppLogic() {
 
         } catch (error) {
             const msg = error instanceof Error ? error.message : "Analysis failed. Please try again.";
-
-            // Check for non-food error (based on keywords from AI Service)
-            // If it's a validation error, we DO NOT log to console.error to avoid Next.js overlay in dev
             const isValidationError = msg.includes("analyze food") || msg.includes("No food items") || msg.includes("help with food");
 
             if (isValidationError) {
-                // Just show the modal
                 setErrorModal({ open: true, message: msg });
-                // Optional: log as info/warn if needed for debugging
                 console.warn("Input rejected by verification:", msg);
             } else {
-                // Real system error -> log it and show generic toast
                 console.error(error);
                 addToast(msg, 'error');
             }
 
-            setCurrentView('scan');
-
-            setCurrentView('scan');
+            setCurrentView('home');
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <>
+        <div className="app-wrapper">
             <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-            {/* Header with Auth & Navigation */}
-            <Header
-                onHistoryClick={() => setCurrentView('history')}
-                onSettingsClick={() => setShowSettings(true)}
-            />
+            <Header />
 
-            <main>
-                {currentView === 'scan' && (
-                    <ScanView
+            <main className="main-content">
+                {currentView === 'home' && (
+                    <HomeView
                         onAnalyze={handleAnalyze}
                         onManualEntry={() => setShowTextModal(true)}
+                        onViewHistory={() => {
+                            setCurrentView('history');
+                            setActiveNav('log');
+                        }}
                     />
                 )}
 
                 {currentView === 'results' && (
-                    <ResultsView onBack={() => setCurrentView('scan')} />
+                    <ResultsView onBack={() => {
+                        setCurrentView('home');
+                        setActiveNav('home');
+                    }} />
                 )}
 
                 {currentView === 'history' && (
-                    <HistoryView onBack={() => setCurrentView('scan')} />
+                    <HistoryView onBack={() => {
+                        setCurrentView('home');
+                        setActiveNav('home');
+                    }} />
                 )}
 
-                {showSettings && (
-                    <SettingsModal onClose={() => setShowSettings(false)} />
-                )}
-
-                {showTextModal && (
-                    <TextInputModal
-                        onClose={() => setShowTextModal(false)}
-                        onAnalyze={(text) => handleAnalyze(text, 'text')}
-                    />
-                )}
-
-                {errorModal.open && (
-                    <ErrorModal
-                        message={errorModal.message}
-                        onClose={() => setErrorModal({ ...errorModal, open: false })}
-                    />
+                {currentView === 'insights' && (
+                    <div className="insights-placeholder">
+                        <h2>📊 Insights</h2>
+                        <p>Coming soon! Track your trends and patterns here.</p>
+                    </div>
                 )}
             </main>
-        </>
+
+            <BottomNav active={activeNav} onNavigate={handleNavigation} />
+
+            {showSettings && (
+                <SettingsModal onClose={() => setShowSettings(false)} />
+            )}
+
+            {showTextModal && (
+                <TextInputModal
+                    onClose={() => setShowTextModal(false)}
+                    onAnalyze={(text) => handleAnalyze(text, 'text')}
+                />
+            )}
+
+            {errorModal.open && (
+                <ErrorModal
+                    message={errorModal.message}
+                    onClose={() => setErrorModal({ ...errorModal, open: false })}
+                />
+            )}
+        </div>
     );
 }
+

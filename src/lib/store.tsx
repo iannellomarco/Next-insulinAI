@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AnalysisResult, Settings, HistoryItem, DEFAULT_SETTINGS } from '@/types';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { AnalysisResult, Settings, HistoryItem, Favorite, DEFAULT_SETTINGS } from '@/types';
 import { useUser } from '@clerk/nextjs';
 import {
     syncHistoryItemAction,
@@ -10,14 +10,22 @@ import {
     getRemoteSettingsAction,
     clearRemoteHistoryAction
 } from '@/app/actions';
+import {
+    analyzeHistoryForFavorites,
+    getTimeRelevantFavorites
+} from './favorites-algorithm';
 
 interface StoreContextType {
     settings: Settings;
     history: HistoryItem[];
+    favorites: Favorite[];
+    autoSuggestedFavorites: Favorite[];
     updateSettings: (newSettings: Partial<Settings>) => void;
     addHistoryItem: (item: HistoryItem) => void;
     updateHistoryItem: (id: string, updates: Partial<HistoryItem>) => void;
     clearHistory: () => void;
+    addFavorite: (favorite: Favorite) => void;
+    removeFavorite: (id: string) => void;
     analysisResult: AnalysisResult | null;
     setAnalysisResult: (result: AnalysisResult | null) => void;
     isLoading: boolean;
@@ -45,8 +53,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return [];
     });
 
+    const [manualFavorites, setManualFavorites] = useState<Favorite[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('favorites');
+            return saved ? JSON.parse(saved) : [];
+        }
+        return [];
+    });
+
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Auto-compute favorites from history
+    const autoSuggestedFavorites = useMemo(() => {
+        return analyzeHistoryForFavorites(history);
+    }, [history]);
+
+    // Combined favorites: manual + auto-suggested (avoiding duplicates)
+    const favorites = useMemo(() => {
+        const manualIds = new Set(manualFavorites.map(f => f.name.toLowerCase()));
+        const autoFiltered = autoSuggestedFavorites.filter(
+            f => !manualIds.has(f.name.toLowerCase())
+        );
+        const combined = [...manualFavorites, ...autoFiltered];
+        return getTimeRelevantFavorites(combined);
+    }, [manualFavorites, autoSuggestedFavorites]);
 
     // Initial Load & Auth Sync
     useEffect(() => {
@@ -65,20 +96,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                         return merged;
                     });
                 } else {
-                    // First time? Sync local settings to cloud
                     await syncSettingsAction(settings);
                 }
 
                 // 2. Fetch Remote History
-                // Strategy: Remote is source of truth if we want full sync across devices.
-                // Or merge? For simplicity, let's load Remote and replace Local representation.
                 const remoteHistory = await getRemoteHistoryAction();
                 if (remoteHistory && remoteHistory.length > 0) {
                     setHistory(remoteHistory);
                     localStorage.setItem('history', JSON.stringify(remoteHistory));
                 } else if (history.length > 0) {
-                    // If remote is empty but we have local, push local to remote (Initial Sync)
-                    // Push sequentially to order
                     for (const item of history) {
                         await syncHistoryItemAction(item);
                     }
@@ -87,7 +113,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         };
 
         loadRemoteData();
-    }, [isAuthLoaded, user]); // Only run when auth state settles
+    }, [isAuthLoaded, user]);
 
     // Save Settings
     const updateSettings = (newSettings: Partial<Settings>) => {
@@ -99,7 +125,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // History Actions
     const addHistoryItem = (item: HistoryItem) => {
-        const newHistory = [item, ...history].slice(0, 50); // Keep last 50
+        const newHistory = [item, ...history].slice(0, 50);
         setHistory(newHistory);
         localStorage.setItem('history', JSON.stringify(newHistory));
         if (user) syncHistoryItemAction(item);
@@ -110,7 +136,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const newHistory = prev.map(item => {
                 if (item.id === id) {
                     const updated = { ...item, ...updates };
-                    if (user) syncHistoryItemAction(updated); // Sync the update
+                    if (user) syncHistoryItemAction(updated);
                     return updated;
                 }
                 return item;
@@ -126,18 +152,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (user) clearRemoteHistoryAction();
     };
 
-    // Prevent flash of default content until loaded (optional, handled in UI usually)
-    // if (!loaded) return null; 
+    // Favorites Actions
+    const addFavorite = (favorite: Favorite) => {
+        const newFavorites = [...manualFavorites, { ...favorite, isAutoSuggested: false }];
+        setManualFavorites(newFavorites);
+        localStorage.setItem('favorites', JSON.stringify(newFavorites));
+    };
+
+    const removeFavorite = (id: string) => {
+        const newFavorites = manualFavorites.filter(f => f.id !== id);
+        setManualFavorites(newFavorites);
+        localStorage.setItem('favorites', JSON.stringify(newFavorites));
+    };
 
     return (
         <StoreContext.Provider
             value={{
                 settings,
                 history,
+                favorites,
+                autoSuggestedFavorites,
                 updateSettings,
                 addHistoryItem,
                 updateHistoryItem,
                 clearHistory,
+                addFavorite,
+                removeFavorite,
                 analysisResult,
                 setAnalysisResult,
                 isLoading,
@@ -156,3 +196,4 @@ export function useStore() {
     }
     return context;
 }
+

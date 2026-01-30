@@ -52,3 +52,18 @@ export const DEFAULT_SETTINGS: Settings = {
     lowThreshold: 70,
     smartHistory: true,
 };
+
+export type TimeBucket = 'morning' | 'lunch' | 'afternoon' | 'dinner';
+
+export interface Favorite {
+    id: string;
+    name: string;
+    icon: string;
+    carbs: number;
+    fat?: number;
+    protein?: number;
+    isAutoSuggested: boolean;
+    timeBucket?: TimeBucket;
+    frequency: number;
+}
+
