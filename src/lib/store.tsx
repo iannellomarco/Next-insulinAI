@@ -51,8 +51,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 // 1. Fetch Remote Settings
                 const remoteSettings = await getRemoteSettingsAction();
                 if (remoteSettings) {
-                    setSettings(remoteSettings);
-                    localStorage.setItem('settings', JSON.stringify(remoteSettings));
+                    setSettings(prev => {
+                        const merged = { ...prev, ...remoteSettings };
+                        localStorage.setItem('settings', JSON.stringify(merged));
+                        return merged;
+                    });
                 } else {
                     // First time? Sync local settings to cloud
                     await syncSettingsAction(settings);

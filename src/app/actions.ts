@@ -120,9 +120,8 @@ export async function getRemoteSettingsAction() {
 
         const row = result[0];
 
-        // Map back to Settings interface
-        // We need to handle nulls if DB has them, but our inputs shouldn't allow it mostly
-        const settings: Settings = {
+        // Map back to Settings interface (excluding apiKey which is local/env only)
+        const settings: Omit<Settings, 'apiKey'> = {
             carbRatio: row.carbRatio || 15,
             correctionFactor: row.correctionFactor || 50,
             targetGlucose: row.targetGlucose || 110,
