@@ -74,7 +74,6 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
                 type="file"
                 id="file-input"
                 accept="image/*"
-                capture="environment"
                 hidden
                 ref={fileInputRef}
                 onChange={handleFileChange}
