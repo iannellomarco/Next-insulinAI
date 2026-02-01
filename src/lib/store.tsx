@@ -23,6 +23,7 @@ interface StoreContextType {
     updateSettings: (newSettings: Partial<Settings>) => void;
     addHistoryItem: (item: HistoryItem) => void;
     updateHistoryItem: (id: string, updates: Partial<HistoryItem>) => void;
+    deleteHistoryItem: (id: string) => void;
     clearHistory: () => void;
     addFavorite: (favorite: Favorite) => void;
     removeFavorite: (id: string) => void;
@@ -175,6 +176,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
     };
 
+    const deleteHistoryItem = (id: string) => {
+        setHistory(prev => {
+            const item = prev.find(h => h.id === id);
+            let newHistory: HistoryItem[];
+            
+            // If item has a chainId, delete the entire chain
+            if (item?.chainId) {
+                newHistory = prev.filter(h => h.chainId !== item.chainId);
+            } else {
+                newHistory = prev.filter(h => h.id !== id);
+            }
+            
+            localStorage.setItem('history', JSON.stringify(newHistory));
+            return newHistory;
+        });
+    };
+
     const clearHistory = () => {
         setHistory([]);
         localStorage.removeItem('history');
@@ -216,6 +234,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 updateSettings,
                 addHistoryItem,
                 updateHistoryItem,
+                deleteHistoryItem,
                 clearHistory,
                 addFavorite,
                 removeFavorite,
