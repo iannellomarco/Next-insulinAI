@@ -223,6 +223,26 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             </div>
                         </div>
 
+                        {/* Split Bolus Info */}
+                        {selectedMealGroup.splitBolusAccepted && selectedMealGroup.splitBolusInfo && (
+                            <div className="meal-detail-split">
+                                <h4>
+                                    <Clock size={14} />
+                                    Split Bolus
+                                </h4>
+                                <div className="split-info-row">
+                                    <div className="split-info-item">
+                                        <span className="split-info-label">Split</span>
+                                        <span className="split-info-value">{selectedMealGroup.splitBolusInfo.split_percentage}</span>
+                                    </div>
+                                    <div className="split-info-item">
+                                        <span className="split-info-label">Duration</span>
+                                        <span className="split-info-value">{selectedMealGroup.splitBolusInfo.duration}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Glucose Response */}
                         {(selectedMealGroup.preGlucose || selectedMealGroup.postGlucose) && (
                             <div className="meal-detail-glucose">
