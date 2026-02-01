@@ -20,12 +20,12 @@ RULES:
 1. If NOT food-related, return: {"error":"rejected","message":"Food analysis only."}
 2. Identify foods, estimate macros, calculate insulin using 1:${settings.carbRatio} carb ratio.
 3. Flag split bolus if fat>20g AND protein>25g.
-4. IMPORTANT: For food_items name, ALWAYS use the user's exact food name/description if provided. Do NOT generalize "pasta alla carbonara" to "spaghetti" or "pizza margherita" to "pizza". Preserve specificity.
+4. IMPORTANT: Preserve the user's specific food name - do NOT generalize "pasta alla carbonara" to "spaghetti". BUT fix obvious typos (e.g., "psta alw carbonara" → "Pasta alla carbonara"). Use proper capitalization.
 
 OUTPUT (valid JSON only, no markdown):
 {
-  "friendly_description":"Use user's exact food name if provided, otherwise brief description",
-  "food_items":[{"name":"Exact food name as user described it","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
+  "friendly_description":"User's food name with typos corrected and proper capitalization",
+  "food_items":[{"name":"Food name with typos corrected, properly capitalized","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
   "total_carbs":0,
   "total_fat":0,
   "total_protein":0,
