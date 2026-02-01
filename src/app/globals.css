@@ -3432,8 +3432,8 @@ input:checked + .slider:before {
 }
 
 .log-food-card.blurred {
-    filter: blur(4px);
-    opacity: 0.4;
+    filter: blur(6px);
+    opacity: 0.6;
     pointer-events: none;
     user-select: none;
 }
@@ -3447,48 +3447,34 @@ input:checked + .slider:before {
     justify-content: center;
     text-align: center;
     padding: 2rem;
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(249, 115, 22, 0.15) 100%);
-    border: 2px solid rgba(239, 68, 68, 0.4);
-    border-radius: var(--radius-xl);
-    backdrop-filter: blur(2px);
+    background: linear-gradient(to bottom, transparent 0%, var(--background) 30%);
 }
 
 .limit-overlay-icon {
-    width: 56px;
-    height: 56px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: var(--secondary);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ef4444;
-    margin-bottom: 0.75rem;
+    color: var(--muted-foreground);
+    margin-bottom: 1rem;
 }
 
 .limit-overlay h3 {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 600;
-    color: #ef4444;
-    margin-bottom: 0.25rem;
+    color: var(--foreground);
+    margin-bottom: 0.5rem;
 }
 
 .limit-overlay p {
     font-size: 0.875rem;
     color: var(--muted-foreground);
-    margin-bottom: 1rem;
-}
-
-.limit-overlay .btn.primary {
-    background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
-    border: none;
-    color: white;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-}
-
-.limit-overlay .btn.primary:hover {
-    filter: brightness(1.1);
+    max-width: 280px;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
 }
 
 /* ==========================================

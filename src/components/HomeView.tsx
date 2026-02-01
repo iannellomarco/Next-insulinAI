@@ -170,12 +170,12 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
                 {!canLogFood && (
                     <div className="limit-overlay">
                         <div className="limit-overlay-icon">
-                            <Lock size={24} />
+                            <Lock size={32} />
                         </div>
                         <h3>Daily Limit Reached</h3>
-                        <p>Sign in for unlimited food logging</p>
+                        <p>Sign in to unlock unlimited food logging and track your meals without restrictions.</p>
                         <SignInButton mode="modal">
-                            <button className="btn primary">Sign In</button>
+                            <button className="btn primary">Sign In to Continue</button>
                         </SignInButton>
                     </div>
                 )}
