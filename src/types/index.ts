@@ -32,6 +32,8 @@ export interface HistoryItem extends AnalysisResult {
     actual_insulin?: number; // User override
     pre_glucose?: number; // Glucose at meal time
     post_glucose?: number; // 2h check
+    chainId?: string; // Groups multiple items eaten together
+    chainIndex?: number; // Order within the chain (0 = first item)
 }
 
 export interface Settings {

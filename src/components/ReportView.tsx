@@ -72,13 +72,16 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
         };
     }, [data, days, settings]);
 
-    // Prepare chart data with better formatting
+    // Prepare chart data - filter out days with no data for cleaner charts
     const chartData = useMemo(() => {
         if (!data?.dailyStats) return [];
-        return data.dailyStats.map(d => ({
-            ...d,
-            date: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' })
-        }));
+        // Use the pre-formatted dateLabel from utils, only include days with actual data
+        return data.dailyStats
+            .filter(d => d.avgGlucose > 0 || d.totalInsulin > 0)
+            .map(d => ({
+                ...d,
+                displayDate: d.dateLabel || d.date
+            }));
     }, [data]);
 
     return (
@@ -232,7 +235,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                             </linearGradient>
                                         </defs>
                                         <XAxis 
-                                            dataKey="date" 
+                                            dataKey="displayDate" 
                                             axisLine={false} 
                                             tickLine={false} 
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
@@ -278,7 +281,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                 <ResponsiveContainer width="100%" height={140}>
                                     <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                         <XAxis 
-                                            dataKey="date" 
+                                            dataKey="displayDate" 
                                             axisLine={false} 
                                             tickLine={false} 
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}

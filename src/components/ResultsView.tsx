@@ -54,13 +54,34 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
     } = displayResult;
 
     const handleSave = () => {
-        const historyItem: HistoryItem = {
-            ...displayResult,
-            id: `meal-${Date.now()}`,
-            timestamp: Date.now(),
-            pre_glucose: preGlucose ? parseInt(preGlucose, 10) : undefined,
-        };
-        addHistoryItem(historyItem);
+        const baseTimestamp = Date.now();
+        const parsedPreGlucose = preGlucose ? parseInt(preGlucose, 10) : undefined;
+        
+        if (allMeals.length > 1) {
+            // Save each meal individually with a shared chainId for visualization
+            const chainId = `chain-${baseTimestamp}`;
+            allMeals.forEach((meal, index) => {
+                const historyItem: HistoryItem = {
+                    ...meal,
+                    id: `meal-${baseTimestamp}-${index}`,
+                    timestamp: baseTimestamp,
+                    pre_glucose: index === 0 ? parsedPreGlucose : undefined, // Only first item gets pre-glucose
+                    chainId,
+                    chainIndex: index,
+                };
+                addHistoryItem(historyItem);
+            });
+        } else {
+            // Single meal - no chain
+            const historyItem: HistoryItem = {
+                ...displayResult,
+                id: `meal-${baseTimestamp}`,
+                timestamp: baseTimestamp,
+                pre_glucose: parsedPreGlucose,
+            };
+            addHistoryItem(historyItem);
+        }
+        
         setSaved(true);
         clearChain();
         if (onSave) onSave();
