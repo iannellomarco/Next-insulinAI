@@ -1802,15 +1802,6 @@ input:checked + .slider:before {
     gap: 0.875rem;
     padding: 1rem;
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    margin-bottom: 0.5rem;
-    transition: all 0.2s ease;
-    overflow: hidden;
-}
-
-.history-item:hover {
-    border-color: var(--primary);
 }
 
 .history-item-icon {
@@ -3146,14 +3137,16 @@ input:checked + .slider:before {
   
 .history-item-wrapper {
     cursor: pointer;
-    transition: transform 0.15s ease;
+    transition: all 0.15s ease;
     background: var(--card);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    border: 1px solid var(--border);
 }
   
 .history-item-wrapper:hover {
     transform: translateX(2px);
+    border-color: var(--primary);
 }
   
 .history-item-wrapper:active {
@@ -3164,15 +3157,7 @@ input:checked + .slider:before {
 .chained-meal-card {
     display: flex;
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
     overflow: hidden;
-    margin-bottom: 0.5rem;
-    transition: all 0.2s;
-}
-
-.chained-meal-card:hover {
-    border-color: var(--primary);
 }
 
 .chain-connector {
