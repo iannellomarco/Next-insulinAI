@@ -2,17 +2,10 @@
 
 import { ArrowLeft, Trash2, Plus, Calendar, Utensils, Link2, X, Activity, Droplet, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import GlucoseInputModal from '@/components/GlucoseInputModal';
 import { HistoryItem } from '@/types';
-
-interface SwipeState {
-    id: string;
-    startX: number;
-    currentX: number;
-    swiping: boolean;
-}
 
 function getFoodIcon(name: string): string {
     const lowerName = name.toLowerCase();
@@ -57,8 +50,6 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     const [glucoseModalItem, setGlucoseModalItem] = useState<string | null>(null);
     const [selectedMealGroup, setSelectedMealGroup] = useState<MealGroup | null>(null);
     const [deleteConfirmItem, setDeleteConfirmItem] = useState<string | null>(null);
-    const [swipeState, setSwipeState] = useState<SwipeState | null>(null);
-    const swipeThreshold = 80;
 
     // Scroll to top when component mounts
     useEffect(() => {
@@ -68,36 +59,6 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     const handleDeleteItem = (id: string) => {
         deleteHistoryItem(id);
         setDeleteConfirmItem(null);
-    };
-
-    // Swipe handlers
-    const handleTouchStart = (e: React.TouchEvent, id: string) => {
-        setSwipeState({
-            id,
-            startX: e.touches[0].clientX,
-            currentX: e.touches[0].clientX,
-            swiping: true
-        });
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (!swipeState?.swiping) return;
-        const currentX = e.touches[0].clientX;
-        const diff = swipeState.startX - currentX;
-        // Only allow left swipe
-        if (diff > 0) {
-            setSwipeState(prev => prev ? { ...prev, currentX } : null);
-        }
-    };
-
-    const handleTouchEnd = () => {
-        if (!swipeState) return;
-        const diff = swipeState.startX - swipeState.currentX;
-        if (diff > swipeThreshold) {
-            // Trigger delete confirmation
-            setDeleteConfirmItem(swipeState.id);
-        }
-        setSwipeState(null);
     };
 
     const handleClearConfirm = () => {
@@ -379,35 +340,18 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                 const isHigh = mealGroup.postGlucose && mealGroup.postGlucose > settings.highThreshold;
                                 const isLow = mealGroup.postGlucose && mealGroup.postGlucose < settings.lowThreshold;
                                 const itemId = mealGroup.chainId || mealGroup.items[0]?.id;
-                                const isCurrentlySwiping = swipeState?.id === itemId && swipeState.swiping;
-                                const swipeOffset = isCurrentlySwiping 
-                                    ? Math.min(swipeState.startX - swipeState.currentX, 100) 
-                                    : 0;
 
                                 return (
                                     <div 
                                         key={itemId} 
-                                        className={`history-item-container ${isCurrentlySwiping ? 'swiping' : ''}`}
+                                        className="history-item-container"
                                     >
-                                        {/* Delete action background */}
-                                        <div className="swipe-delete-action">
-                                            <Trash2 size={20} />
-                                            <span>Delete</span>
-                                        </div>
-                                        
                                         <div 
                                             className={`history-item-wrapper ${isChained ? 'chained' : ''}`}
                                             onClick={() => setSelectedMealGroup(mealGroup)}
                                             role="button"
                                             tabIndex={0}
                                             onKeyDown={(e) => e.key === 'Enter' && setSelectedMealGroup(mealGroup)}
-                                            onTouchStart={(e) => handleTouchStart(e, itemId)}
-                                            onTouchMove={handleTouchMove}
-                                            onTouchEnd={handleTouchEnd}
-                                            style={{
-                                                transform: swipeOffset > 0 ? `translateX(-${swipeOffset}px)` : undefined,
-                                                transition: isCurrentlySwiping ? 'none' : 'transform 0.2s ease-out'
-                                            }}
                                         >
                                         {isChained ? (
                                             // Chained meal display
@@ -518,8 +462,9 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                 </div>
                                             </div>
                                         )}
+                                        </div>
                                         
-                                        {/* Delete button (visible on desktop hover) */}
+                                        {/* Delete button */}
                                         <button
                                             className="history-delete-btn"
                                             onClick={(e) => {
@@ -530,7 +475,6 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                         >
                                             <Trash2 size={16} />
                                         </button>
-                                    </div>
                                     </div>
                                 );
                             })}
