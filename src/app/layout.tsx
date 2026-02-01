@@ -1,16 +1,31 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
+import { ClerkProvider } from '@clerk/nextjs';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
-  title: 'Insulin Calc AI',
-  description: 'AI-powered diabetic carb counting and insulin calculator.',
+  title: 'InsulinAI - Smart Carb Counting',
+  description: 'AI-powered diabetic carb counting and insulin calculator. Scan your meals, get accurate carb counts and insulin dosing suggestions.',
+  keywords: ['insulin', 'diabetes', 'carb counting', 'AI', 'health', 'glucose'],
 };
 
-import { ClerkProvider } from '@clerk/nextjs';
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fafbfc' },
+    { media: '(prefers-color-scheme: dark)', color: '#0c1222' },
+  ],
+};
 
 export default function RootLayout({
   children,
@@ -19,12 +34,9 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body
-          className={`${inter.className} antialiased`} // Assuming inter.className is used for the font, and geistSans/geistMono are placeholders for actual font variables. I'll use inter.className and add antialiased.
-        >
+      <html lang="en" className={inter.variable}>
+        <body className="font-sans antialiased">
           <div className="app-container">
-            {/* StoreProvider is not defined in the original file, so I'm omitting it to avoid errors. */}
             {children}
           </div>
           <div id="portal-root"></div>

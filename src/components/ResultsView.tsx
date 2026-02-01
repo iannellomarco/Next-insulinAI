@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Activity, Check } from 'lucide-react';
+import { ArrowLeft, Activity, Check, AlertTriangle, Clock, Percent } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { AnalysisResult, HistoryItem } from '@/types';
+import { HistoryItem } from '@/types';
 import FunFactLoader from '@/components/ui/FunFactLoader';
 
 interface ResultsViewProps {
@@ -51,23 +51,33 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
     return (
         <section id="results-view" className="view">
             <div className="view-header">
-                <button id="back-home" className="icon-btn" onClick={onBack}>
-                    <ArrowLeft size={24} />
+                <button 
+                    id="back-home" 
+                    className="icon-btn" 
+                    onClick={onBack}
+                    aria-label="Go back"
+                >
+                    <ArrowLeft size={22} />
                 </button>
-                <h2>Analysis</h2>
+                <h2>Analysis Results</h2>
+                <div style={{ width: 40 }} />
             </div>
 
             <div id="analysis-content">
+                {/* Main Summary Card */}
                 <div className="summary-card">
-                    <h3>Suggested Insulin</h3>
-                    <div className="insulin-dose">{suggested_insulin} <span className="unit">units</span></div>
+                    <h3>Recommended Insulin</h3>
+                    <div className="insulin-dose">
+                        {suggested_insulin}
+                        <span className="unit">units</span>
+                    </div>
                     <p>{friendly_description}</p>
                 </div>
 
-                {/* Pre-meal glucose input */}
+                {/* Pre-meal Glucose Input */}
                 <div className="glucose-input-card">
                     <div className="glucose-header">
-                        <Activity size={20} />
+                        <Activity size={18} strokeWidth={2} />
                         <h3>Current Glucose</h3>
                         <span className="optional-badge">Optional</span>
                     </div>
@@ -78,42 +88,54 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
                             value={preGlucose}
                             onChange={(e) => setPreGlucose(e.target.value)}
                             className="glucose-input"
+                            aria-label="Enter current glucose level"
                         />
                         <span className="glucose-unit">mg/dL</span>
                     </div>
                 </div>
 
+                {/* Split Bolus Recommendation */}
                 {split_bolus_recommendation?.recommended && (
                     <div className="split-bolus-card">
                         <div className="split-header">
-                            <span className="split-icon">🍕</span>
+                            <Clock size={18} className="text-warning" />
                             <h3>Split Bolus Recommended</h3>
                         </div>
                         <div className="split-details">
-                            <p><strong>Split:</strong> {split_bolus_recommendation.split_percentage}</p>
-                            <p><strong>Duration:</strong> {split_bolus_recommendation.duration}</p>
-                            <p className="split-reason">"{split_bolus_recommendation.reason}"</p>
+                            <div className="split-row">
+                                <Percent size={14} />
+                                <p><strong>Split:</strong> {split_bolus_recommendation.split_percentage}</p>
+                            </div>
+                            <div className="split-row">
+                                <Clock size={14} />
+                                <p><strong>Duration:</strong> {split_bolus_recommendation.duration}</p>
+                            </div>
+                            <p className="split-reason">{split_bolus_recommendation.reason}</p>
                         </div>
                     </div>
                 )}
 
+                {/* Macros Card */}
                 <div className="result-card">
-                    <h3>Macros</h3>
-                    <p>Total Carbs: <strong>{total_carbs}g</strong></p>
-                    <div style={{ marginTop: '12px' }}>
+                    <h3>Nutrition Breakdown</h3>
+                    <p className="total-carbs">
+                        Total Carbs: <strong>{total_carbs}g</strong>
+                    </p>
+                    <div className="food-list">
                         {food_items.map((item, idx) => (
                             <div key={idx} className="food-item">
                                 <span className="food-name">{item.name}</span>
                                 <span className="food-macros">
-                                    {item.carbs}g carbs • {item.fat}g fat • {item.protein}g prot
+                                    {item.carbs}g carbs · {item.fat}g fat · {item.protein}g protein
                                 </span>
                             </div>
                         ))}
                     </div>
                 </div>
 
+                {/* Reasoning Card */}
                 <div className="result-card">
-                    <h3>Reasoning</h3>
+                    <h3>How we calculated this</h3>
                     {Array.isArray(reasoning) ? (
                         <ul className="reasoning-list">
                             {reasoning.map((step, idx) => (
@@ -125,24 +147,27 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
                     )}
                 </div>
 
+                {/* Warnings */}
                 {warnings && warnings.length > 0 && (
-                    <div className="warning-box">
-                        ⚠️ {warnings.join(' ')}
+                    <div className="warning-box" role="alert">
+                        <AlertTriangle size={18} />
+                        <span>{warnings.join(' ')}</span>
                     </div>
                 )}
             </div>
 
-            {/* Fixed Save Button Footer */}
+            {/* Fixed Save Button */}
             <div className="save-footer">
                 <button
                     className={`save-meal-btn ${saved ? 'saved' : ''}`}
                     onClick={handleSave}
                     disabled={saved}
+                    aria-label={saved ? 'Meal saved' : 'Save to history'}
                 >
                     {saved ? (
                         <>
                             <Check size={20} />
-                            Saved!
+                            Saved to History
                         </>
                     ) : (
                         'Save to History'

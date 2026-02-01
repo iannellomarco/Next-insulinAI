@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { X, Utensils } from 'lucide-react';
 import { useState } from 'react';
 
 export default function TextInputModal({
@@ -15,46 +15,83 @@ export default function TextInputModal({
 
     const handleSubmit = () => {
         if (!text.trim()) {
-            setError('Please enter a description.');
+            setError('Please enter a food description');
             return;
         }
         onAnalyze(text);
         onClose();
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && e.metaKey) {
+            handleSubmit();
+        }
+    };
+
     return (
-        <div id="text-input-modal" className="modal-overlay">
-            <div className="modal-content input-modal">
-                <div className="modal-header">
-                    <h3>Describe Food</h3>
-                    <button className="icon-btn close-btn" onClick={onClose} aria-label="Close">
-                        <X size={24} />
+        <div 
+            className="modal-overlay" 
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="text-input-title"
+        >
+            <div 
+                className="text-input-modal" 
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="modal-header-row">
+                    <div className="modal-icon">
+                        <Utensils size={20} />
+                    </div>
+                    <div className="modal-title-section">
+                        <h3 id="text-input-title">Describe Your Food</h3>
+                        <p>Enter what you are eating with portions</p>
+                    </div>
+                    <button 
+                        className="close-btn" 
+                        onClick={onClose} 
+                        aria-label="Close dialog"
+                    >
+                        <X size={20} />
                     </button>
                 </div>
-                <p className="modal-description">Enter a description of what you are eating.</p>
 
-                <div className="textarea-wrapper">
+                <div className="textarea-container">
                     <textarea
-                        id="food-text-modal-input"
-                        placeholder="e.g., 150g of rice with sausage"
+                        id="food-text-input"
+                        placeholder="e.g., 1 cup rice with grilled chicken breast and vegetables"
                         rows={4}
                         value={text}
                         onChange={(e) => {
                             setText(e.target.value);
                             setError('');
                         }}
-                    ></textarea>
+                        onKeyDown={handleKeyDown}
+                        autoFocus
+                    />
+                    <span className="char-count">{text.length}/500</span>
                 </div>
 
-                {error && <div className="modal-error-message">{error}</div>}
+                {error && (
+                    <div className="input-error" role="alert">
+                        {error}
+                    </div>
+                )}
 
-                <div className="modal-actions">
+                <div className="modal-actions-row">
                     <button
-                        id="analyze-text-btn"
-                        className="btn primary full-width"
-                        onClick={handleSubmit}
+                        className="btn secondary"
+                        onClick={onClose}
                     >
-                        Analyze Text
+                        Cancel
+                    </button>
+                    <button
+                        className="btn primary"
+                        onClick={handleSubmit}
+                        disabled={!text.trim()}
+                    >
+                        Analyze
                     </button>
                 </div>
             </div>
@@ -62,98 +99,139 @@ export default function TextInputModal({
             <style jsx>{`
                 .modal-overlay {
                     position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.7);
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    backdrop-filter: blur(4px);
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    z-index: 1000;
-                    backdrop-filter: blur(2px);
+                    z-index: 2000;
+                    padding: 1.25rem;
                     animation: fadeIn 0.2s ease-out;
                 }
 
-                .modal-content.input-modal {
-                    background: #121212;
-                    width: 90%;
+                .text-input-modal {
+                    background: var(--card);
+                    width: 100%;
                     max-width: 400px;
-                    border-radius: 16px;
-                    padding: 24px;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    animation: scaleUp 0.2s ease-out;
+                    border-radius: var(--radius-xl);
+                    padding: 1.5rem;
+                    border: 1px solid var(--border);
+                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+                    animation: slideUp 0.3s ease-out;
                 }
 
-                .modal-header {
+                .modal-header-row {
                     display: flex;
-                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 0.875rem;
+                    margin-bottom: 1.25rem;
+                }
+
+                .modal-icon {
+                    width: 40px;
+                    height: 40px;
+                    flex-shrink: 0;
+                    border-radius: var(--radius-md);
+                    background: var(--accent);
+                    display: flex;
                     align-items: center;
-                    margin-bottom: 8px;
+                    justify-content: center;
+                    color: var(--primary);
                 }
 
-                h3 {
-                    font-size: 1.25rem;
-                    font-weight: 700;
+                .modal-title-section {
+                    flex: 1;
+                }
+
+                .modal-title-section h3 {
+                    font-size: 1.0625rem;
+                    font-weight: 600;
+                    color: var(--foreground);
+                    margin: 0 0 0.125rem;
+                }
+
+                .modal-title-section p {
+                    font-size: 0.8125rem;
+                    color: var(--muted-foreground);
                     margin: 0;
-                    color: white;
                 }
 
                 .close-btn {
-                    color: #888;
-                }
-                .close-btn:hover {
-                    color: white;
-                    background: rgba(255,255,255,0.1);
+                    background: transparent;
+                    border: none;
+                    padding: 0.375rem;
+                    border-radius: var(--radius-sm);
+                    color: var(--muted-foreground);
+                    cursor: pointer;
+                    transition: all 0.2s;
                 }
 
-                .modal-description {
-                    font-size: 0.95rem;
-                    color: #a3a3a3;
-                    margin: 0;
-                    line-height: 1.4;
+                .close-btn:hover {
+                    background: var(--secondary);
+                    color: var(--foreground);
+                }
+
+                .textarea-container {
+                    position: relative;
+                    margin-bottom: 1rem;
                 }
 
                 textarea {
                     width: 100%;
-                    background: rgba(255, 255, 255, 0.05);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 12px;
-                    padding: 16px;
-                    color: white;
-                    font-size: 1rem;
+                    background: var(--secondary);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-md);
+                    padding: 0.875rem;
+                    color: var(--foreground);
+                    font-size: 0.9375rem;
                     font-family: inherit;
                     resize: none;
                     outline: none;
                     transition: all 0.2s;
                     min-height: 120px;
+                    line-height: 1.5;
                 }
 
                 textarea:focus {
-                    background: rgba(255, 255, 255, 0.08);
-                    border-color: #6366f1; /* Indigo-500 */
-                    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
                 }
 
                 textarea::placeholder {
-                    color: #525252;
+                    color: var(--muted-foreground);
                 }
 
-                .modal-error-message {
-                    color: #ef4444;
-                    font-size: 0.9rem;
-                    background: rgba(239, 68, 68, 0.1);
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    text-align: center;
+                .char-count {
+                    position: absolute;
+                    bottom: 0.625rem;
+                    right: 0.75rem;
+                    font-size: 0.7rem;
+                    color: var(--muted-foreground);
                 }
 
-                .modal-actions {
-                    margin-top: 8px;
+                .input-error {
+                    background: rgba(239, 68, 68, 0.08);
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                    color: var(--destructive);
+                    padding: 0.625rem 0.875rem;
+                    border-radius: var(--radius-sm);
+                    font-size: 0.8125rem;
+                    margin-bottom: 1rem;
+                }
+
+                .modal-actions-row {
+                    display: flex;
+                    gap: 0.75rem;
+                }
+
+                .modal-actions-row .btn {
+                    flex: 1;
+                }
+
+                .modal-actions-row .btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
                 }
 
                 @keyframes fadeIn {
@@ -161,9 +239,15 @@ export default function TextInputModal({
                     to { opacity: 1; }
                 }
 
-                @keyframes scaleUp {
-                    from { opacity: 0; transform: scale(0.95); }
-                    to { opacity: 1; transform: scale(1); }
+                @keyframes slideUp {
+                    from { 
+                        opacity: 0; 
+                        transform: translateY(16px); 
+                    }
+                    to { 
+                        opacity: 1; 
+                        transform: translateY(0); 
+                    }
                 }
             `}</style>
         </div>

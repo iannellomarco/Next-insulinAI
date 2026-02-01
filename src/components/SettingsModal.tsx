@@ -1,12 +1,13 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { X, Calculator, Target, ChevronDown, Zap } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 
 export default function SettingsModal({ onClose }: { onClose: () => void }) {
     const { settings, updateSettings } = useStore();
     const [localSettings, setLocalSettings] = useState(settings);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     useEffect(() => {
         setLocalSettings(settings);
@@ -26,104 +27,160 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <section id="settings-view" className="view">
+        <section id="settings-view" className="view settings-view">
             <div className="view-header">
                 <h2>Settings</h2>
-                <button className="icon-btn" onClick={onClose} aria-label="Close">
-                    <X size={24} />
+                <button 
+                    className="icon-btn" 
+                    onClick={onClose} 
+                    aria-label="Close settings"
+                >
+                    <X size={22} />
                 </button>
             </div>
+            
             <div className="settings-form">
-                <div className="input-group">
-                    <label htmlFor="carbRatio">Carb Ratio (1 unit : X grams)</label>
-                    <input
-                        type="number"
-                        id="carbRatio"
-                        placeholder="10"
-                        min="1"
-                        value={localSettings.carbRatio}
-                        onChange={handleChange}
-                    />
-                    <p className="hint">How many grams of carbs does 1 unit of insulin cover?</p>
-                </div>
-
-                <div className="input-group">
-                    <label htmlFor="correctionFactor">Correction Factor (Optional)</label>
-                    <input
-                        type="number"
-                        id="correctionFactor"
-                        placeholder="50"
-                        min="1"
-                        value={localSettings.correctionFactor}
-                        onChange={handleChange}
-                    />
-                    <p className="hint">1 unit drops blood sugar by X mg/dL.</p>
-                </div>
-
-                <div className="input-group">
-                    <label htmlFor="highThreshold">High Glucose Threshold</label>
-                    <input
-                        type="number"
-                        id="highThreshold"
-                        placeholder="180"
-                        min="100"
-                        value={localSettings.highThreshold}
-                        onChange={handleChange}
-                    />
-                    <p className="hint">Values above this will be marked red.</p>
-                </div>
-
-                <div className="input-group">
-                    <label htmlFor="lowThreshold">Low Glucose Threshold</label>
-                    <input
-                        type="number"
-                        id="lowThreshold"
-                        placeholder="70"
-                        min="40"
-                        value={localSettings.lowThreshold}
-                        onChange={handleChange}
-                    />
-                    <p className="hint">Values below this will be marked red.</p>
-                </div>
-
-                <details className="advanced-settings">
-                    <summary>Advanced Settings</summary>
-                    <div className="input-group" style={{ marginTop: '1rem' }}>
-                        <input
-                            type="password"
-                            id="apiKey"
-                            placeholder="Enter your key or leave blank to use free tier"
-                            value={localSettings.apiKey}
-                            onChange={handleChange}
-                        />
-                        <p className="hint">Leave blank to use the provided system key.</p>
+                {/* Carb Ratio Section */}
+                <div className="settings-section">
+                    <div className="section-icon">
+                        <Calculator size={18} />
                     </div>
+                    <div className="section-content">
+                        <div className="input-group">
+                            <label htmlFor="carbRatio">Carb Ratio</label>
+                            <p className="hint">1 unit of insulin covers X grams of carbs</p>
+                            <div className="input-with-unit">
+                                <input
+                                    type="number"
+                                    id="carbRatio"
+                                    placeholder="10"
+                                    min="1"
+                                    max="100"
+                                    value={localSettings.carbRatio}
+                                    onChange={handleChange}
+                                />
+                                <span className="input-unit">g/unit</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                    <div
-                        className="input-group checkbox-group"
-                        style={{
-                            marginTop: '1rem',
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                        }}
-                    >
-                        <label htmlFor="smartHistory" style={{ margin: 0, fontSize: '1rem', flex: 1 }}>
-                            Smart History (Use past data context)
-                        </label>
-                        <label className="switch">
+                {/* Correction Factor Section */}
+                <div className="settings-section">
+                    <div className="section-icon">
+                        <Target size={18} />
+                    </div>
+                    <div className="section-content">
+                        <div className="input-group">
+                            <label htmlFor="correctionFactor">Correction Factor</label>
+                            <p className="hint">1 unit drops blood sugar by X mg/dL</p>
+                            <div className="input-with-unit">
+                                <input
+                                    type="number"
+                                    id="correctionFactor"
+                                    placeholder="50"
+                                    min="1"
+                                    max="200"
+                                    value={localSettings.correctionFactor}
+                                    onChange={handleChange}
+                                />
+                                <span className="input-unit">mg/dL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Glucose Thresholds */}
+                <div className="settings-card">
+                    <h3>Glucose Thresholds</h3>
+                    <p className="card-hint">Values outside these ranges will be highlighted</p>
+                    
+                    <div className="threshold-inputs">
+                        <div className="input-group">
+                            <label htmlFor="highThreshold">High</label>
+                            <div className="input-with-unit compact">
+                                <input
+                                    type="number"
+                                    id="highThreshold"
+                                    placeholder="180"
+                                    min="100"
+                                    max="300"
+                                    value={localSettings.highThreshold}
+                                    onChange={handleChange}
+                                />
+                                <span className="input-unit">mg/dL</span>
+                            </div>
+                        </div>
+                        <div className="input-group">
+                            <label htmlFor="lowThreshold">Low</label>
+                            <div className="input-with-unit compact">
+                                <input
+                                    type="number"
+                                    id="lowThreshold"
+                                    placeholder="70"
+                                    min="40"
+                                    max="100"
+                                    value={localSettings.lowThreshold}
+                                    onChange={handleChange}
+                                />
+                                <span className="input-unit">mg/dL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Advanced Settings Toggle */}
+                <button 
+                    className="advanced-toggle"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    aria-expanded={showAdvanced}
+                >
+                    <Zap size={16} />
+                    <span>Advanced Settings</span>
+                    <ChevronDown 
+                        size={16} 
+                        className={`toggle-icon ${showAdvanced ? 'open' : ''}`}
+                    />
+                </button>
+
+                {showAdvanced && (
+                    <div className="advanced-content">
+                        <div className="input-group">
+                            <label htmlFor="apiKey">Custom API Key</label>
+                            <p className="hint">Leave blank to use the default system key</p>
                             <input
-                                type="checkbox"
-                                id="smartHistory"
-                                checked={localSettings.smartHistory}
+                                type="password"
+                                id="apiKey"
+                                placeholder="Enter your OpenAI API key"
+                                value={localSettings.apiKey}
                                 onChange={handleChange}
                             />
-                            <span className="slider round"></span>
-                        </label>
+                        </div>
+
+                        <div className="toggle-setting">
+                            <div className="toggle-info">
+                                <label htmlFor="smartHistory">Smart History</label>
+                                <p className="hint">Use past meal data for better suggestions</p>
+                            </div>
+                            <label className="switch">
+                                <input
+                                    type="checkbox"
+                                    id="smartHistory"
+                                    checked={localSettings.smartHistory}
+                                    onChange={handleChange}
+                                />
+                                <span className="slider round"></span>
+                            </label>
+                        </div>
                     </div>
-                </details>
+                )}
             </div>
-            <button id="save-settings" className="btn primary full-width" onClick={handleSave}>
+            
+            <button 
+                id="save-settings" 
+                className="btn primary full-width" 
+                onClick={handleSave}
+            >
                 Save Settings
             </button>
         </section>

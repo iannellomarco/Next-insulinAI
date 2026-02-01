@@ -19,15 +19,14 @@ export default function SmartFavorites({ onSelect, onAddNew }: SmartFavoritesPro
 
     return (
         <section className="smart-favorites">
-            <h3>Smart Favorites</h3>
+            <h3>Quick Favorites</h3>
             <div className="favorites-scroll">
                 {favorites.map((item) => (
-                    <div
+                    <button
                         key={item.id}
                         className="quick-eat-card"
                         onClick={() => onSelect(item)}
-                        role="button"
-                        tabIndex={0}
+                        aria-label={`Quick log ${item.name}`}
                     >
                         {item.isAutoSuggested && (
                             <span className="auto-badge" title="AI Suggested">
@@ -37,24 +36,27 @@ export default function SmartFavorites({ onSelect, onAddNew }: SmartFavoritesPro
                         <button
                             className="remove-btn"
                             onClick={(e) => handleRemove(e, item.id)}
-                            aria-label="Remove favorite"
+                            aria-label={`Remove ${item.name} from favorites`}
                         >
                             <X size={14} />
                         </button>
-                        <span className="card-label">Quick Eat</span>
-                        <span className="card-icon">{item.icon}</span>
+                        <span className="card-icon" aria-hidden="true">{item.icon}</span>
                         <span className="card-name">{item.name}</span>
-                        <span className="card-carbs">{item.carbs}g Carbs</span>
-                    </div>
+                        <span className="card-carbs">{item.carbs}g</span>
+                    </button>
                 ))}
-                <button className="quick-eat-card add-card" onClick={onAddNew}>
-                    <Plus size={32} />
+                <button 
+                    className="quick-eat-card add-card" 
+                    onClick={onAddNew}
+                    aria-label="Add new favorite food"
+                >
+                    <Plus size={28} strokeWidth={1.5} />
                     <span className="card-name">Add New</span>
                 </button>
             </div>
             {favorites.length === 0 && (
                 <p className="favorites-hint">
-                    Eat the same food 3+ times and it will appear here automatically!
+                    Log a food 3+ times and it will appear here automatically
                 </p>
             )}
         </section>

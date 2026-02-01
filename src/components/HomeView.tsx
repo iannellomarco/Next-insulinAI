@@ -1,7 +1,7 @@
 'use client';
 
-import { Camera, Edit3 } from 'lucide-react';
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { Camera, PenLine, ChevronRight } from 'lucide-react';
+import { useRef, useMemo } from 'react';
 import SmartFavorites from './SmartFavorites';
 import RecentHistory from './RecentHistory';
 import { useStore } from '@/lib/store';
@@ -14,43 +14,34 @@ interface HomeViewProps {
     onViewHistory: () => void;
 }
 
-// Fallback greeting phrases
 const GREETINGS_WITH_NAME = [
     (name: string) => `Hey ${name}, what's on the menu?`,
     (name: string) => `Hi ${name}! Ready to scan?`,
     (name: string) => `Hello ${name}, what are you eating?`,
-    (name: string) => `${name}, what's today's meal?`,
-    (name: string) => `Hungry, ${name}? Let's log it!`,
+    (name: string) => `${name}, what's for today?`,
 ];
 
 const GREETINGS_ANONYMOUS = [
     "What are you eating?",
     "Ready to scan your meal?",
     "What's on your plate?",
-    "Time to log some food!",
     "Let's count those carbs!",
 ];
 
-
-
 export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: HomeViewProps) {
     const { history } = useStore();
-    const { user, isLoaded } = useUser();
+    const { user } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Fallback greeting (stable per session)
-    const fallbackGreeting = useMemo(() => {
+    const greeting = useMemo(() => {
         if (user) {
-            const name = user.firstName || 'Friend';
+            const name = user.firstName || 'there';
             const idx = Math.floor(Math.random() * GREETINGS_WITH_NAME.length);
             return GREETINGS_WITH_NAME[idx](name);
         }
         const idx = Math.floor(Math.random() * GREETINGS_ANONYMOUS.length);
         return GREETINGS_ANONYMOUS[idx];
     }, [user]);
-
-    // Use stable local greeting
-    const greeting = fallbackGreeting;
 
     const handleScanClick = () => {
         fileInputRef.current?.click();
@@ -64,35 +55,46 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
     };
 
     const handleFavoriteSelect = (item: Favorite) => {
-        // Quick log: analyze the favorite as text
         onAnalyze(item.name, 'text');
     };
 
     const handleHistoryItemClick = (item: HistoryItem) => {
-        // Could show details or re-analyze
         console.log('Clicked history item:', item);
     };
 
     return (
         <section id="home-view" className="view home-view">
-            {/* Hero + Input Buttons */}
+            {/* Hero Section */}
             <div className="home-hero">
-                <h2 key={greeting} className="fade-in">{greeting}</h2>
+                <h2 key={greeting} className="fade-in text-balance">
+                    {greeting}
+                </h2>
+                
                 <input
                     type="file"
                     id="file-input"
                     accept="image/*"
+                    capture="environment"
                     hidden
                     ref={fileInputRef}
                     onChange={handleFileChange}
                 />
+                
                 <div className="input-buttons">
-                    <button className="input-btn" onClick={handleScanClick}>
-                        <Camera size={28} />
+                    <button 
+                        className="input-btn" 
+                        onClick={handleScanClick}
+                        aria-label="Take a photo of your food"
+                    >
+                        <Camera size={26} strokeWidth={1.5} />
                         <span>Photo</span>
                     </button>
-                    <button className="input-btn" onClick={onManualEntry}>
-                        <Edit3 size={28} />
+                    <button 
+                        className="input-btn" 
+                        onClick={onManualEntry}
+                        aria-label="Enter food manually"
+                    >
+                        <PenLine size={26} strokeWidth={1.5} />
                         <span>Text</span>
                     </button>
                 </div>

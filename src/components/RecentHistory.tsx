@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronRight, Utensils } from 'lucide-react';
 import { HistoryItem } from '@/types';
 
 interface RecentHistoryProps {
@@ -38,9 +39,15 @@ function getFoodIcon(name: string): string {
     if (lowerName.includes('sandwich')) return '🥪';
     if (lowerName.includes('salad')) return '🥗';
     if (lowerName.includes('pizza')) return '🍕';
-    if (lowerName.includes('coffee') || lowerName.includes('espresso')) return '☕';
+    if (lowerName.includes('coffee') || lowerName.includes('latte') || lowerName.includes('espresso')) return '☕';
     if (lowerName.includes('banana')) return '🍌';
-    if (lowerName.includes('oat')) return '🥣';
+    if (lowerName.includes('oat') || lowerName.includes('cereal')) return '🥣';
+    if (lowerName.includes('burger')) return '🍔';
+    if (lowerName.includes('chicken')) return '🍗';
+    if (lowerName.includes('rice')) return '🍚';
+    if (lowerName.includes('pasta') || lowerName.includes('spaghetti')) return '🍝';
+    if (lowerName.includes('bread') || lowerName.includes('toast')) return '🍞';
+    if (lowerName.includes('egg')) return '🥚';
     return '🍽️';
 }
 
@@ -50,15 +57,28 @@ export default function RecentHistory({ items, onViewAll, onItemClick }: RecentH
     if (recentItems.length === 0) {
         return (
             <section className="recent-history">
-                <h3>Recent History</h3>
-                <p className="empty-state">No meals logged yet. Scan your first food!</p>
+                <div className="section-header">
+                    <h3>Recent History</h3>
+                </div>
+                <div className="empty-history">
+                    <div className="empty-icon">
+                        <Utensils size={24} strokeWidth={1.5} />
+                    </div>
+                    <p>No meals logged yet</p>
+                    <span>Your recent meals will appear here</span>
+                </div>
             </section>
         );
     }
 
     return (
         <section className="recent-history">
-            <h3>Recent History</h3>
+            <div className="section-header">
+                <h3>Recent History</h3>
+                <button onClick={onViewAll} aria-label="View all history">
+                    View All
+                </button>
+            </div>
             <div className="recent-list">
                 {recentItems.map((item) => {
                     const mainFood = item.food_items?.[0]?.name || item.friendly_description?.split(',')[0] || 'Food';
@@ -67,20 +87,26 @@ export default function RecentHistory({ items, onViewAll, onItemClick }: RecentH
                             key={item.id}
                             className="recent-item"
                             onClick={() => onItemClick(item)}
+                            aria-label={`View details for ${mainFood}`}
                         >
-                            <span className="item-icon">{getFoodIcon(mainFood)}</span>
-                            <span className="item-name">{mainFood}</span>
-                            <div className="item-meta">
-                                <span className="item-time">{formatTime(item.timestamp)}</span>
-                                <span className="item-carbs">{item.total_carbs}g Carbs</span>
+                            <div className="recent-item-icon">
+                                {getFoodIcon(mainFood)}
                             </div>
+                            <div className="recent-item-info">
+                                <span className="recent-item-name">{mainFood}</span>
+                                <span className="recent-item-meta">
+                                    {formatTime(item.timestamp)}
+                                    <span className="meta-dot">·</span>
+                                    {item.total_carbs}g carbs
+                                </span>
+                            </div>
+                            <span className="recent-item-dose">
+                                {item.suggested_insulin}u
+                            </span>
                         </button>
                     );
                 })}
             </div>
-            <button className="view-all-link" onClick={onViewAll}>
-                View All
-            </button>
         </section>
     );
 }
