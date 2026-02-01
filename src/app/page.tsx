@@ -5,13 +5,6 @@ import Link from 'next/link';
 import { SignInButton } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 
-const STATS = [
-    { value: '10K+', label: 'Meals analyzed' },
-    { value: '98%', label: 'Accuracy rate' },
-    { value: '<2s', label: 'Analysis time' },
-    { value: '4.9', label: 'User rating' },
-];
-
 const FEATURES = [
     {
         icon: Camera,
@@ -127,26 +120,6 @@ export default function LandingPage() {
                             See how it works
                         </a>
                     </div>
-
-                    <div className="hero-proof">
-                        <div className="avatars">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                                <div key={i} className="avatar" style={{ '--i': i } as React.CSSProperties}>
-                                    <div className="avatar-placeholder" />
-                                </div>
-                            ))}
-                        </div>
-                        <div className="proof-text">
-                            <div className="stars">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                    <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                                    </svg>
-                                ))}
-                            </div>
-                            <span>Loved by thousands of users</span>
-                        </div>
-                    </div>
                 </div>
 
                 {/* App Preview */}
@@ -186,18 +159,6 @@ export default function LandingPage() {
                         </div>
                         <div className="phone-glow" />
                     </div>
-                </div>
-            </section>
-
-            {/* Stats Bar */}
-            <section className="stats-bar">
-                <div className="stats-inner">
-                    {STATS.map((stat, i) => (
-                        <div key={i} className="stat-item">
-                            <span className="stat-value">{stat.value}</span>
-                            <span className="stat-label">{stat.label}</span>
-                        </div>
-                    ))}
                 </div>
             </section>
 
@@ -296,13 +257,13 @@ export default function LandingPage() {
                             <div className="bc-icon teal">
                                 <TrendingUp size={16} />
                             </div>
-                            <span>Average glucose improved 12%</span>
+                            <span>Track your progress over time</span>
                         </div>
                         <div className="benefit-card b3">
                             <div className="bc-icon purple">
                                 <Zap size={16} />
                             </div>
-                            <span>Analysis complete in 1.2s</span>
+                            <span>Instant carb calculations</span>
                         </div>
                     </div>
                 </div>
@@ -313,7 +274,7 @@ export default function LandingPage() {
                 <div className="cta-glow" />
                 <div className="cta-content">
                     <h2>Ready to simplify your routine?</h2>
-                    <p>Join thousands who manage their insulin with confidence.</p>
+                    <p>Start managing your insulin with confidence today.</p>
                     <div className="cta-buttons">
                         <Link href="/app">
                             <button className="btn-primary btn-lg">
@@ -338,10 +299,6 @@ export default function LandingPage() {
                     <p className="footer-disclaimer">
                         For informational purposes only. Always consult your healthcare provider for medical advice.
                     </p>
-                    <div className="footer-links">
-                        <a href="#">Privacy</a>
-                        <a href="#">Terms</a>
-                    </div>
                 </div>
             </footer>
 
@@ -481,6 +438,30 @@ export default function LandingPage() {
                     .header-nav {
                         display: none;
                     }
+                    
+                    .btn-ghost {
+                        display: none;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    .landing-header {
+                        padding: 0.75rem 1rem;
+                    }
+                    
+                    .landing-logo span {
+                        font-size: 1rem;
+                    }
+                    
+                    .logo-icon {
+                        width: 28px;
+                        height: 28px;
+                    }
+                    
+                    .btn-primary-sm {
+                        padding: 0.5rem 0.75rem;
+                        font-size: 0.8125rem;
+                    }
                 }
 
                 /* Hero */
@@ -503,6 +484,13 @@ export default function LandingPage() {
                         text-align: center;
                         padding-top: 7rem;
                         min-height: auto;
+                        padding-bottom: 3rem;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    .hero {
+                        padding: 6rem 1rem 2rem;
                     }
                 }
 
@@ -578,6 +566,22 @@ export default function LandingPage() {
                         flex-wrap: wrap;
                     }
                 }
+                
+                @media (max-width: 480px) {
+                    .hero-subtitle {
+                        font-size: 1rem;
+                    }
+                    
+                    .hero-cta {
+                        flex-direction: column;
+                        gap: 0.75rem;
+                    }
+                    
+                    .btn-primary, .btn-secondary {
+                        width: 100%;
+                        justify-content: center;
+                    }
+                }
 
                 .btn-primary {
                     display: inline-flex;
@@ -625,58 +629,6 @@ export default function LandingPage() {
                 .btn-secondary:hover {
                     background: #18181b;
                     border-color: #3f3f46;
-                }
-
-                .hero-proof {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                }
-
-                @media (max-width: 968px) {
-                    .hero-proof {
-                        justify-content: center;
-                    }
-                }
-
-                .avatars {
-                    display: flex;
-                }
-
-                .avatar {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    border: 2px solid #0a0a0b;
-                    margin-left: calc(var(--i, 1) * -8px);
-                    overflow: hidden;
-                }
-
-                .avatar:first-child {
-                    margin-left: 0;
-                }
-
-                .avatar-placeholder {
-                    width: 100%;
-                    height: 100%;
-                    background: linear-gradient(135deg, #3f3f46 0%, #52525b 100%);
-                }
-
-                .proof-text {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.125rem;
-                }
-
-                .stars {
-                    display: flex;
-                    gap: 2px;
-                    color: #fbbf24;
-                }
-
-                .proof-text span {
-                    font-size: 0.8125rem;
-                    color: #71717a;
                 }
 
                 /* Hero Visual */
@@ -820,48 +772,6 @@ export default function LandingPage() {
                     z-index: -1;
                 }
 
-                /* Stats Bar */
-                .stats-bar {
-                    position: relative;
-                    z-index: 1;
-                    border-top: 1px solid #27272a;
-                    border-bottom: 1px solid #27272a;
-                    background: rgba(24, 24, 27, 0.5);
-                    backdrop-filter: blur(8px);
-                }
-
-                .stats-inner {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    padding: 2rem 1.5rem;
-                }
-
-                @media (max-width: 640px) {
-                    .stats-inner {
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: 1.5rem;
-                    }
-                }
-
-                .stat-item {
-                    text-align: center;
-                }
-
-                .stat-item .stat-value {
-                    display: block;
-                    font-size: 1.75rem;
-                    font-weight: 700;
-                    color: #fafafa;
-                    margin-bottom: 0.25rem;
-                }
-
-                .stat-item .stat-label {
-                    font-size: 0.8125rem;
-                    color: #71717a;
-                }
-
                 /* Section Styles */
                 .section-header {
                     text-align: center;
@@ -907,6 +817,21 @@ export default function LandingPage() {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
                     gap: 1.5rem;
+                }
+                
+                @media (max-width: 480px) {
+                    .features {
+                        padding: 3rem 1rem;
+                    }
+                    
+                    .features-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .section-subtitle {
+                        font-size: 0.9375rem;
+                        padding: 0 0.5rem;
+                    }
                 }
 
                 .feature-card {
@@ -1027,6 +952,28 @@ export default function LandingPage() {
                         grid-template-columns: 1fr;
                         gap: 3rem;
                     }
+                    
+                    .benefits-content .section-title {
+                        text-align: center;
+                    }
+                    
+                    .benefits-content {
+                        text-align: center;
+                    }
+                    
+                    .benefits-list li {
+                        text-align: left;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    .benefits {
+                        padding: 3rem 1rem;
+                    }
+                    
+                    .benefits-visual {
+                        display: none;
+                    }
                 }
 
                 .benefits-content .section-badge {
@@ -1144,12 +1091,6 @@ export default function LandingPage() {
                     color: #a855f7;
                 }
 
-                @media (max-width: 868px) {
-                    .benefits-visual {
-                        display: none;
-                    }
-                }
-
                 /* CTA Section */
                 .cta-section {
                     position: relative;
@@ -1194,6 +1135,17 @@ export default function LandingPage() {
                     font-size: 0.8125rem;
                     color: #52525b;
                 }
+                
+                @media (max-width: 480px) {
+                    .cta-section {
+                        padding: 4rem 1rem;
+                    }
+                    
+                    .cta-section .btn-primary.btn-lg {
+                        width: 100%;
+                        justify-content: center;
+                    }
+                }
 
                 /* Footer */
                 .landing-footer {
@@ -1223,22 +1175,18 @@ export default function LandingPage() {
                     font-size: 0.8125rem;
                     color: #52525b;
                     max-width: 400px;
+                    line-height: 1.5;
                 }
-
-                .footer-links {
-                    display: flex;
-                    gap: 1.5rem;
-                }
-
-                .footer-links a {
-                    font-size: 0.8125rem;
-                    color: #71717a;
-                    text-decoration: none;
-                    transition: color 0.2s;
-                }
-
-                .footer-links a:hover {
-                    color: #fafafa;
+                
+                @media (max-width: 480px) {
+                    .landing-footer {
+                        padding: 1.5rem 1rem;
+                    }
+                    
+                    .footer-disclaimer {
+                        font-size: 0.75rem;
+                        padding: 0 0.5rem;
+                    }
                 }
             `}</style>
         </div>
