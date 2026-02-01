@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store';
 import { HistoryItem, AnalysisResult } from '@/types';
 import { AIService } from '@/lib/ai-service';
 import FunFactLoader from '@/components/ui/FunFactLoader';
+import { useUser } from '@clerk/nextjs';
 
 interface ResultsViewProps {
     onBack: () => void;
@@ -24,13 +25,14 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
         isChaining,
         setIsChaining 
     } = useStore();
+    const { user } = useUser();
     const [preGlucose, setPreGlucose] = useState<string>('');
     const [saved, setSaved] = useState(false);
 
     if (isLoading) {
         return (
             <section id="results-view" className="view">
-                <FunFactLoader />
+                <FunFactLoader isLoggedIn={!!user} />
             </section>
         );
     }

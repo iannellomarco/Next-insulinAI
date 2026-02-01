@@ -1,9 +1,9 @@
 'use client';
 
-import { Loader2, Lightbulb } from 'lucide-react';
+import { Loader2, Lightbulb, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-const DIABETES_FACTS = [
+const STATIC_FACTS = [
     "Fiber helps slow down glucose absorption.",
     "Walking after meals can lower blood sugar.",
     "Protein and fat don't spike insulin as much as carbs.",
@@ -18,18 +18,48 @@ const DIABETES_FACTS = [
     "Exercise increases insulin sensitivity for hours."
 ];
 
-export default function FunFactLoader() {
-    const [activeIndex, setActiveIndex] = useState(0);
+interface FunFactLoaderProps {
+    isLoggedIn?: boolean;
+}
 
+export default function FunFactLoader({ isLoggedIn = false }: FunFactLoaderProps) {
+    const [facts, setFacts] = useState<string[]>(STATIC_FACTS);
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [isAiGenerated, setIsAiGenerated] = useState(false);
+    const [isLoadingFacts, setIsLoadingFacts] = useState(false);
+
+    // Fetch AI-generated facts for logged-in users
     useEffect(() => {
-        setActiveIndex(Math.floor(Math.random() * DIABETES_FACTS.length));
+        if (isLoggedIn && !isLoadingFacts) {
+            setIsLoadingFacts(true);
+            fetch('/api/facts', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.facts && data.facts.length > 0) {
+                        setFacts(data.facts);
+                        setIsAiGenerated(true);
+                        setActiveIndex(0);
+                    }
+                })
+                .catch(() => {
+                    // Keep static facts on error
+                })
+                .finally(() => {
+                    setIsLoadingFacts(false);
+                });
+        }
+    }, [isLoggedIn]);
+
+    // Rotate through facts
+    useEffect(() => {
+        setActiveIndex(Math.floor(Math.random() * facts.length));
 
         const interval = setInterval(() => {
-            setActiveIndex((prev) => (prev + 1) % DIABETES_FACTS.length);
+            setActiveIndex((prev) => (prev + 1) % facts.length);
         }, 4000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [facts]);
 
     return (
         <div className="loader-container" role="status" aria-live="polite">
@@ -39,15 +69,24 @@ export default function FunFactLoader() {
             
             <p className="loader-text">Analyzing your food...</p>
 
-            <div className="fact-card">
+            <div className={`fact-card ${isAiGenerated ? 'ai-generated' : ''}`}>
                 <div className="fact-header">
-                    <Lightbulb size={14} />
-                    <span>Did you know?</span>
+                    {isAiGenerated ? (
+                        <>
+                            <Sparkles size={14} />
+                            <span>AI-powered tip</span>
+                        </>
+                    ) : (
+                        <>
+                            <Lightbulb size={14} />
+                            <span>Did you know?</span>
+                        </>
+                    )}
                 </div>
                 <div className="facts-wrapper">
-                    {DIABETES_FACTS.map((fact, index) => (
+                    {facts.map((fact, index) => (
                         <p
-                            key={index}
+                            key={`${index}-${fact.substring(0, 10)}`}
                             className={`fact-item ${index === activeIndex ? 'active' : ''}`}
                         >
                             {fact}
@@ -95,6 +134,12 @@ export default function FunFactLoader() {
                     padding: 1.25rem;
                     border-radius: var(--radius-lg);
                     border: 1px solid var(--border);
+                    transition: all 0.3s ease;
+                }
+
+                .fact-card.ai-generated {
+                    border-color: var(--primary);
+                    background: linear-gradient(135deg, var(--card) 0%, rgba(13, 148, 136, 0.05) 100%);
                 }
 
                 .fact-header {
