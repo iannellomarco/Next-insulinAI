@@ -26,8 +26,17 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
     const { history, chainedMeals, isChaining, clearChain } = useStore();
     const { user } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const viewRef = useRef<HTMLElement>(null);
     const [inputMode, setInputMode] = useState<'photo' | 'text'>('photo');
     const [tipIndex, setTipIndex] = useState(0);
+
+    // Scroll to top when chaining mode is active (returning from "Add Another Food")
+    useEffect(() => {
+        if (isChaining) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            viewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [isChaining]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -60,7 +69,7 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
     };
 
     return (
-        <section id="home-view" className="view home-view">
+        <section id="home-view" className="view home-view" ref={viewRef}>
             <input
                 type="file"
                 id="file-input"

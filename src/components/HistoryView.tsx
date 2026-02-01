@@ -317,37 +317,28 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                 <div className="chain-connector">
                                                     <Link2 size={14} />
                                                 </div>
-                                                <div className="chained-items">
-                                                    {mealGroup.items.map((item, idx) => {
-                                                        const foodName = item.food_items?.[0]?.name || 'Unknown';
-                                                        return (
-                                                            <div 
-                                                                key={item.id} 
-                                                                className={`chained-item ${idx === 0 ? 'first' : ''} ${idx === mealGroup.items.length - 1 ? 'last' : ''}`}
-                                                            >
-                                                                <div className="chained-item-icon">
-                                                                    {getFoodIcon(foodName)}
-                                                                </div>
-                                                                <div className="chained-item-info">
+                                                <div className="chained-content">
+                                                    <div className="chained-items">
+                                                        {mealGroup.items.map((item, idx) => {
+                                                            const foodName = item.food_items?.[0]?.name || 'Unknown';
+                                                            return (
+                                                                <div 
+                                                                    key={item.id} 
+                                                                    className={`chained-item ${idx === 0 ? 'first' : ''} ${idx === mealGroup.items.length - 1 ? 'last' : ''}`}
+                                                                >
+                                                                    <div className="chained-item-icon">
+                                                                        {getFoodIcon(foodName)}
+                                                                    </div>
                                                                     <span className="chained-item-name">{foodName}</span>
                                                                     <span className="chained-item-carbs">{item.total_carbs}g</span>
                                                                 </div>
-                                                                {idx < mealGroup.items.length - 1 && (
-                                                                    <div className="chain-line" />
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                                <div className="chained-summary">
-                                                    <div className="chained-total">
-                                                        <span className="history-dose">{mealGroup.totalInsulin}u</span>
-                                                        <span className="total-label">{mealGroup.totalCarbs}g total</span>
+                                                            );
+                                                        })}
                                                     </div>
-                                                    <div className="chained-meta">
-                                                        {mealGroup.preGlucose && (
-                                                            <span className="stat-pre">Pre: {mealGroup.preGlucose}</span>
-                                                        )}
+                                                    <div className="chained-footer">
+                                                        <span className="chained-time">
+                                                            {new Date(mealGroup.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
                                                         {mealGroup.postGlucose ? (
                                                             <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
                                                                 2h: {mealGroup.postGlucose}
@@ -365,6 +356,10 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                             </button>
                                                         )}
                                                     </div>
+                                                </div>
+                                                <div className="chained-summary">
+                                                    <span className="history-dose">{mealGroup.totalInsulin}u</span>
+                                                    <span className="total-label">{mealGroup.totalCarbs}g</span>
                                                     <span className="history-time">
                                                         {new Date(mealGroup.timestamp).toLocaleTimeString([], { 
                                                             hour: '2-digit', 
