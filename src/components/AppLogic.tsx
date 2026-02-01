@@ -40,7 +40,7 @@ export default function AppLogic() {
         return history.filter(item => item.timestamp >= todayStart).length;
     }, [history]);
 
-    const canLogFood = user || todayMealCount < DAILY_LIMIT_GUEST;
+    const canLogFood = !!user || todayMealCount < DAILY_LIMIT_GUEST;
     const remainingLogs = DAILY_LIMIT_GUEST - todayMealCount;
 
     const handleNavigation = (item: NavType) => {
