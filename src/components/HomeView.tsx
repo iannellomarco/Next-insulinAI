@@ -1,7 +1,7 @@
 'use client';
 
-import { Camera, Type, Sparkles, ChevronRight, Lightbulb } from 'lucide-react';
-import { useRef, useState, useMemo, useEffect } from 'react';
+import { Camera, Type, Sparkles, ChevronRight, Lightbulb, Link2, X } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 import SmartFavorites from './SmartFavorites';
 import RecentHistory from './RecentHistory';
 import { useStore } from '@/lib/store';
@@ -23,7 +23,7 @@ const PRO_TIPS = [
 ];
 
 export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: HomeViewProps) {
-    const { history } = useStore();
+    const { history, chainedMeals, isChaining, clearChain } = useStore();
     const { user } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [inputMode, setInputMode] = useState<'photo' | 'text'>('photo');
@@ -71,11 +71,27 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
                 onChange={handleFileChange}
             />
 
+            {/* Chaining Banner */}
+            {isChaining && chainedMeals.length > 0 && (
+                <div className="chain-banner">
+                    <div className="chain-icon">
+                        <Link2 size={18} />
+                    </div>
+                    <div className="chain-info">
+                        <span>Adding to meal ({chainedMeals.length} item{chainedMeals.length > 1 ? 's' : ''})</span>
+                        <small>{chainedMeals.reduce((sum, m) => sum + m.total_carbs, 0)}g carbs so far</small>
+                    </div>
+                    <button className="chain-clear" onClick={clearChain}>
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
+
             {/* Log Food Card */}
             <div className="log-food-card">
                 <div className="log-food-header">
                     <Sparkles size={20} className="sparkle-icon" />
-                    <h2>Log Food</h2>
+                    <h2>{isChaining ? 'Add Another Food' : 'Log Food'}</h2>
                 </div>
 
                 {/* Mode Toggle */}

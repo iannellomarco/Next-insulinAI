@@ -2,28 +2,43 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth, SignInButton } from '@clerk/nextjs';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, Activity, History, Settings, ChevronRight, X, Zap } from 'lucide-react';
+
+const FEATURES = [
+    {
+        icon: History,
+        title: 'Sync History',
+        description: 'Access your meal logs on any device'
+    },
+    {
+        icon: Settings,
+        title: 'Save Settings',
+        description: 'Your carb ratio and preferences stay put'
+    },
+    {
+        icon: Activity,
+        title: 'Track Progress',
+        description: 'View insights and glucose trends over time'
+    }
+];
 
 export default function SoftLoginModal() {
     const { isLoaded, userId } = useAuth();
     const [showModal, setShowModal] = useState(false);
+    const [currentSlide, setCurrentSlide] = useState(0);
 
     useEffect(() => {
         if (!isLoaded) return;
 
-        // If user is already logged in, don't show prompt
         if (userId) {
             setShowModal(false);
             return;
         }
 
-        // Check if user has skipped this session
         const hasSkipped = sessionStorage.getItem('skipped_login_prompt');
 
         if (!hasSkipped) {
-            // Show modal after a short delay for better UX
             const timer = setTimeout(() => {
-                // Double check before showing
                 if (!sessionStorage.getItem('skipped_login_prompt')) {
                     setShowModal(true);
                 }
@@ -37,39 +52,72 @@ export default function SoftLoginModal() {
         sessionStorage.setItem('skipped_login_prompt', 'true');
     };
 
+    const nextSlide = () => {
+        if (currentSlide < FEATURES.length - 1) {
+            setCurrentSlide(currentSlide + 1);
+        }
+    };
+
     if (!showModal) return null;
 
     return (
-        <div className="modal" style={{ display: 'flex' }}>
-            <div className="modal-content animate-fade-in" style={{ maxWidth: '400px', textAlign: 'center' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                    <div style={{
-                        background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                        padding: '12px',
-                        borderRadius: '50%',
-                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-                    }}>
-                        <Sparkles size={32} color="white" />
+        <div className="onboarding-overlay">
+            <div className="onboarding-modal">
+                {/* Close Button */}
+                <button 
+                    className="onboarding-close" 
+                    onClick={handleSkip}
+                    aria-label="Close"
+                >
+                    <X size={20} />
+                </button>
+
+                {/* Header */}
+                <div className="onboarding-header">
+                    <div className="onboarding-icon">
+                        <Zap size={28} />
                     </div>
+                    <h2>Unlock Full Features</h2>
+                    <p>Create a free account to get the most out of InsulinAI</p>
                 </div>
 
-                <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Unlock Full Power</h3>
-                <p style={{ color: '#9ca3af', marginBottom: '1.5rem' }}>
-                    Create a free account to get personalized AI greetings, save your history across devices, and unlock smart tracking features.
-                </p>
+                {/* Feature Cards */}
+                <div className="onboarding-features">
+                    {FEATURES.map((feature, index) => {
+                        const Icon = feature.icon;
+                        return (
+                            <div 
+                                key={index} 
+                                className={`onboarding-feature ${index === currentSlide ? 'active' : ''}`}
+                            >
+                                <div className="feature-icon-wrap">
+                                    <Icon size={20} />
+                                </div>
+                                <div className="feature-text">
+                                    <span className="feature-title">{feature.title}</span>
+                                    <span className="feature-desc">{feature.description}</span>
+                                </div>
+                                <ChevronRight size={16} className="feature-arrow" />
+                            </div>
+                        );
+                    })}
+                </div>
 
-                <div className="modal-actions" style={{ flexDirection: 'column', gap: '12px' }}>
+                {/* Guest Notice */}
+                <div className="guest-notice">
+                    <Sparkles size={14} />
+                    <span>Guest mode: Data is stored locally and won't sync across devices</span>
+                </div>
+
+                {/* Actions */}
+                <div className="onboarding-actions">
                     <SignInButton mode="modal">
-                        <button className="btn primary" style={{ width: '100%', justifyContent: 'center' }}>
-                            Sign Up / Log In
+                        <button className="onboarding-btn primary">
+                            Create Free Account
                         </button>
                     </SignInButton>
 
-                    <button
-                        onClick={handleSkip}
-                        className="btn secondary"
-                        style={{ width: '100%', justifyContent: 'center', background: 'transparent', border: '1px solid #374151' }}
-                    >
+                    <button className="onboarding-btn secondary" onClick={handleSkip}>
                         Continue as Guest
                     </button>
                 </div>

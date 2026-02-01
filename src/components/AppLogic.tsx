@@ -96,10 +96,16 @@ export default function AppLogic() {
                 )}
 
                 {currentView === 'results' && (
-                    <ResultsView onBack={() => {
-                        setCurrentView('home');
-                        setActiveNav('home');
-                    }} />
+                    <ResultsView 
+                        onBack={() => {
+                            setCurrentView('home');
+                            setActiveNav('home');
+                        }}
+                        onAddMore={() => {
+                            setCurrentView('home');
+                            setActiveNav('home');
+                        }}
+                    />
                 )}
 
                 {currentView === 'history' && (

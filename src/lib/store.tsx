@@ -30,6 +30,12 @@ interface StoreContextType {
     setAnalysisResult: (result: AnalysisResult | null) => void;
     isLoading: boolean;
     setIsLoading: (loading: boolean) => void;
+    // Meal chaining
+    chainedMeals: AnalysisResult[];
+    addToChain: (result: AnalysisResult) => void;
+    clearChain: () => void;
+    isChaining: boolean;
+    setIsChaining: (chaining: boolean) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -72,6 +78,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [chainedMeals, setChainedMeals] = useState<AnalysisResult[]>([]);
+    const [isChaining, setIsChaining] = useState(false);
+
+    const addToChain = (result: AnalysisResult) => {
+        setChainedMeals(prev => [...prev, result]);
+    };
+
+    const clearChain = () => {
+        setChainedMeals([]);
+        setIsChaining(false);
+    };
 
     // Auto-compute favorites from history
     const autoSuggestedFavorites = useMemo(() => {
@@ -204,6 +221,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 setAnalysisResult,
                 isLoading,
                 setIsLoading,
+                chainedMeals,
+                addToChain,
+                clearChain,
+                isChaining,
+                setIsChaining,
             }}
         >
             {children}

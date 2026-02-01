@@ -1,18 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Activity, Check, AlertTriangle, Clock, Percent } from 'lucide-react';
+import { ArrowLeft, Activity, Check, AlertTriangle, Clock, Percent, Plus, Link2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { HistoryItem } from '@/types';
+import { HistoryItem, AnalysisResult } from '@/types';
+import { AIService } from '@/lib/ai-service';
 import FunFactLoader from '@/components/ui/FunFactLoader';
 
 interface ResultsViewProps {
     onBack: () => void;
     onSave?: () => void;
+    onAddMore?: () => void;
 }
 
-export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
-    const { analysisResult, isLoading, addHistoryItem } = useStore();
+export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewProps) {
+    const { 
+        analysisResult, 
+        isLoading, 
+        addHistoryItem, 
+        chainedMeals, 
+        addToChain,
+        clearChain,
+        isChaining,
+        setIsChaining 
+    } = useStore();
     const [preGlucose, setPreGlucose] = useState<string>('');
     const [saved, setSaved] = useState(false);
 
@@ -26,6 +37,12 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
 
     if (!analysisResult) return null;
 
+    // Combine chained meals with current result for display
+    const allMeals = isChaining ? [...chainedMeals, analysisResult] : [analysisResult];
+    const displayResult = allMeals.length > 1 
+        ? AIService.combineResults(allMeals) 
+        : analysisResult;
+
     const {
         friendly_description,
         suggested_insulin,
@@ -34,18 +51,26 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
         reasoning,
         split_bolus_recommendation,
         warnings,
-    } = analysisResult;
+    } = displayResult;
 
     const handleSave = () => {
         const historyItem: HistoryItem = {
-            ...analysisResult,
+            ...displayResult,
             id: `meal-${Date.now()}`,
             timestamp: Date.now(),
             pre_glucose: preGlucose ? parseInt(preGlucose, 10) : undefined,
         };
         addHistoryItem(historyItem);
         setSaved(true);
+        clearChain();
         if (onSave) onSave();
+    };
+
+    const handleAddAnother = () => {
+        // Add current result to chain and go back to scan
+        addToChain(analysisResult);
+        setIsChaining(true);
+        if (onAddMore) onAddMore();
     };
 
     return (
@@ -54,7 +79,10 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
                 <button 
                     id="back-home" 
                     className="icon-btn" 
-                    onClick={onBack}
+                    onClick={() => {
+                        clearChain();
+                        onBack();
+                    }}
                     aria-label="Go back"
                 >
                     <ArrowLeft size={22} />
@@ -64,6 +92,42 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
             </div>
 
             <div id="analysis-content">
+                {/* Chain Banner - Show when items are chained */}
+                {allMeals.length > 1 && (
+                    <div className="chain-banner">
+                        <div className="chain-icon">
+                            <Link2 size={18} />
+                        </div>
+                        <div className="chain-info">
+                            <span>Combined Meal ({allMeals.length} items)</span>
+                            <small>Totals calculated from all scanned foods</small>
+                        </div>
+                        <button 
+                            className="chain-clear" 
+                            onClick={() => {
+                                clearChain();
+                            }}
+                        >
+                            Clear
+                        </button>
+                    </div>
+                )}
+
+                {/* Chained Items List */}
+                {allMeals.length > 1 && (
+                    <div className="chain-items-list">
+                        {allMeals.map((meal, idx) => (
+                            <div key={idx} className="chain-item">
+                                <span className="chain-item-number">{idx + 1}</span>
+                                <span className="chain-item-name">
+                                    {meal.food_items[0]?.name || meal.friendly_description.slice(0, 30)}
+                                </span>
+                                <span className="chain-item-carbs">{meal.total_carbs}g</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {/* Main Summary Card */}
                 <div className="summary-card">
                     <h3>Recommended Insulin</h3>
@@ -71,7 +135,7 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
                         {suggested_insulin}
                         <span className="unit">units</span>
                     </div>
-                    <p>{friendly_description}</p>
+                    <p>{allMeals.length > 1 ? `Combined: ${friendly_description}` : friendly_description}</p>
                 </div>
 
                 {/* Pre-meal Glucose Input */}
@@ -153,6 +217,14 @@ export default function ResultsView({ onBack, onSave }: ResultsViewProps) {
                         <AlertTriangle size={18} />
                         <span>{warnings.join(' ')}</span>
                     </div>
+                )}
+
+                {/* Add Another Food Button */}
+                {!saved && (
+                    <button className="chain-add-btn" onClick={handleAddAnother}>
+                        <Plus size={18} />
+                        Add another food to this meal
+                    </button>
                 )}
             </div>
 
