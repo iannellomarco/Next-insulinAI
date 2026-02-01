@@ -2,8 +2,11 @@
 
 import { Camera, Zap, TrendingUp, Shield, ArrowRight, Sparkles, Check, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { SignInButton } from '@clerk/nextjs';
+import { SignInButton, useUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+const BYPASS_KEY = 'insulinai_landing_bypass';
 
 const FEATURES = [
     {
@@ -48,6 +51,29 @@ const STEPS = [
 
 export default function LandingPage() {
     const [isScrolled, setIsScrolled] = useState(false);
+    const [isChecking, setIsChecking] = useState(true);
+    const router = useRouter();
+    const { user, isLoaded } = useUser();
+
+    // Check if user should bypass landing page
+    useEffect(() => {
+        if (!isLoaded) return;
+        
+        // Logged in users always go to app
+        if (user) {
+            router.replace('/app');
+            return;
+        }
+        
+        // Check localStorage for bypass flag
+        const shouldBypass = localStorage.getItem(BYPASS_KEY) === 'true';
+        if (shouldBypass) {
+            router.replace('/app');
+            return;
+        }
+        
+        setIsChecking(false);
+    }, [user, isLoaded, router]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -56,6 +82,34 @@ export default function LandingPage() {
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+    
+    // Set bypass flag and navigate to app
+    const handleEnterApp = () => {
+        localStorage.setItem(BYPASS_KEY, 'true');
+        router.push('/app');
+    };
+
+    // Show nothing while checking bypass status
+    if (isChecking || !isLoaded) {
+        return (
+            <div style={{ 
+                minHeight: '100vh', 
+                background: '#0a0a0b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
+                <div style={{
+                    width: 32,
+                    height: 32,
+                    border: '2px solid #27272a',
+                    borderTopColor: '#2dd4bf',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                }} />
+            </div>
+        );
+    }
 
     return (
         <div className="landing-page">
@@ -79,12 +133,10 @@ export default function LandingPage() {
                         <SignInButton mode="modal">
                             <button className="btn-ghost">Log in</button>
                         </SignInButton>
-                        <Link href="/app">
-                            <button className="btn-primary-sm">
-                                Get Started
-                                <ArrowRight size={16} />
-                            </button>
-                        </Link>
+                        <button className="btn-primary-sm" onClick={handleEnterApp}>
+                            Get Started
+                            <ArrowRight size={16} />
+                        </button>
                     </div>
                 </div>
             </header>
@@ -110,12 +162,10 @@ export default function LandingPage() {
                     </p>
                     
                     <div className="hero-cta">
-                        <Link href="/app">
-                            <button className="btn-primary">
-                                Start Free
-                                <ArrowRight size={18} />
-                            </button>
-                        </Link>
+                        <button className="btn-primary" onClick={handleEnterApp}>
+                            Start Free
+                            <ArrowRight size={18} />
+                        </button>
                         <a href="#how-it-works" className="btn-secondary">
                             See how it works
                         </a>
@@ -238,12 +288,10 @@ export default function LandingPage() {
                             <span>Export your data anytime - you own your information</span>
                         </li>
                     </ul>
-                    <Link href="/app">
-                        <button className="btn-primary">
-                            Try it now
-                            <ArrowRight size={18} />
-                        </button>
-                    </Link>
+                    <button className="btn-primary" onClick={handleEnterApp}>
+                        Try it now
+                        <ArrowRight size={18} />
+                    </button>
                 </div>
                 <div className="benefits-visual">
                     <div className="benefit-card-stack">
@@ -276,12 +324,10 @@ export default function LandingPage() {
                     <h2>Ready to simplify your routine?</h2>
                     <p>Start managing your insulin with confidence today.</p>
                     <div className="cta-buttons">
-                        <Link href="/app">
-                            <button className="btn-primary btn-lg">
-                                Get Started Free
-                                <ArrowRight size={20} />
-                            </button>
-                        </Link>
+                        <button className="btn-primary btn-lg" onClick={handleEnterApp}>
+                            Get Started Free
+                            <ArrowRight size={20} />
+                        </button>
                     </div>
                     <span className="cta-note">No credit card required</span>
                 </div>
@@ -1187,6 +1233,10 @@ export default function LandingPage() {
                         font-size: 0.75rem;
                         padding: 0 0.5rem;
                     }
+                }
+                
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
                 }
             `}</style>
         </div>
