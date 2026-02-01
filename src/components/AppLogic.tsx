@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import HomeView from '@/components/HomeView';
 import ResultsView from '@/components/ResultsView';
 import HistoryView from '@/components/HistoryView';
@@ -13,35 +13,76 @@ import ErrorModal from '@/components/ErrorModal';
 import { useStore } from '@/lib/store';
 import { AIService } from '@/lib/ai-service';
 import { fileToBase64, resizeImage } from '@/lib/utils';
-import { HistoryItem } from '@/types';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
 import SoftLoginModal from '@/components/SoftLoginModal';
 import { useUser } from '@clerk/nextjs';
 
 const DAILY_LIMIT_GUEST = 5;
+const SCAN_COUNT_KEY = 'insulinai_daily_scans';
+
+// Get today's date key for localStorage
+const getTodayKey = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+};
+
+// Get scan count from localStorage (independent of history)
+const getDailyScanCount = (): number => {
+    if (typeof window === 'undefined') return 0;
+    try {
+        const data = localStorage.getItem(SCAN_COUNT_KEY);
+        if (!data) return 0;
+        const parsed = JSON.parse(data);
+        const todayKey = getTodayKey();
+        // Reset if it's a new day
+        if (parsed.date !== todayKey) return 0;
+        return parsed.count || 0;
+    } catch {
+        return 0;
+    }
+};
+
+// Increment scan count in localStorage
+const incrementScanCount = () => {
+    if (typeof window === 'undefined') return;
+    const todayKey = getTodayKey();
+    const currentCount = getDailyScanCount();
+    localStorage.setItem(SCAN_COUNT_KEY, JSON.stringify({
+        date: todayKey,
+        count: currentCount + 1
+    }));
+};
 
 type ViewType = 'home' | 'results' | 'history' | 'insights' | 'settings';
 type NavType = 'home' | 'log' | 'insights' | 'settings';
 
 export default function AppLogic() {
-    const { settings, history, addHistoryItem, setAnalysisResult, setIsLoading } = useStore();
+    const { settings, history, setAnalysisResult, setIsLoading } = useStore();
     const { user } = useUser();
     const [currentView, setCurrentView] = useState<ViewType>('home');
     const [activeNav, setActiveNav] = useState<NavType>('home');
     const [showTextModal, setShowTextModal] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
     const { toasts, addToast, removeToast } = useToast();
+    
+    // Track daily scan count (separate from history to prevent bypass via clearing history)
+    const [dailyScanCount, setDailyScanCount] = useState(0);
+    
+    // Load scan count from localStorage on mount
+    useEffect(() => {
+        setDailyScanCount(getDailyScanCount());
+    }, []);
 
-    // Count today's logged meals for guest users
-    const todayMealCount = useMemo(() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStart = today.getTime();
-        return history.filter(item => item.timestamp >= todayStart).length;
-    }, [history]);
-
-    const canLogFood = !!user || todayMealCount < DAILY_LIMIT_GUEST;
-    const remainingLogs = DAILY_LIMIT_GUEST - todayMealCount;
+    const canLogFood = !!user || dailyScanCount < DAILY_LIMIT_GUEST;
+    const remainingLogs = Math.max(0, DAILY_LIMIT_GUEST - dailyScanCount);
+    
+    // Increment scan count (called after successful analysis)
+    const incrementDailyScans = useCallback(() => {
+        if (!user) {
+            incrementScanCount();
+            setDailyScanCount(prev => prev + 1);
+        }
+    }, [user]);
 
     const handleNavigation = (item: NavType) => {
         setActiveNav(item);
@@ -80,7 +121,8 @@ export default function AppLogic() {
             const result = await AIService.analyze(payload, type, settings, historyContext);
 
             setAnalysisResult(result);
-            // Note: User will save manually from ResultsView to include pre_glucose
+            // Increment daily scan count for guest users (after successful analysis)
+            incrementDailyScans();
 
         } catch (error) {
             const msg = error instanceof Error ? error.message : "Analysis failed. Please try again.";
