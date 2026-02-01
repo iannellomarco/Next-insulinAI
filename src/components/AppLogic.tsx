@@ -7,7 +7,7 @@ import HistoryView from '@/components/HistoryView';
 import ReportView from '@/components/ReportView';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import SettingsModal from '@/components/SettingsModal';
+import SettingsView from '@/components/SettingsModal';
 import TextInputModal from '@/components/TextInputModal';
 import ErrorModal from '@/components/ErrorModal';
 import { useStore } from '@/lib/store';
@@ -121,12 +121,7 @@ export default function AppLogic() {
                     }} />
                 )}
 
-                {currentView === 'settings' && (
-                    <SettingsModal onBack={() => {
-                        setCurrentView('home');
-                        setActiveNav('home');
-                    }} />
-                )}
+                {currentView === 'settings' && <SettingsView />}
             </main>
 
             <BottomNav active={activeNav} onNavigate={handleNavigation} />

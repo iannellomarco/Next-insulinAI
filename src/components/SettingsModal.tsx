@@ -1,17 +1,14 @@
 'use client';
 
-import { ArrowLeft, Calculator, Target, ChevronDown, Zap } from 'lucide-react';
+import { Calculator, Target, ChevronDown, Zap } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 
-interface SettingsViewProps {
-    onBack: () => void;
-}
-
-export default function SettingsModal({ onBack }: SettingsViewProps) {
+export default function SettingsView() {
     const { settings, updateSettings } = useStore();
     const [localSettings, setLocalSettings] = useState(settings);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     useEffect(() => {
         setLocalSettings(settings);
@@ -19,6 +16,7 @@ export default function SettingsModal({ onBack }: SettingsViewProps) {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
+        setSaved(false);
         setLocalSettings((prev) => ({
             ...prev,
             [id]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value),
@@ -27,22 +25,12 @@ export default function SettingsModal({ onBack }: SettingsViewProps) {
 
     const handleSave = () => {
         updateSettings(localSettings);
-        onBack();
+        setSaved(true);
     };
 
     return (
         <section id="settings-view" className="view settings-view">
-            <div className="view-header">
-                <button 
-                    className="back-btn" 
-                    onClick={onBack} 
-                    aria-label="Go back"
-                >
-                    <ArrowLeft size={20} />
-                </button>
-                <h2>Settings</h2>
-                <div style={{ width: 36 }} /> {/* Spacer for centering */}
-            </div>
+            <h2 className="settings-title">Settings</h2>
             
             <div className="settings-form">
                 {/* Carb Ratio Section */}
@@ -183,10 +171,10 @@ export default function SettingsModal({ onBack }: SettingsViewProps) {
             
             <button 
                 id="save-settings" 
-                className="btn primary full-width" 
+                className={`btn ${saved ? 'success' : 'primary'} full-width`}
                 onClick={handleSave}
             >
-                Save Settings
+                {saved ? 'Saved!' : 'Save Settings'}
             </button>
         </section>
     );
