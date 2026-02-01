@@ -1,10 +1,14 @@
 'use client';
 
-import { X, Calculator, Target, ChevronDown, Zap } from 'lucide-react';
+import { ArrowLeft, Calculator, Target, ChevronDown, Zap } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 
-export default function SettingsModal({ onClose }: { onClose: () => void }) {
+interface SettingsViewProps {
+    onBack: () => void;
+}
+
+export default function SettingsModal({ onBack }: SettingsViewProps) {
     const { settings, updateSettings } = useStore();
     const [localSettings, setLocalSettings] = useState(settings);
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -23,20 +27,21 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
     const handleSave = () => {
         updateSettings(localSettings);
-        onClose();
+        onBack();
     };
 
     return (
         <section id="settings-view" className="view settings-view">
             <div className="view-header">
-                <h2>Settings</h2>
                 <button 
-                    className="icon-btn" 
-                    onClick={onClose} 
-                    aria-label="Close settings"
+                    className="back-btn" 
+                    onClick={onBack} 
+                    aria-label="Go back"
                 >
-                    <X size={22} />
+                    <ArrowLeft size={20} />
                 </button>
+                <h2>Settings</h2>
+                <div style={{ width: 36 }} /> {/* Spacer for centering */}
             </div>
             
             <div className="settings-form">

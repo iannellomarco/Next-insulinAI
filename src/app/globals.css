@@ -1876,14 +1876,29 @@ input:checked + .slider:before {
 
 /* Settings View Styles */
 .settings-view {
-    position: fixed;
-    inset: 0;
-    background: var(--background);
-    z-index: 100;
+    padding: 0 1.25rem 2rem;
+}
+
+.settings-view .view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+}
+
+.settings-view .view-header h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    flex: 1;
+    text-align: center;
+}
+
+.settings-view .settings-form {
     display: flex;
     flex-direction: column;
-    max-width: 480px;
-    margin: 0 auto;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .settings-section {
