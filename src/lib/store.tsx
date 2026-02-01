@@ -152,9 +152,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // History Actions
     const addHistoryItem = (item: HistoryItem) => {
-        const newHistory = [item, ...history].slice(0, 50);
-        setHistory(newHistory);
-        localStorage.setItem('history', JSON.stringify(newHistory));
+        setHistory(prev => {
+            const newHistory = [item, ...prev].slice(0, 50);
+            localStorage.setItem('history', JSON.stringify(newHistory));
+            return newHistory;
+        });
         if (user) syncHistoryItemAction(item);
     };
 
