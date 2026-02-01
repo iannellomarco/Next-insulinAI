@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { useState } from 'react';
 
 interface GlucoseInputModalProps {
@@ -15,180 +15,222 @@ export default function GlucoseInputModal({ onClose, onSave }: GlucoseInputModal
     const handleSubmit = () => {
         const val = parseInt(glucose);
         if (isNaN(val) || val <= 0 || val > 600) {
-            setError('Please enter a valid glucose level (1-600).');
+            setError('Please enter a valid glucose level (1-600)');
             return;
         }
         onSave(val);
         onClose();
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSubmit();
+        }
+    };
+
     return (
-        <div className="modal-overlay">
-            <div className="modal-content input-modal">
-                <div className="modal-header">
-                    <h3>2h Check</h3>
-                    <button className="icon-btn close-btn" onClick={onClose}>
-                        <X size={24} />
-                    </button>
+        <div 
+            className="glucose-overlay" 
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="glucose-title"
+        >
+            <div className="glucose-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-icon">
+                    <Activity size={22} />
                 </div>
+                
+                <h3 id="glucose-title">2-Hour Check</h3>
+                <p>Enter your blood glucose level 2 hours after the meal</p>
 
-                <p className="modal-description">
-                    Enter your blood glucose 2 hours after the meal.
-                </p>
-
-                <div className="input-group">
+                <div className="input-wrapper">
                     <input
                         type="number"
-                        placeholder="e.g. 140"
+                        placeholder="120"
                         value={glucose}
                         onChange={(e) => {
                             setGlucose(e.target.value);
                             setError('');
                         }}
+                        onKeyDown={handleKeyDown}
                         autoFocus
+                        aria-label="Glucose level"
                     />
-                    <span className="unit">mg/dL</span>
+                    <span className="unit-label">mg/dL</span>
                 </div>
 
-                {error && <div className="modal-error-message">{error}</div>}
+                {error && (
+                    <div className="input-error" role="alert">
+                        {error}
+                    </div>
+                )}
 
                 <div className="modal-actions">
-                    <button className="btn secondary" onClick={onClose}>Cancel</button>
-                    <button className="btn primary" onClick={handleSubmit}>Save</button>
+                    <button className="btn cancel-btn" onClick={onClose}>
+                        Cancel
+                    </button>
+                    <button 
+                        className="btn save-btn" 
+                        onClick={handleSubmit}
+                        disabled={!glucose}
+                    >
+                        Save
+                    </button>
                 </div>
             </div>
 
             <style jsx>{`
-                .modal-overlay {
+                .glucose-overlay {
                     position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.7);
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    backdrop-filter: blur(4px);
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    z-index: 1000;
-                    backdrop-filter: blur(2px);
-                    animation: fadeIn 0.2s ease-out;
+                    z-index: 2500;
+                    padding: 1.25rem;
+                    animation: fadeIn 0.15s ease-out;
                 }
 
-                .modal-content.input-modal {
-                    background: #121212;
-                    width: 90%;
+                .glucose-modal {
+                    background: var(--card);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-xl);
+                    width: 100%;
                     max-width: 320px;
-                    border-radius: 16px;
-                    padding: 24px;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    animation: scaleUp 0.2s ease-out;
+                    padding: 1.5rem;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+                    animation: slideUp 0.2s ease-out;
                 }
 
-                .modal-header {
+                .modal-icon {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    background: var(--accent);
+                    color: var(--primary);
                     display: flex;
-                    justify-content: space-between;
                     align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 1rem;
                 }
 
                 h3 {
-                    font-size: 1.25rem;
-                    font-weight: 700;
-                    margin: 0;
-                    color: white;
+                    margin: 0 0 0.375rem;
+                    font-size: 1.0625rem;
+                    font-weight: 600;
+                    color: var(--foreground);
                 }
 
-                .close-btn {
-                    color: #888;
-                    background: transparent;
-                    border: none;
-                }
-                .close-btn:hover {
-                    color: white;
+                p {
+                    margin: 0 0 1.25rem;
+                    color: var(--muted-foreground);
+                    font-size: 0.875rem;
+                    line-height: 1.4;
                 }
 
-                .modal-description {
-                    font-size: 0.9rem;
-                    color: #a3a3a3;
-                    margin: 0;
-                }
-
-                .input-group {
-                    position: relative;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
+                .input-wrapper {
+                    margin-bottom: 1rem;
                 }
 
                 input {
-                    background: rgba(255, 255, 255, 0.05);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 12px;
-                    padding: 16px;
-                    color: white;
+                    width: 100%;
+                    background: var(--secondary);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-md);
+                    padding: 1rem;
+                    color: var(--foreground);
                     font-size: 1.5rem;
                     text-align: center;
                     font-weight: 600;
-                    width: 100%;
                     outline: none;
+                    transition: all 0.2s;
                 }
 
                 input:focus {
-                    border-color: #6366f1;
-                    background: rgba(255, 255, 255, 0.08);
+                    border-color: var(--primary);
+                    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
                 }
 
-                .unit {
+                input::placeholder {
+                    color: var(--muted-foreground);
+                    font-weight: 400;
+                }
+
+                .unit-label {
+                    display: block;
                     text-align: center;
-                    color: #737373;
+                    color: var(--muted-foreground);
+                    font-size: 0.75rem;
+                    margin-top: 0.375rem;
+                }
+
+                .input-error {
+                    background: rgba(239, 68, 68, 0.08);
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                    color: var(--destructive);
+                    padding: 0.5rem 0.75rem;
+                    border-radius: var(--radius-sm);
                     font-size: 0.8rem;
-                }
-
-                .modal-error-message {
-                    color: #ef4444;
-                    font-size: 0.85rem;
-                    text-align: center;
+                    margin-bottom: 1rem;
                 }
 
                 .modal-actions {
                     display: flex;
-                    gap: 12px;
-                    margin-top: 8px;
+                    gap: 0.75rem;
                 }
 
                 .btn {
                     flex: 1;
-                    padding: 12px;
-                    border-radius: 8px;
-                    font-weight: 600;
+                    padding: 0.75rem;
+                    border-radius: var(--radius-md);
+                    font-weight: 500;
+                    font-size: 0.9375rem;
                     cursor: pointer;
-                    border: none;
                     transition: all 0.2s;
+                    border: none;
                 }
 
-                .btn.primary {
-                    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-                    color: white;
+                .cancel-btn {
+                    background: var(--secondary);
+                    color: var(--foreground);
                 }
-                .btn.primary:hover { opacity: 0.9; }
 
-                .btn.secondary {
-                    background: rgba(255, 255, 255, 0.1);
-                    color: white;
+                .cancel-btn:hover {
+                    background: var(--border);
                 }
-                .btn.secondary:hover { background: rgba(255, 255, 255, 0.15); }
+
+                .save-btn {
+                    background: var(--primary);
+                    color: var(--primary-foreground);
+                }
+
+                .save-btn:hover {
+                    opacity: 0.9;
+                }
+
+                .save-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
 
                 @keyframes fadeIn {
                     from { opacity: 0; }
                     to { opacity: 1; }
                 }
 
-                @keyframes scaleUp {
-                    from { opacity: 0; transform: scale(0.95); }
-                    to { opacity: 1; transform: scale(1); }
+                @keyframes slideUp {
+                    from { 
+                        opacity: 0; 
+                        transform: translateY(12px); 
+                    }
+                    to { 
+                        opacity: 1; 
+                        transform: translateY(0); 
+                    }
                 }
             `}</style>
         </div>

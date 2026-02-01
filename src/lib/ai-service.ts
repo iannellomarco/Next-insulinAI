@@ -9,125 +9,121 @@ export class AIService {
     ): Promise<AnalysisResult> {
 
         const API_URL = '/api/analyze';
-        // User confirmed 'sonar-pro' is desired.
         const model = 'sonar-pro';
 
-        // Construct System Instructions
-        let instructions = `
-    You are an expert nutritionist and diabetes assistant. 
-    
-    TASK:
-    ${type === 'image' ? 'Analyze the food in the image provided.' : 'Analyze the food described in the text provided.'}
-    
-    SAFETY CHECK:
-    If the input is NOT related to food, nutrition, or eating (e.g., "Write a poem", "Python code"), REJECT the input.
-    Return: { "error": "rejected_non_food", "message": "I can only help with food." }
-    
-    If the input IS food related:
-    1. Identify all food items and estimate macronutrients.
-    2. Calculate total carbs.
-    3. Based on the user's Carbon/Insulin ratio of 1 unit per ${settings.carbRatio}g of carbs, calculate the suggested insulin dose.
-    4. Analyze for Split Bolus (High Fat > 20g AND Protein > 25g).
-    
-    CRITICAL: Output strictly VALID JSON format. No markdown ticks.
-    Schema:
-    {
-        "friendly_description": "string",
-        "food_items": [
-            {"name": "string", "carbs": number, "fat": number, "protein": number, "approx_weight": "string"}
-        ],
-        "total_carbs": number,
-        "total_fat": number,
-        "total_protein": number,
-        "suggested_insulin": number,
-        "split_bolus_recommendation": {
-            "recommended": boolean,
-            "split_percentage": "string",
-            "duration": "string",
-            "reason": "string"
-        },
-        "reasoning": ["string"]
-    }
-        "warnings": ["string"] 
-    }
-    `;
+        // Optimized compact prompt for token efficiency
+        const instructions = `You are a diabetes nutrition assistant.
 
-        // History injection
-        if (settings.smartHistory && historyContext.length > 0) {
-            const historyItems = historyContext.slice(0, 5).map(h => {
-                return `- ${new Date(h.timestamp).toLocaleDateString()}: Ate ${h.food_items[0]?.name} (${h.total_carbs}g carbs). Dose: ${h.suggested_insulin}u.`;
-            }).join('\n');
-            instructions += `\n\nRELEVANT USER HISTORY:\n${historyItems}\nUse this history to adjust your advice.`;
-        }
+TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
 
-        // Construct Messages Payload
+RULES:
+1. If NOT food-related, return: {"error":"rejected","message":"Food analysis only."}
+2. Identify foods, estimate macros, calculate insulin using 1:${settings.carbRatio} carb ratio.
+3. Flag split bolus if fat>20g AND protein>25g.
+
+OUTPUT (valid JSON only, no markdown):
+{
+  "friendly_description":"Brief 1-sentence food description",
+  "food_items":[{"name":"string","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
+  "total_carbs":0,
+  "total_fat":0,
+  "total_protein":0,
+  "suggested_insulin":0,
+  "split_bolus_recommendation":{"recommended":false,"split_percentage":"","duration":"","reason":""},
+  "reasoning":["Step 1","Step 2"],
+  "warnings":[]
+}${settings.smartHistory && historyContext.length > 0 ? `
+
+USER HISTORY (adjust advice accordingly):
+${historyContext.slice(0, 3).map(h => `${h.food_items[0]?.name}:${h.total_carbs}g→${h.suggested_insulin}u`).join('; ')}` : ''}`;
+
+        // Construct messages
         const messages: any[] = [
             { role: "system", content: instructions }
         ];
 
         if (type === 'image' && typeof input === 'string') {
-            // content is array for vision
             messages.push({
                 role: "user",
                 content: [
-                    { type: "text", text: "Analyze this image." },
+                    { type: "text", text: "Analyze this food." },
                     { type: "image_url", image_url: { url: input } }
                 ]
             });
         } else {
-            // content is string for text
             messages.push({
                 role: "user",
-                content: `FOOD DESCRIPTION: ${input}`
+                content: `Food: ${input}`
             });
         }
 
-        const payload = {
-            model: model,
-            messages: messages
-        };
+        const payload = { model, messages };
 
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${settings.apiKey}` // Might be empty or invalid, route.ts handles fallback
+                'Authorization': `Bearer ${settings.apiKey}`
             },
             body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.error?.message || `Request failed with status ${response.status}`);
+            throw new Error(err.error?.message || `Request failed: ${response.status}`);
         }
 
         const data = await response.json();
         const content = data.choices[0].message.content;
 
-        // Robust JSON extraction: Find the first '{' and the last '}'
+        // Extract JSON
         const jsonStart = content.indexOf('{');
         const jsonEnd = content.lastIndexOf('}');
 
         let result;
         if (jsonStart !== -1 && jsonEnd !== -1) {
-            const jsonString = content.substring(jsonStart, jsonEnd + 1);
-            result = JSON.parse(jsonString);
+            result = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
         } else {
-            // Fallback to cleaning if no braces found (unlikely for valid JSON but safe to keep)
-            const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            result = JSON.parse(cleanContent);
+            result = JSON.parse(content.replace(/```json/g, '').replace(/```/g, '').trim());
         }
 
-        // Validation: Check if the AI rejected the input
         if (result.error) {
-            throw new Error(result.message || "I can only analyze food. Please try again.");
+            throw new Error(result.message || "I can only analyze food.");
         }
 
-        // Validation: Ensure structure is valid
-        if (!result.food_items || !Array.isArray(result.food_items) || result.food_items.length === 0) {
-            throw new Error("No food items identified. Please try a clearer description or image.");
+        if (!result.food_items?.length) {
+            throw new Error("No food items identified. Please try again.");
         }
 
         return result;
+    }
+
+    // Analyze multiple foods and combine results (for meal chaining)
+    static combineResults(results: AnalysisResult[]): AnalysisResult {
+        const allFoodItems = results.flatMap(r => r.food_items);
+        const totalCarbs = results.reduce((sum, r) => sum + r.total_carbs, 0);
+        const totalFat = results.reduce((sum, r) => sum + r.total_fat, 0);
+        const totalProtein = results.reduce((sum, r) => sum + r.total_protein, 0);
+        const totalInsulin = results.reduce((sum, r) => sum + r.suggested_insulin, 0);
+
+        // Determine if split bolus needed based on combined totals
+        const needsSplit = totalFat > 20 && totalProtein > 25;
+
+        return {
+            friendly_description: results.map(r => r.friendly_description).join(' + '),
+            food_items: allFoodItems,
+            total_carbs: Math.round(totalCarbs * 10) / 10,
+            total_fat: Math.round(totalFat * 10) / 10,
+            total_protein: Math.round(totalProtein * 10) / 10,
+            suggested_insulin: Math.round(totalInsulin * 10) / 10,
+            split_bolus_recommendation: needsSplit ? {
+                recommended: true,
+                split_percentage: "50% upfront, 50% extended",
+                duration: "2-3 hours",
+                reason: `Combined meal has ${Math.round(totalFat)}g fat and ${Math.round(totalProtein)}g protein.`
+            } : { recommended: false },
+            reasoning: [`Combined ${results.length} items totaling ${Math.round(totalCarbs)}g carbs.`],
+            warnings: results.flatMap(r => r.warnings || [])
+        };
     }
 }

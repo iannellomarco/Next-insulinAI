@@ -1,7 +1,7 @@
 'use client';
 
-import { Camera, Edit3 } from 'lucide-react';
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { Camera, Type, Sparkles, ChevronRight, Lightbulb, Link2, X } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 import SmartFavorites from './SmartFavorites';
 import RecentHistory from './RecentHistory';
 import { useStore } from '@/lib/store';
@@ -14,46 +14,43 @@ interface HomeViewProps {
     onViewHistory: () => void;
 }
 
-// Fallback greeting phrases
-const GREETINGS_WITH_NAME = [
-    (name: string) => `Hey ${name}, what's on the menu?`,
-    (name: string) => `Hi ${name}! Ready to scan?`,
-    (name: string) => `Hello ${name}, what are you eating?`,
-    (name: string) => `${name}, what's today's meal?`,
-    (name: string) => `Hungry, ${name}? Let's log it!`,
+const PRO_TIPS = [
+    "Include portion sizes for better accuracy",
+    "Add cooking method for precise carb counts",
+    "Mention brand names when possible",
+    "Describe sauces and toppings separately",
+    "Good lighting helps AI identify foods better",
 ];
-
-const GREETINGS_ANONYMOUS = [
-    "What are you eating?",
-    "Ready to scan your meal?",
-    "What's on your plate?",
-    "Time to log some food!",
-    "Let's count those carbs!",
-];
-
-
 
 export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: HomeViewProps) {
-    const { history } = useStore();
-    const { user, isLoaded } = useUser();
+    const { history, chainedMeals, isChaining, clearChain } = useStore();
+    const { user } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const viewRef = useRef<HTMLElement>(null);
+    const [inputMode, setInputMode] = useState<'photo' | 'text'>('photo');
+    const [tipIndex, setTipIndex] = useState(0);
 
-    // Fallback greeting (stable per session)
-    const fallbackGreeting = useMemo(() => {
-        if (user) {
-            const name = user.firstName || 'Friend';
-            const idx = Math.floor(Math.random() * GREETINGS_WITH_NAME.length);
-            return GREETINGS_WITH_NAME[idx](name);
+    // Scroll to top when chaining mode is active (returning from "Add Another Food")
+    useEffect(() => {
+        if (isChaining) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            viewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        const idx = Math.floor(Math.random() * GREETINGS_ANONYMOUS.length);
-        return GREETINGS_ANONYMOUS[idx];
-    }, [user]);
+    }, [isChaining]);
 
-    // Use stable local greeting
-    const greeting = fallbackGreeting;
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTipIndex((prev) => (prev + 1) % PRO_TIPS.length);
+        }, 5000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleScanClick = () => {
-        fileInputRef.current?.click();
+        if (inputMode === 'photo') {
+            fileInputRef.current?.click();
+        } else {
+            onManualEntry();
+        }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,37 +61,97 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
     };
 
     const handleFavoriteSelect = (item: Favorite) => {
-        // Quick log: analyze the favorite as text
         onAnalyze(item.name, 'text');
     };
 
     const handleHistoryItemClick = (item: HistoryItem) => {
-        // Could show details or re-analyze
         console.log('Clicked history item:', item);
     };
 
     return (
-        <section id="home-view" className="view home-view">
-            {/* Hero + Input Buttons */}
-            <div className="home-hero">
-                <h2 key={greeting} className="fade-in">{greeting}</h2>
-                <input
-                    type="file"
-                    id="file-input"
-                    accept="image/*"
-                    hidden
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                />
-                <div className="input-buttons">
-                    <button className="input-btn" onClick={handleScanClick}>
-                        <Camera size={28} />
+        <section id="home-view" className="view home-view" ref={viewRef}>
+            <input
+                type="file"
+                id="file-input"
+                accept="image/*"
+                capture="environment"
+                hidden
+                ref={fileInputRef}
+                onChange={handleFileChange}
+            />
+
+            {/* Chaining Banner */}
+            {isChaining && chainedMeals.length > 0 && (
+                <div className="chain-banner">
+                    <div className="chain-icon">
+                        <Link2 size={18} />
+                    </div>
+                    <div className="chain-info">
+                        <span>Adding to meal ({chainedMeals.length} item{chainedMeals.length > 1 ? 's' : ''})</span>
+                        <small>{chainedMeals.reduce((sum, m) => sum + m.total_carbs, 0)}g carbs so far</small>
+                    </div>
+                    <button className="chain-clear" onClick={clearChain}>
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
+
+            {/* Log Food Card */}
+            <div className="log-food-card">
+                <div className="log-food-header">
+                    <Sparkles size={20} className="sparkle-icon" />
+                    <h2>{isChaining ? 'Add Another Food' : 'Log Food'}</h2>
+                </div>
+
+                {/* Mode Toggle */}
+                <div className="mode-toggle">
+                    <button
+                        className={`mode-btn ${inputMode === 'photo' ? 'active' : ''}`}
+                        onClick={() => setInputMode('photo')}
+                    >
+                        <Camera size={18} />
                         <span>Photo</span>
                     </button>
-                    <button className="input-btn" onClick={onManualEntry}>
-                        <Edit3 size={28} />
+                    <button
+                        className={`mode-btn ${inputMode === 'text' ? 'active' : ''}`}
+                        onClick={() => setInputMode('text')}
+                    >
+                        <Type size={18} />
                         <span>Text</span>
                     </button>
+                </div>
+
+                {/* Scan Zone */}
+                <button 
+                    className="scan-zone" 
+                    onClick={handleScanClick}
+                    aria-label={inputMode === 'photo' ? 'Take a photo of your food' : 'Enter food manually'}
+                >
+                    <div className="scan-icon-wrapper">
+                        {inputMode === 'photo' ? (
+                            <Camera size={28} strokeWidth={1.5} />
+                        ) : (
+                            <Type size={28} strokeWidth={1.5} />
+                        )}
+                    </div>
+                    <span className="scan-title">
+                        {inputMode === 'photo' ? 'Tap to scan food' : 'Tap to type food'}
+                    </span>
+                    <span className="scan-subtitle">
+                        {inputMode === 'photo' 
+                            ? 'AI will identify carbs instantly' 
+                            : 'Describe what you\'re eating'}
+                    </span>
+                </button>
+
+                {/* Pro Tip */}
+                <div className="pro-tip">
+                    <div className="pro-tip-label">
+                        <Lightbulb size={14} />
+                        <span>Pro tip</span>
+                    </div>
+                    <p key={tipIndex} className="fade-in">{PRO_TIPS[tipIndex]}</p>
+                    <ChevronRight size={16} className="tip-arrow" />
                 </div>
             </div>
 

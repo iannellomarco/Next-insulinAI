@@ -1,6 +1,24 @@
 import { HistoryItem } from '@/types';
 
-export const calculateReportData = (history: HistoryItem[], days: number) => {
+export interface DailyStat {
+    date: string;
+    dateLabel: string;
+    avgGlucose: number;
+    totalInsulin: number;
+}
+
+export interface ReportData {
+    summary: {
+        avgPreGlucose: number;
+        avgPostGlucose: number;
+        totalInsulin: number;
+        totalCarbs: number;
+        count: number;
+    };
+    dailyStats: DailyStat[];
+}
+
+export const calculateReportData = (history: HistoryItem[], days: number): ReportData => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
@@ -15,15 +33,19 @@ export const calculateReportData = (history: HistoryItem[], days: number) => {
     let totalInsulin = 0;
     let totalCarbs = 0;
 
-    const dailyStatsMap = new Map<string, { date: string, timestamp: number, totalInsulin: number, piCount: number, glucoseSum: number }>();
+    const dailyStatsMap = new Map<string, { date: string, dateLabel: string, timestamp: number, totalInsulin: number, piCount: number, glucoseSum: number }>();
 
-    // Initialize map with all days
+    // Initialize map with all days - use ISO date string as key for reliable parsing
     for (let i = 0; i <= days; i++) {
         const d = new Date();
         d.setDate(d.getDate() - (days - i));
-        const dateKey = d.toLocaleDateString();
+        d.setHours(0, 0, 0, 0);
+        // Use ISO format for reliable key/parsing: YYYY-MM-DD
+        const dateKey = d.toISOString().split('T')[0];
+        const dateLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
         dailyStatsMap.set(dateKey, {
             date: dateKey,
+            dateLabel,
             timestamp: d.getTime(),
             totalInsulin: 0,
             piCount: 0,
@@ -52,7 +74,8 @@ export const calculateReportData = (history: HistoryItem[], days: number) => {
 
         // Daily Stats
         const rDate = new Date(data.timestamp);
-        const dateKey = rDate.toLocaleDateString();
+        // Use ISO format to match the map keys
+        const dateKey = rDate.toISOString().split('T')[0];
 
         if (dailyStatsMap.has(dateKey)) {
             const dayStat = dailyStatsMap.get(dateKey)!;
@@ -70,6 +93,7 @@ export const calculateReportData = (history: HistoryItem[], days: number) => {
         .sort((a, b) => a.timestamp - b.timestamp)
         .map(day => ({
             date: day.date,
+            dateLabel: day.dateLabel,
             avgGlucose: day.piCount > 0 ? Math.round(day.glucoseSum / day.piCount) : 0,
             totalInsulin: day.totalInsulin,
         }));

@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 interface ErrorModalProps {
     message: string;
@@ -9,108 +9,93 @@ interface ErrorModalProps {
 
 export default function ErrorModal({ message, onClose }: ErrorModalProps) {
     return (
-        <div className="modal-overlay">
-            <div className="modal-content error-modal">
-                <div className="modal-header">
-                    <h3>Input error</h3>
-                    <button onClick={onClose} className="close-btn">
-                        <X size={24} />
-                    </button>
+        <div 
+            className="error-overlay" 
+            onClick={onClose}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="error-title"
+        >
+            <div className="error-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="error-icon">
+                    <AlertCircle size={28} />
                 </div>
+                
+                <h3 id="error-title">Unable to Analyze</h3>
+                <p>{message}</p>
 
-                <div className="modal-body">
-                    <p className="modal-error-message">{message}</p>
-                </div>
-
-                <button className="btn confirm-btn full-width" onClick={onClose}>
-                    Confirm
+                <button className="btn dismiss-btn" onClick={onClose}>
+                    Got it
                 </button>
             </div>
 
             <style jsx>{`
-                .modal-overlay {
+                .error-overlay {
                     position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.7);
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    backdrop-filter: blur(4px);
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    z-index: 1000;
-                    backdrop-filter: blur(2px);
-                    animation: fadeIn 0.2s ease-out;
+                    z-index: 2500;
+                    padding: 1.25rem;
+                    animation: fadeIn 0.15s ease-out;
                 }
 
-                .modal-content.error-modal {
-                    background: #121212; /* Dark background */
-                    width: 90%;
-                    max-width: 400px;
-                    border-radius: 12px;
-                    padding: 20px;
-                    border: 1px solid #333;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                    animation: scaleUp 0.2s ease-out;
+                .error-modal {
+                    background: var(--card);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-xl);
+                    width: 100%;
+                    max-width: 340px;
+                    padding: 1.5rem;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+                    animation: slideUp 0.2s ease-out;
                 }
 
-                .modal-header {
+                .error-icon {
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 50%;
+                    background: rgba(239, 68, 68, 0.1);
+                    color: var(--destructive);
                     display: flex;
-                    justify-content: space-between;
                     align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 1rem;
                 }
 
                 h3 {
-                    font-size: 1.25rem;
+                    margin: 0 0 0.5rem;
+                    font-size: 1.0625rem;
                     font-weight: 600;
-                    margin: 0;
-                    color: white;
+                    color: var(--foreground);
                 }
 
-                .close-btn {
-                    background: none;
-                    border: none;
-                    color: #888;
-                    cursor: pointer;
-                    padding: 4px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .close-btn:hover {
-                    color: white;
-                }
-
-                .modal-body {
-                    text-align: center;
-                    padding: 10px 0;
-                }
-
-                .modal-error-message {
-                    font-size: 1rem;
-                    color: #e5e5e5;
-                    margin: 0;
+                p {
+                    margin: 0 0 1.5rem;
+                    color: var(--muted-foreground);
+                    font-size: 0.9375rem;
                     line-height: 1.5;
                 }
 
-                .confirm-btn {
-                    background-color: #ef4444; /* Red */
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    padding: 12px;
-                    font-weight: 600;
-                    font-size: 1rem;
+                .dismiss-btn {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border-radius: var(--radius-md);
+                    font-weight: 500;
+                    font-size: 0.9375rem;
                     cursor: pointer;
-                    transition: background-color 0.2s;
+                    transition: all 0.2s;
+                    border: none;
+                    background: var(--secondary);
+                    color: var(--foreground);
                 }
 
-                .confirm-btn:hover {
-                    background-color: #dc2626;
+                .dismiss-btn:hover {
+                    background: var(--border);
                 }
 
                 @keyframes fadeIn {
@@ -118,9 +103,15 @@ export default function ErrorModal({ message, onClose }: ErrorModalProps) {
                     to { opacity: 1; }
                 }
 
-                @keyframes scaleUp {
-                    from { opacity: 0; transform: scale(0.95); }
-                    to { opacity: 1; transform: scale(1); }
+                @keyframes slideUp {
+                    from { 
+                        opacity: 0; 
+                        transform: translateY(12px); 
+                    }
+                    to { 
+                        opacity: 1; 
+                        transform: translateY(0); 
+                    }
                 }
             `}</style>
         </div>
