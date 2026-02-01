@@ -60,8 +60,8 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
         const avgCarbsPerMeal = Math.round(data.summary.totalCarbs / data.summary.count);
         const avgInsulinPerMeal = (data.summary.totalInsulin / data.summary.count).toFixed(1);
         const glucoseChange = data.summary.avgPostGlucose - data.summary.avgPreGlucose;
-        const isInRange = data.summary.avgPostGlucose >= (settings.lowGlucoseThreshold || 70) && 
-                          data.summary.avgPostGlucose <= (settings.highGlucoseThreshold || 180);
+        const isInRange = data.summary.avgPostGlucose >= (settings.lowThreshold || 70) && 
+                          data.summary.avgPostGlucose <= (settings.highThreshold || 180);
 
         return {
             avgCarbsPerMeal,
