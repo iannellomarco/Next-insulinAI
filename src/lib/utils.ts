@@ -1,6 +1,24 @@
 import { HistoryItem } from '@/types';
 
-export const calculateReportData = (history: HistoryItem[], days: number) => {
+export interface DailyStat {
+    date: string;
+    dateLabel: string;
+    avgGlucose: number;
+    totalInsulin: number;
+}
+
+export interface ReportData {
+    summary: {
+        avgPreGlucose: number;
+        avgPostGlucose: number;
+        totalInsulin: number;
+        totalCarbs: number;
+        count: number;
+    };
+    dailyStats: DailyStat[];
+}
+
+export const calculateReportData = (history: HistoryItem[], days: number): ReportData => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);

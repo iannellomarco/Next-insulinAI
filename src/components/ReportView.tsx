@@ -16,23 +16,8 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { calculateReportData } from '@/lib/utils';
+import { calculateReportData, ReportData } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
-
-interface ReportData {
-    summary: {
-        avgPreGlucose: number;
-        avgPostGlucose: number;
-        totalInsulin: number;
-        totalCarbs: number;
-        count: number;
-    };
-    dailyStats: {
-        date: string;
-        avgGlucose: number;
-        totalInsulin: number;
-    }[];
-}
 
 export default function ReportView({ onBack }: { onBack: () => void }) {
     const { history, settings } = useStore();
