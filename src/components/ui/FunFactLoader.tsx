@@ -3,7 +3,7 @@
 import { Loader2, Lightbulb } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-const DIABETES_FACTS = [
+const FACTS = [
     "Fiber helps slow down glucose absorption.",
     "Walking after meals can lower blood sugar.",
     "Protein and fat don't spike insulin as much as carbs.",
@@ -22,10 +22,10 @@ export default function FunFactLoader() {
     const [activeIndex, setActiveIndex] = useState(0);
 
     useEffect(() => {
-        setActiveIndex(Math.floor(Math.random() * DIABETES_FACTS.length));
+        setActiveIndex(Math.floor(Math.random() * FACTS.length));
 
         const interval = setInterval(() => {
-            setActiveIndex((prev) => (prev + 1) % DIABETES_FACTS.length);
+            setActiveIndex((prev) => (prev + 1) % FACTS.length);
         }, 4000);
 
         return () => clearInterval(interval);
@@ -45,7 +45,7 @@ export default function FunFactLoader() {
                     <span>Did you know?</span>
                 </div>
                 <div className="facts-wrapper">
-                    {DIABETES_FACTS.map((fact, index) => (
+                    {FACTS.map((fact, index) => (
                         <p
                             key={index}
                             className={`fact-item ${index === activeIndex ? 'active' : ''}`}
