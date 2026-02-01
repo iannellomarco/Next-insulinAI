@@ -995,6 +995,7 @@ button {
     padding: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
+    overflow: hidden;
 }
 
 .history-item:hover {
@@ -1805,6 +1806,7 @@ input:checked + .slider:before {
     border-radius: var(--radius-lg);
     margin-bottom: 0.5rem;
     transition: all 0.2s ease;
+    overflow: hidden;
 }
 
 .history-item:hover {
