@@ -1,12 +1,12 @@
 'use client';
 
-import { Camera, Type, Sparkles, ChevronRight, Lightbulb, Link2, X } from 'lucide-react';
+import { Camera, Type, Sparkles, ChevronRight, Lightbulb, Link2, X, AlertCircle, Lock } from 'lucide-react';
 import { useRef, useState, useEffect } from 'react';
 import SmartFavorites from './SmartFavorites';
 import RecentHistory from './RecentHistory';
 import { useStore } from '@/lib/store';
 import { HistoryItem, Favorite } from '@/types';
-import { AlertCircle } from 'lucide-react';
+import { SignInButton } from '@clerk/nextjs';
 
 interface HomeViewProps {
     onAnalyze: (input: File | string, type: 'image' | 'text') => void;
@@ -106,62 +106,79 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
             )}
 
             {/* Log Food Card */}
-            <div className={`log-food-card ${!canLogFood ? 'disabled' : ''}`}>
-                <div className="log-food-header">
-                    <Sparkles size={20} className="sparkle-icon" />
-                    <h2>{isChaining ? 'Add Another Food' : 'Log Food'}</h2>
-                </div>
-
-                {/* Mode Toggle */}
-                <div className="mode-toggle">
-                    <button
-                        className={`mode-btn ${inputMode === 'photo' ? 'active' : ''}`}
-                        onClick={() => setInputMode('photo')}
-                    >
-                        <Camera size={18} />
-                        <span>Photo</span>
-                    </button>
-                    <button
-                        className={`mode-btn ${inputMode === 'text' ? 'active' : ''}`}
-                        onClick={() => setInputMode('text')}
-                    >
-                        <Type size={18} />
-                        <span>Text</span>
-                    </button>
-                </div>
-
-                {/* Scan Zone */}
-                <button 
-                    className="scan-zone" 
-                    onClick={handleScanClick}
-                    aria-label={inputMode === 'photo' ? 'Take a photo of your food' : 'Enter food manually'}
-                >
-                    <div className="scan-icon-wrapper">
-                        {inputMode === 'photo' ? (
-                            <Camera size={28} strokeWidth={1.5} />
-                        ) : (
-                            <Type size={28} strokeWidth={1.5} />
-                        )}
+            <div className={`log-food-card-wrapper ${!canLogFood ? 'limit-reached' : ''}`}>
+                <div className={`log-food-card ${!canLogFood ? 'blurred' : ''}`}>
+                    <div className="log-food-header">
+                        <Sparkles size={20} className="sparkle-icon" />
+                        <h2>{isChaining ? 'Add Another Food' : 'Log Food'}</h2>
                     </div>
-                    <span className="scan-title">
-                        {inputMode === 'photo' ? 'Tap to scan food' : 'Tap to type food'}
-                    </span>
-                    <span className="scan-subtitle">
-                        {inputMode === 'photo' 
-                            ? 'AI will identify carbs instantly' 
-                            : 'Describe what you\'re eating'}
-                    </span>
-                </button>
 
-                {/* Pro Tip */}
-                <div className="pro-tip">
-                    <div className="pro-tip-label">
-                        <Lightbulb size={14} />
-                        <span>Pro tip</span>
+                    {/* Mode Toggle */}
+                    <div className="mode-toggle">
+                        <button
+                            className={`mode-btn ${inputMode === 'photo' ? 'active' : ''}`}
+                            onClick={() => canLogFood && setInputMode('photo')}
+                        >
+                            <Camera size={18} />
+                            <span>Photo</span>
+                        </button>
+                        <button
+                            className={`mode-btn ${inputMode === 'text' ? 'active' : ''}`}
+                            onClick={() => canLogFood && setInputMode('text')}
+                        >
+                            <Type size={18} />
+                            <span>Text</span>
+                        </button>
                     </div>
-                    <p key={tipIndex} className="fade-in">{PRO_TIPS[tipIndex]}</p>
-                    <ChevronRight size={16} className="tip-arrow" />
+
+                    {/* Scan Zone */}
+                    <button 
+                        className="scan-zone" 
+                        onClick={canLogFood ? handleScanClick : undefined}
+                        aria-label={inputMode === 'photo' ? 'Take a photo of your food' : 'Enter food manually'}
+                        disabled={!canLogFood}
+                    >
+                        <div className="scan-icon-wrapper">
+                            {inputMode === 'photo' ? (
+                                <Camera size={28} strokeWidth={1.5} />
+                            ) : (
+                                <Type size={28} strokeWidth={1.5} />
+                            )}
+                        </div>
+                        <span className="scan-title">
+                            {inputMode === 'photo' ? 'Tap to scan food' : 'Tap to type food'}
+                        </span>
+                        <span className="scan-subtitle">
+                            {inputMode === 'photo' 
+                                ? 'AI will identify carbs instantly' 
+                                : 'Describe what you\'re eating'}
+                        </span>
+                    </button>
+
+                    {/* Pro Tip */}
+                    <div className="pro-tip">
+                        <div className="pro-tip-label">
+                            <Lightbulb size={14} />
+                            <span>Pro tip</span>
+                        </div>
+                        <p key={tipIndex} className="fade-in">{PRO_TIPS[tipIndex]}</p>
+                        <ChevronRight size={16} className="tip-arrow" />
+                    </div>
                 </div>
+
+                {/* Limit Reached Overlay */}
+                {!canLogFood && (
+                    <div className="limit-overlay">
+                        <div className="limit-overlay-icon">
+                            <Lock size={32} />
+                        </div>
+                        <h3>Daily Limit Reached</h3>
+                        <p>Sign in to unlock unlimited food logging and track your meals without restrictions.</p>
+                        <SignInButton mode="modal">
+                            <button className="btn primary">Sign In to Continue</button>
+                        </SignInButton>
+                    </div>
+                )}
             </div>
 
             {/* Smart Favorites */}
