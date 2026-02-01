@@ -298,7 +298,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                                 fontSize: '13px'
                                             }}
                                             labelStyle={{ color: 'var(--muted-foreground)' }}
-                                            formatter={(value: number) => [`${value}u`, 'Insulin']}
+                                            formatter={(value) => [`${value}u`, 'Insulin']}
                                         />
                                         <Bar 
                                             dataKey="totalInsulin" 
