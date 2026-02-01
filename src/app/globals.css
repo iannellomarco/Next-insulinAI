@@ -3146,6 +3146,8 @@ input:checked + .slider:before {
     cursor: pointer;
     transition: transform 0.15s ease;
     background: var(--card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
 }
   
 .history-item-wrapper:hover {
