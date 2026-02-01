@@ -3111,48 +3111,29 @@ input:checked + .slider:before {
   HISTORY VIEW - CHAINED MEAL VISUALIZATION
   ========================================== */
 
-/* Swipe container */
 .history-item-container {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
     margin-bottom: 0.75rem;
 }
 
-.swipe-delete-action {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 100px;
-    background: var(--destructive);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 500;
+.history-item-container .history-item-wrapper {
+    flex: 1;
 }
 
 .history-delete-btn {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-width: 40px;
+    border-radius: var(--radius-md);
     background: var(--secondary);
     border: 1px solid var(--border);
     color: var(--muted-foreground);
-    display: none;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
-    z-index: 10;
 }
 
 .history-delete-btn:hover {
@@ -3160,19 +3141,11 @@ input:checked + .slider:before {
     border-color: var(--destructive);
     color: white;
 }
-
-@media (hover: hover) {
-    .history-item-container:hover .history-delete-btn {
-        display: flex;
-    }
-}
   
 .history-item-wrapper {
     cursor: pointer;
     transition: transform 0.15s ease;
     background: var(--card);
-    position: relative;
-    z-index: 1;
 }
   
 .history-item-wrapper:hover {
