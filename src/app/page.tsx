@@ -51,28 +51,25 @@ const STEPS = [
 
 export default function LandingPage() {
     const [isScrolled, setIsScrolled] = useState(false);
-    const [isChecking, setIsChecking] = useState(true);
+    const [shouldRender, setShouldRender] = useState(false);
     const router = useRouter();
     const { user, isLoaded } = useUser();
 
-    // Check if user should bypass landing page
+    // Check localStorage bypass on mount (client-side only)
     useEffect(() => {
-        if (!isLoaded) return;
-        
-        // Logged in users always go to app
-        if (user) {
-            router.replace('/app');
-            return;
-        }
-        
-        // Check localStorage for bypass flag
         const shouldBypass = localStorage.getItem(BYPASS_KEY) === 'true';
         if (shouldBypass) {
             router.replace('/app');
-            return;
+        } else {
+            setShouldRender(true);
         }
-        
-        setIsChecking(false);
+    }, [router]);
+
+    // Redirect logged-in users to app
+    useEffect(() => {
+        if (isLoaded && user) {
+            router.replace('/app');
+        }
     }, [user, isLoaded, router]);
 
     useEffect(() => {
@@ -89,8 +86,8 @@ export default function LandingPage() {
         router.push('/app');
     };
 
-    // Show nothing while checking bypass status
-    if (isChecking || !isLoaded) {
+    // Show loading only briefly while checking localStorage
+    if (!shouldRender) {
         return (
             <div style={{ 
                 minHeight: '100vh', 
