@@ -13,14 +13,17 @@ import {
     Clock,
     Zap,
     Award,
-    AlertCircle
+    AlertCircle,
+    Lock
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { calculateReportData, ReportData } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { useUser, SignInButton } from '@clerk/nextjs';
 
 export default function ReportView({ onBack }: { onBack: () => void }) {
     const { history, settings } = useStore();
+    const { user } = useUser();
     const [days, setDays] = useState(7);
     const [data, setData] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -68,6 +71,77 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                 displayDate: d.dateLabel || d.date
             }));
     }, [data]);
+
+    // Show locked state for non-logged-in users
+    if (!user) {
+        return (
+            <section className="view report-view" id="report-view">
+                {/* Header */}
+                <div className="report-header">
+                    <button 
+                        className="back-btn" 
+                        onClick={onBack}
+                        aria-label="Go back"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    <h1>Insights</h1>
+                    <div style={{ width: 60 }} />
+                </div>
+
+                {/* Blurred Preview with Lock Overlay */}
+                <div className="report-locked-container">
+                    <div className="report-content-blurred">
+                        {/* Preview Cards (blurred) */}
+                        <div className="overview-card">
+                            <div className="overview-header">
+                                <Calendar size={16} />
+                                <span>Last 7 days</span>
+                            </div>
+                            <div className="overview-stats">
+                                <div className="overview-stat main">
+                                    <span className="stat-number">12</span>
+                                    <span className="stat-text">meals logged</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="quick-stats">
+                            <div className="quick-stat">
+                                <div className="stat-icon-wrap teal">
+                                    <Droplet size={18} />
+                                </div>
+                                <div className="stat-content">
+                                    <span className="stat-value">48u</span>
+                                    <span className="stat-label">Total Insulin</span>
+                                </div>
+                            </div>
+                            <div className="quick-stat">
+                                <div className="stat-icon-wrap orange">
+                                    <Utensils size={18} />
+                                </div>
+                                <div className="stat-content">
+                                    <span className="stat-value">520g</span>
+                                    <span className="stat-label">Total Carbs</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lock Overlay */}
+                    <div className="report-lock-overlay">
+                        <div className="lock-icon-wrap">
+                            <Lock size={32} />
+                        </div>
+                        <h3>Unlock Insights</h3>
+                        <p>Sign in to view detailed analytics, glucose trends, and personalized recommendations.</p>
+                        <SignInButton mode="modal">
+                            <button className="btn primary">Sign In to View</button>
+                        </SignInButton>
+                    </div>
+                </div>
+            </section>
+        );
+    }
 
     return (
         <section className="view report-view" id="report-view">

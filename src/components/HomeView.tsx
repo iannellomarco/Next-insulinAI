@@ -5,13 +5,16 @@ import { useRef, useState, useEffect } from 'react';
 import SmartFavorites from './SmartFavorites';
 import RecentHistory from './RecentHistory';
 import { useStore } from '@/lib/store';
-import { useUser } from '@clerk/nextjs';
 import { HistoryItem, Favorite } from '@/types';
+import { AlertCircle } from 'lucide-react';
 
 interface HomeViewProps {
     onAnalyze: (input: File | string, type: 'image' | 'text') => void;
     onManualEntry: () => void;
     onViewHistory: () => void;
+    canLogFood?: boolean;
+    remainingLogs?: number;
+    isGuest?: boolean;
 }
 
 const PRO_TIPS = [
@@ -22,9 +25,8 @@ const PRO_TIPS = [
     "Good lighting helps AI identify foods better",
 ];
 
-export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: HomeViewProps) {
+export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canLogFood = true, remainingLogs = 5, isGuest = false }: HomeViewProps) {
     const { history, chainedMeals, isChaining, clearChain } = useStore();
-    const { user } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const viewRef = useRef<HTMLElement>(null);
     const [inputMode, setInputMode] = useState<'photo' | 'text'>('photo');
@@ -95,8 +97,16 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory }: Ho
                 </div>
             )}
 
+            {/* Guest Limit Warning */}
+            {isGuest && remainingLogs <= 2 && remainingLogs > 0 && (
+                <div className="limit-warning">
+                    <AlertCircle size={16} />
+                    <span>{remainingLogs} free log{remainingLogs !== 1 ? 's' : ''} remaining today. Sign in for unlimited access.</span>
+                </div>
+            )}
+
             {/* Log Food Card */}
-            <div className="log-food-card">
+            <div className={`log-food-card ${!canLogFood ? 'disabled' : ''}`}>
                 <div className="log-food-header">
                     <Sparkles size={20} className="sparkle-icon" />
                     <h2>{isChaining ? 'Add Another Food' : 'Log Food'}</h2>

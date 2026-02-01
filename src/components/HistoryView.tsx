@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Trash2, Plus, Calendar, Utensils, Link2, X, Activity, Droplet, TrendingUp, TrendingDown } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import GlucoseInputModal from '@/components/GlucoseInputModal';
 import { HistoryItem } from '@/types';
@@ -44,6 +44,11 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [glucoseModalItem, setGlucoseModalItem] = useState<string | null>(null);
     const [selectedMealGroup, setSelectedMealGroup] = useState<MealGroup | null>(null);
+
+    // Scroll to top when component mounts
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }, []);
 
     const handleClearConfirm = () => {
         clearHistory();
