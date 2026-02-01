@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Trash2, Plus, Calendar, Utensils, Link2, X, Activity, Droplet, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Calendar, Utensils, Link2, X, Activity, Droplet, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useMemo, useEffect } from 'react';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
@@ -37,18 +37,29 @@ interface MealGroup {
     timestamp: number;
     preGlucose?: number;
     postGlucose?: number;
+    splitBolusAccepted?: boolean;
+    splitBolusInfo?: {
+        split_percentage?: string;
+        duration?: string;
+    };
 }
 
 export default function HistoryView({ onBack }: { onBack: () => void }) {
-    const { history, settings, clearHistory, updateHistoryItem } = useStore();
+    const { history, settings, clearHistory, updateHistoryItem, deleteHistoryItem } = useStore();
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [glucoseModalItem, setGlucoseModalItem] = useState<string | null>(null);
     const [selectedMealGroup, setSelectedMealGroup] = useState<MealGroup | null>(null);
+    const [deleteConfirmItem, setDeleteConfirmItem] = useState<string | null>(null);
 
     // Scroll to top when component mounts
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'instant' });
     }, []);
+
+    const handleDeleteItem = (id: string) => {
+        deleteHistoryItem(id);
+        setDeleteConfirmItem(null);
+    };
 
     const handleClearConfirm = () => {
         clearHistory();
@@ -86,6 +97,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     .filter(h => h.chainId === item.chainId)
                     .sort((a, b) => (a.chainIndex || 0) - (b.chainIndex || 0));
                 
+                const firstItem = chainItems[0];
                 groups.push({
                     chainId: item.chainId,
                     items: chainItems,
@@ -94,6 +106,11 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     timestamp: chainItems[0]?.timestamp || item.timestamp,
                     preGlucose: chainItems[0]?.pre_glucose,
                     postGlucose: chainItems[chainItems.length - 1]?.post_glucose,
+                    splitBolusAccepted: firstItem?.split_bolus_accepted,
+                    splitBolusInfo: firstItem?.split_bolus_recommendation?.recommended ? {
+                        split_percentage: firstItem.split_bolus_recommendation.split_percentage,
+                        duration: firstItem.split_bolus_recommendation.duration,
+                    } : undefined,
                 });
             } else {
                 groups.push({
@@ -104,6 +121,11 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     timestamp: item.timestamp,
                     preGlucose: item.pre_glucose,
                     postGlucose: item.post_glucose,
+                    splitBolusAccepted: item.split_bolus_accepted,
+                    splitBolusInfo: item.split_bolus_recommendation?.recommended ? {
+                        split_percentage: item.split_bolus_recommendation.split_percentage,
+                        duration: item.split_bolus_recommendation.duration,
+                    } : undefined,
                 });
             }
         }
@@ -138,6 +160,17 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                 isDestructive={true}
                 onConfirm={handleClearConfirm}
                 onCancel={() => setShowClearConfirm(false)}
+            />
+
+            <ConfirmationModal
+                isOpen={!!deleteConfirmItem}
+                title="Delete This Meal?"
+                message="This will permanently delete this meal from your history."
+                confirmText="Delete"
+                cancelText="Cancel"
+                isDestructive={true}
+                onConfirm={() => deleteConfirmItem && handleDeleteItem(deleteConfirmItem)}
+                onCancel={() => setDeleteConfirmItem(null)}
             />
 
             {glucoseModalItem && (
@@ -189,6 +222,26 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                 <span className="detail-stat-label">Carbs</span>
                             </div>
                         </div>
+
+                        {/* Split Bolus Info */}
+                        {selectedMealGroup.splitBolusAccepted && selectedMealGroup.splitBolusInfo && (
+                            <div className="meal-detail-split">
+                                <h4>
+                                    <Clock size={14} />
+                                    Split Bolus
+                                </h4>
+                                <div className="split-info-row">
+                                    <div className="split-info-item">
+                                        <span className="split-info-label">Split</span>
+                                        <span className="split-info-value">{selectedMealGroup.splitBolusInfo.split_percentage}</span>
+                                    </div>
+                                    <div className="split-info-item">
+                                        <span className="split-info-label">Duration</span>
+                                        <span className="split-info-value">{selectedMealGroup.splitBolusInfo.duration}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Glucose Response */}
                         {(selectedMealGroup.preGlucose || selectedMealGroup.postGlucose) && (
@@ -306,16 +359,20 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                 const isChained = mealGroup.items.length > 1;
                                 const isHigh = mealGroup.postGlucose && mealGroup.postGlucose > settings.highThreshold;
                                 const isLow = mealGroup.postGlucose && mealGroup.postGlucose < settings.lowThreshold;
+                                const itemId = mealGroup.chainId || mealGroup.items[0]?.id;
 
                                 return (
                                     <div 
-                                        key={mealGroup.chainId || mealGroup.items[0]?.id} 
-                                        className={`history-item-wrapper ${isChained ? 'chained' : ''}`}
-                                        onClick={() => setSelectedMealGroup(mealGroup)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(e) => e.key === 'Enter' && setSelectedMealGroup(mealGroup)}
+                                        key={itemId} 
+                                        className="history-item-container"
                                     >
+                                        <div 
+                                            className={`history-item-wrapper ${isChained ? 'chained' : ''}`}
+                                            onClick={() => setSelectedMealGroup(mealGroup)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(e) => e.key === 'Enter' && setSelectedMealGroup(mealGroup)}
+                                        >
                                         {isChained ? (
                                             // Chained meal display
                                             <div className="chained-meal-card">
@@ -365,12 +422,12 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                 <div className="chained-summary">
                                                     <span className="history-dose">{mealGroup.totalInsulin}u</span>
                                                     <span className="total-label">{mealGroup.totalCarbs}g</span>
-                                                    <span className="history-time">
-                                                        {new Date(mealGroup.timestamp).toLocaleTimeString([], { 
-                                                            hour: '2-digit', 
-                                                            minute: '2-digit' 
-                                                        })}
-                                                    </span>
+                                                    {mealGroup.splitBolusAccepted && (
+                                                        <span className="split-badge">
+                                                            <Clock size={10} />
+                                                            Split
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         ) : (
@@ -409,6 +466,12 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                                 <span>Add 2h</span>
                                                             </button>
                                                         )}
+                                                        {mealGroup.splitBolusAccepted && (
+                                                            <span className="split-badge">
+                                                                <Clock size={12} />
+                                                                Split
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <span className="history-time">
                                                         {new Date(mealGroup.timestamp).toLocaleTimeString([], { 
@@ -419,6 +482,19 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                 </div>
                                             </div>
                                         )}
+                                        </div>
+                                        
+                                        {/* Delete button */}
+                                        <button
+                                            className="history-delete-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDeleteConfirmItem(itemId);
+                                            }}
+                                            aria-label="Delete meal"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
                                 );
                             })}

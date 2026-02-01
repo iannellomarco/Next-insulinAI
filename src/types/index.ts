@@ -34,6 +34,7 @@ export interface HistoryItem extends AnalysisResult {
     post_glucose?: number; // 2h check
     chainId?: string; // Groups multiple items eaten together
     chainIndex?: number; // Order within the chain (0 = first item)
+    split_bolus_accepted?: boolean; // Whether user accepted split bolus recommendation
 }
 
 export interface Settings {

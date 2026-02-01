@@ -26,6 +26,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
     } = useStore();
     const [preGlucose, setPreGlucose] = useState<string>('');
     const [saved, setSaved] = useState(false);
+    const [splitBolusAccepted, setSplitBolusAccepted] = useState<boolean | null>(null);
 
     if (isLoading) {
         return (
@@ -56,6 +57,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
     const handleSave = () => {
         const baseTimestamp = Date.now();
         const parsedPreGlucose = preGlucose ? parseInt(preGlucose, 10) : undefined;
+        const hasSplitBolus = split_bolus_recommendation?.recommended && splitBolusAccepted === true;
         
         if (allMeals.length > 1) {
             // Save each meal individually with a shared chainId for visualization
@@ -68,6 +70,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                     pre_glucose: index === 0 ? parsedPreGlucose : undefined, // Only first item gets pre-glucose
                     chainId,
                     chainIndex: index,
+                    split_bolus_accepted: index === 0 ? hasSplitBolus : undefined, // Only first item gets split bolus flag
                 };
                 addHistoryItem(historyItem);
             });
@@ -78,6 +81,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                 id: `meal-${baseTimestamp}`,
                 timestamp: baseTimestamp,
                 pre_glucose: parsedPreGlucose,
+                split_bolus_accepted: hasSplitBolus,
             };
             addHistoryItem(historyItem);
         }
@@ -181,7 +185,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
 
                 {/* Split Bolus Recommendation */}
                 {split_bolus_recommendation?.recommended && (
-                    <div className="split-bolus-card">
+                    <div className={`split-bolus-card ${splitBolusAccepted === true ? 'accepted' : ''} ${splitBolusAccepted === false ? 'declined' : ''}`}>
                         <div className="split-header">
                             <Clock size={18} className="text-warning" />
                             <h3>Split Bolus Recommended</h3>
@@ -197,6 +201,34 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                             </div>
                             <p className="split-reason">{split_bolus_recommendation.reason}</p>
                         </div>
+                        {splitBolusAccepted === null && (
+                            <div className="split-actions">
+                                <button 
+                                    className="split-btn accept"
+                                    onClick={() => setSplitBolusAccepted(true)}
+                                >
+                                    <Check size={16} />
+                                    Accept Split
+                                </button>
+                                <button 
+                                    className="split-btn decline"
+                                    onClick={() => setSplitBolusAccepted(false)}
+                                >
+                                    Skip
+                                </button>
+                            </div>
+                        )}
+                        {splitBolusAccepted === true && (
+                            <div className="split-status accepted">
+                                <Check size={16} />
+                                Split bolus accepted - will be saved with meal
+                            </div>
+                        )}
+                        {splitBolusAccepted === false && (
+                            <div className="split-status declined">
+                                Standard bolus selected
+                            </div>
+                        )}
                     </div>
                 )}
 

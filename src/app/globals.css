@@ -761,6 +761,93 @@ button {
     font-style: italic;
 }
 
+.split-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.split-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.split-btn.accept {
+    background: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.split-btn.accept:hover {
+    filter: brightness(1.1);
+}
+
+.split-btn.decline {
+    background: var(--secondary);
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
+}
+
+.split-btn.decline:hover {
+    background: var(--secondary);
+    color: var(--foreground);
+}
+
+.split-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.split-status.accepted {
+    background: rgba(45, 212, 191, 0.15);
+    color: var(--primary);
+}
+
+.split-status.declined {
+    background: var(--secondary);
+    color: var(--muted-foreground);
+}
+
+.split-bolus-card.accepted {
+    border-color: var(--primary);
+}
+
+.split-bolus-card.declined {
+    opacity: 0.7;
+}
+
+/* Split Badge in History */
+.split-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+    font-size: 0.625rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
 /* Result Card */
 .result-card {
     background: var(--card);
@@ -908,6 +995,7 @@ button {
     padding: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
+    overflow: hidden;
 }
 
 .history-item:hover {
@@ -1714,14 +1802,6 @@ input:checked + .slider:before {
     gap: 0.875rem;
     padding: 1rem;
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    margin-bottom: 0.5rem;
-    transition: all 0.2s ease;
-}
-
-.history-item:hover {
-    border-color: var(--primary);
 }
 
 .history-item-icon {
@@ -3021,35 +3101,58 @@ input:checked + .slider:before {
 }
 
 /* ==========================================
-   HISTORY VIEW - CHAINED MEAL VISUALIZATION
-   ========================================== */
+  HISTORY VIEW - CHAINED MEAL VISUALIZATION
+  ========================================== */
 
+.history-item-container {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.history-item-container .history-item-wrapper {
+    flex: 1;
+}
+
+.history-delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-width: 40px;
+    border-radius: var(--radius-md);
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.history-delete-btn:hover {
+    background: var(--destructive);
+    border-color: var(--destructive);
+    color: white;
+}
+  
 .history-item-wrapper {
     cursor: pointer;
-    transition: transform 0.15s ease;
+    transition: all 0.15s ease;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
 }
-
+  
 .history-item-wrapper:hover {
-    transform: translateX(2px);
-}
-
-.history-item-wrapper:active {
-    transform: scale(0.995);
+    border-color: var(--primary);
 }
 
 /* Chained Meal Card */
 .chained-meal-card {
     display: flex;
     background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
     overflow: hidden;
-    margin-bottom: 0.5rem;
-    transition: all 0.2s;
-}
-
-.chained-meal-card:hover {
-    border-color: var(--primary);
 }
 
 .chain-connector {
@@ -3264,6 +3367,47 @@ input:checked + .slider:before {
     color: var(--muted-foreground);
     text-transform: uppercase;
     letter-spacing: 0.025em;
+}
+
+.meal-detail-split {
+    padding: 1rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+}
+
+.meal-detail-split h4 {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--warning);
+    margin-bottom: 0.75rem;
+}
+
+.split-info-row {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.split-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.split-info-label {
+    font-size: 0.7rem;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+}
+
+.split-info-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
 }
 
 .meal-detail-glucose {
