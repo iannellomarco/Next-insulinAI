@@ -1,13 +1,14 @@
 'use client';
 
-import { X, Calculator, Target, ChevronDown, Zap } from 'lucide-react';
+import { Calculator, Target, ChevronDown, Zap } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 
-export default function SettingsModal({ onClose }: { onClose: () => void }) {
+export default function SettingsView() {
     const { settings, updateSettings } = useStore();
     const [localSettings, setLocalSettings] = useState(settings);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     useEffect(() => {
         setLocalSettings(settings);
@@ -15,6 +16,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
+        setSaved(false);
         setLocalSettings((prev) => ({
             ...prev,
             [id]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value),
@@ -23,21 +25,12 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
     const handleSave = () => {
         updateSettings(localSettings);
-        onClose();
+        setSaved(true);
     };
 
     return (
         <section id="settings-view" className="view settings-view">
-            <div className="view-header">
-                <h2>Settings</h2>
-                <button 
-                    className="icon-btn" 
-                    onClick={onClose} 
-                    aria-label="Close settings"
-                >
-                    <X size={22} />
-                </button>
-            </div>
+            <h2 className="settings-title">Settings</h2>
             
             <div className="settings-form">
                 {/* Carb Ratio Section */}
@@ -178,10 +171,10 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             
             <button 
                 id="save-settings" 
-                className="btn primary full-width" 
+                className={`btn ${saved ? 'success' : 'primary'} full-width`}
                 onClick={handleSave}
             >
-                Save Settings
+                {saved ? 'Saved!' : 'Save Settings'}
             </button>
         </section>
     );

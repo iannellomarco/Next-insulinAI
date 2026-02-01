@@ -7,7 +7,7 @@ import HistoryView from '@/components/HistoryView';
 import ReportView from '@/components/ReportView';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import SettingsModal from '@/components/SettingsModal';
+import SettingsView from '@/components/SettingsModal';
 import TextInputModal from '@/components/TextInputModal';
 import ErrorModal from '@/components/ErrorModal';
 import { useStore } from '@/lib/store';
@@ -17,14 +17,13 @@ import { HistoryItem } from '@/types';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
 import SoftLoginModal from '@/components/SoftLoginModal';
 
-type ViewType = 'home' | 'results' | 'history' | 'insights';
+type ViewType = 'home' | 'results' | 'history' | 'insights' | 'settings';
 type NavType = 'home' | 'log' | 'insights' | 'settings';
 
 export default function AppLogic() {
     const { settings, history, addHistoryItem, setAnalysisResult, setIsLoading } = useStore();
     const [currentView, setCurrentView] = useState<ViewType>('home');
     const [activeNav, setActiveNav] = useState<NavType>('home');
-    const [showSettings, setShowSettings] = useState(false);
     const [showTextModal, setShowTextModal] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
     const { toasts, addToast, removeToast } = useToast();
@@ -38,7 +37,7 @@ export default function AppLogic() {
         } else if (item === 'insights') {
             setCurrentView('insights');
         } else if (item === 'settings') {
-            setShowSettings(true);
+            setCurrentView('settings');
         }
     };
 
@@ -121,15 +120,13 @@ export default function AppLogic() {
                         setActiveNav('home');
                     }} />
                 )}
+
+                {currentView === 'settings' && <SettingsView />}
             </main>
 
             <BottomNav active={activeNav} onNavigate={handleNavigation} />
 
             {/* Modals */}
-            {showSettings && (
-                <SettingsModal onClose={() => setShowSettings(false)} />
-            )}
-
             {showTextModal && (
                 <TextInputModal
                     onClose={() => setShowTextModal(false)}
