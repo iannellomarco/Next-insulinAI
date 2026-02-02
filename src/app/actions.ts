@@ -85,6 +85,8 @@ export async function syncSettingsAction(settings: Settings) {
         await db.insert(userSettings).values({
             userId,
             carbRatio: settings.carbRatio,
+            carbRatios: settings.carbRatios,
+            useMealSpecificRatios: settings.useMealSpecificRatios,
             correctionFactor: settings.correctionFactor,
             targetGlucose: settings.targetGlucose,
             highThreshold: settings.highThreshold,
@@ -94,6 +96,8 @@ export async function syncSettingsAction(settings: Settings) {
             target: userSettings.userId,
             set: {
                 carbRatio: settings.carbRatio,
+                carbRatios: settings.carbRatios,
+                useMealSpecificRatios: settings.useMealSpecificRatios,
                 correctionFactor: settings.correctionFactor,
                 targetGlucose: settings.targetGlucose,
                 highThreshold: settings.highThreshold,
@@ -123,12 +127,12 @@ export async function getRemoteSettingsAction() {
         // Map back to Settings interface (excluding apiKey which is local/env only)
         const settings: Omit<Settings, 'apiKey'> = {
             carbRatio: row.carbRatio || 10,
-            carbRatios: {
+            carbRatios: (row.carbRatios as any) || {
                 breakfast: 8,
                 lunch: 10,
                 dinner: 12,
             },
-            useMealSpecificRatios: false,
+            useMealSpecificRatios: row.useMealSpecificRatios ?? false,
             correctionFactor: row.correctionFactor || 50,
             targetGlucose: row.targetGlucose || 110,
             highThreshold: row.highThreshold || 180,

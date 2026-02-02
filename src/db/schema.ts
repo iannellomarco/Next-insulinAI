@@ -17,6 +17,8 @@ export const userSettings = pgTable('user_settings', {
     targetGlucose: integer('target_glucose'),
     highThreshold: integer('high_threshold'),
     lowThreshold: integer('low_threshold'),
+    carbRatios: jsonb('carb_ratios'), // Stores { breakfast: number, lunch: number, dinner: number }
+    useMealSpecificRatios: boolean('use_meal_specific_ratios').default(false),
     smartHistory: boolean('smart_history').default(true),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
