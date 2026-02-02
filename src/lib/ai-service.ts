@@ -13,6 +13,8 @@ export class AIService {
         
         // Get the appropriate carb ratio based on meal time
         const currentCarbRatio = getCarbRatioForCurrentMeal(settings);
+        
+        console.log("[v0] AI Service - useMealSpecificRatios:", settings.useMealSpecificRatios, "carbRatios:", settings.carbRatios, "currentCarbRatio:", currentCarbRatio);
 
         // Optimized compact prompt for token efficiency
         const instructions = `You are a diabetes nutrition assistant.

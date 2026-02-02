@@ -44,6 +44,7 @@ export default function SettingsView() {
     };
 
     const handleSave = () => {
+        console.log("[v0] Saving settings - carbRatios:", localSettings.carbRatios, "useMealSpecificRatios:", localSettings.useMealSpecificRatios);
         updateSettings(localSettings);
         setSaved(true);
     };
