@@ -2069,6 +2069,16 @@ input:checked + .slider:before {
 .settings-view {
     padding: 1.25rem;
     padding-top: 0.5rem;
+    padding-bottom: 6rem;
+}
+
+.settings-view > button.full-width {
+    position: fixed;
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    left: 1rem;
+    right: 1rem;
+    max-width: calc(100% - 2rem);
+    z-index: 50;
 }
 
 .settings-title {
