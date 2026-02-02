@@ -94,6 +94,7 @@ export async function syncSettingsAction(settings: Settings) {
             smartHistory: settings.smartHistory,
             libreUsername: settings.libreUsername,
             librePassword: settings.librePassword,
+            language: settings.language,
         }).onConflictDoUpdate({
             target: userSettings.userId,
             set: {
@@ -107,6 +108,7 @@ export async function syncSettingsAction(settings: Settings) {
                 smartHistory: settings.smartHistory,
                 libreUsername: settings.libreUsername,
                 librePassword: settings.librePassword,
+                language: settings.language,
                 updatedAt: new Date()
             }
         });
