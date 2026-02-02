@@ -23,7 +23,10 @@ export default function BottomNav({ active, onNavigate }: BottomNavProps) {
                 <button
                     key={item.id}
                     className={`nav-item ${active === item.id ? 'active' : ''}`}
-                    onClick={() => onNavigate(item.id)}
+                    onClick={() => {
+                        window.scrollTo({ top: 0, behavior: 'instant' });
+                        onNavigate(item.id);
+                    }}
                     aria-label={item.label}
                     aria-current={active === item.id ? 'page' : undefined}
                 >
