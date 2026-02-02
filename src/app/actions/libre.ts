@@ -48,7 +48,7 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
         const client = new LibreLinkClient({
             email: settings.libreUsername,
             password: settings.librePassword,
-            cache: false, // Don't cache in server action context
+            cache: true, // Required for library to store 'me' object for Account-Id header
             lluVersion: '4.16.0'
         });
 
