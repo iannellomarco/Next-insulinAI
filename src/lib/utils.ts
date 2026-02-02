@@ -18,7 +18,7 @@ export interface ReportData {
     dailyStats: DailyStat[];
 }
 
-export const calculateReportData = (history: HistoryItem[], days: number): ReportData => {
+export const calculateReportData = (history: HistoryItem[], days: number, lang = 'en'): ReportData => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
@@ -42,7 +42,8 @@ export const calculateReportData = (history: HistoryItem[], days: number): Repor
         d.setHours(0, 0, 0, 0);
         // Use ISO format for reliable key/parsing: YYYY-MM-DD
         const dateKey = d.toISOString().split('T')[0];
-        const dateLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+        const locale = lang === 'it' ? 'it-IT' : 'en-US';
+        const dateLabel = d.toLocaleDateString(locale, { weekday: 'short' });
         dailyStatsMap.set(dateKey, {
             date: dateKey,
             dateLabel,

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-    ArrowLeft, 
-    TrendingUp, 
+import {
+    ArrowLeft,
+    TrendingUp,
     TrendingDown,
-    Activity, 
-    Droplet, 
+    Activity,
+    Droplet,
     Utensils,
     Target,
     Calendar,
@@ -20,10 +20,12 @@ import { useStore } from '@/lib/store';
 import { calculateReportData, ReportData } from '@/lib/utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { useUser, SignInButton } from '@clerk/nextjs';
+import { useTranslations } from '@/lib/translations';
 
 export default function ReportView({ onBack }: { onBack: () => void }) {
     const { history, settings } = useStore();
     const { user } = useUser();
+    const t = useTranslations();
     const [days, setDays] = useState(7);
     const [data, setData] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
 
     const loadData = async (d: number) => {
         setLoading(true);
-        const result = calculateReportData(history, d);
+        const result = calculateReportData(history, d, settings.language);
         if (result && result.summary) {
             setData(result as ReportData);
         }
@@ -48,8 +50,8 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
         const avgCarbsPerMeal = Math.round(data.summary.totalCarbs / data.summary.count);
         const avgInsulinPerMeal = (data.summary.totalInsulin / data.summary.count).toFixed(1);
         const glucoseChange = data.summary.avgPostGlucose - data.summary.avgPreGlucose;
-        const isInRange = data.summary.avgPostGlucose >= (settings.lowThreshold || 70) && 
-                          data.summary.avgPostGlucose <= (settings.highThreshold || 180);
+        const isInRange = data.summary.avgPostGlucose >= (settings.lowThreshold || 70) &&
+            data.summary.avgPostGlucose <= (settings.highThreshold || 180);
 
         return {
             avgCarbsPerMeal,
@@ -78,14 +80,14 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
             <section className="view report-view" id="report-view">
                 {/* Header */}
                 <div className="report-header">
-                    <button 
-                        className="back-btn" 
+                    <button
+                        className="back-btn"
                         onClick={onBack}
-                        aria-label="Go back"
+                        aria-label={t.general.back}
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <h1>Insights</h1>
+                    <h1>{t.insights.title}</h1>
                     <div style={{ width: 60 }} />
                 </div>
 
@@ -96,12 +98,12 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                         <div className="overview-card">
                             <div className="overview-header">
                                 <Calendar size={16} />
-                                <span>Last 7 days</span>
+                                <span>{t.insights.last} 7 {t.insights.days}</span>
                             </div>
                             <div className="overview-stats">
                                 <div className="overview-stat main">
                                     <span className="stat-number">12</span>
-                                    <span className="stat-text">meals logged</span>
+                                    <span className="stat-text">{t.insights.mealsLogged}</span>
                                 </div>
                             </div>
                         </div>
@@ -112,7 +114,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                 </div>
                                 <div className="stat-content">
                                     <span className="stat-value">48u</span>
-                                    <span className="stat-label">Total Insulin</span>
+                                    <span className="stat-label">{t.insights.totalInsulin}</span>
                                 </div>
                             </div>
                             <div className="quick-stat">
@@ -121,7 +123,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                 </div>
                                 <div className="stat-content">
                                     <span className="stat-value">520g</span>
-                                    <span className="stat-label">Total Carbs</span>
+                                    <span className="stat-label">{t.insights.totalCarbs}</span>
                                 </div>
                             </div>
                         </div>
@@ -132,10 +134,10 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                         <div className="lock-icon-wrap">
                             <Lock size={32} />
                         </div>
-                        <h3>Unlock Insights</h3>
-                        <p>Sign in to view detailed analytics, glucose trends, and personalized recommendations.</p>
+                        <h3>{t.insights.unlock}</h3>
+                        <p>{t.insights.unlockSub}</p>
                         <SignInButton mode="modal">
-                            <button className="btn primary">Sign In to View</button>
+                            <button className="btn primary">{t.insights.signIn}</button>
                         </SignInButton>
                     </div>
                 </div>
@@ -147,14 +149,14 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
         <section className="view report-view" id="report-view">
             {/* Header */}
             <div className="report-header">
-                <button 
-                    className="back-btn" 
+                <button
+                    className="back-btn"
                     onClick={onBack}
-                    aria-label="Go back"
+                    aria-label={t.general.back}
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <h1>Insights</h1>
+                <h1>{t.insights.title}</h1>
                 <div className="period-selector">
                     {[7, 30, 90].map((d) => (
                         <button
@@ -171,7 +173,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
             {loading ? (
                 <div className="report-loading">
                     <div className="spinner" />
-                    <span>Analyzing your data...</span>
+                    <span>{t.insights.analyzing}</span>
                 </div>
             ) : data && data.summary.count > 0 && insights ? (
                 <div className="report-content">
@@ -179,17 +181,17 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                     <div className="overview-card">
                         <div className="overview-header">
                             <Calendar size={16} />
-                            <span>Last {days} days</span>
+                            <span>{t.insights.last} {days} {t.insights.days}</span>
                         </div>
                         <div className="overview-stats">
                             <div className="overview-stat main">
                                 <span className="stat-number">{data.summary.count}</span>
-                                <span className="stat-text">meals logged</span>
+                                <span className="stat-text">{t.insights.mealsLogged}</span>
                             </div>
                             <div className="overview-divider" />
                             <div className="overview-stat">
                                 <span className="stat-number">{insights.mealsPerDay}</span>
-                                <span className="stat-text">per day</span>
+                                <span className="stat-text">{t.insights.perDay}</span>
                             </div>
                         </div>
                     </div>
@@ -198,13 +200,13 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                     <div className="insight-section">
                         <h3 className="section-title">
                             <Activity size={16} />
-                            Glucose Response
+                            {t.history.glucoseResponse}
                         </h3>
                         <div className="glucose-summary">
                             <div className="glucose-metric">
-                                <span className="metric-label">Pre-meal avg</span>
+                                <span className="metric-label">{t.insights.avgPreMeal}</span>
                                 <span className="metric-value">{data.summary.avgPreGlucose || '—'}</span>
-                                <span className="metric-unit">mg/dL</span>
+                                <span className="metric-unit">{t.history.glucoseUnit}</span>
                             </div>
                             <div className="glucose-arrow">
                                 {insights.glucoseChange > 0 ? (
@@ -217,22 +219,22 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                 </span>
                             </div>
                             <div className="glucose-metric">
-                                <span className="metric-label">Post-meal avg</span>
+                                <span className="metric-label">{t.insights.avgPostMeal}</span>
                                 <span className={`metric-value ${insights.isInRange ? 'in-range' : 'out-range'}`}>
                                     {data.summary.avgPostGlucose || '—'}
                                 </span>
-                                <span className="metric-unit">mg/dL</span>
+                                <span className="metric-unit">{t.history.glucoseUnit}</span>
                             </div>
                         </div>
                         {insights.isInRange ? (
                             <div className="range-badge success">
                                 <Award size={14} />
-                                <span>Great control! Post-meal values in target range</span>
+                                <span>{t.insights.greatControl}</span>
                             </div>
                         ) : (
                             <div className="range-badge warning">
                                 <AlertCircle size={14} />
-                                <span>Consider reviewing your carb ratios</span>
+                                <span>{t.insights.reviewRatios}</span>
                             </div>
                         )}
                     </div>
@@ -244,8 +246,8 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                 <Droplet size={18} />
                             </div>
                             <div className="stat-content">
-                                <span className="stat-value">{data.summary.totalInsulin}u</span>
-                                <span className="stat-label">Total Insulin</span>
+                                <span className="stat-value">{data.summary.totalInsulin}{t.results.units}</span>
+                                <span className="stat-label">{t.insights.totalInsulin}</span>
                             </div>
                         </div>
                         <div className="quick-stat">
@@ -254,7 +256,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                             </div>
                             <div className="stat-content">
                                 <span className="stat-value">{data.summary.totalCarbs}g</span>
-                                <span className="stat-label">Total Carbs</span>
+                                <span className="stat-label">{t.insights.totalCarbs}</span>
                             </div>
                         </div>
                         <div className="quick-stat">
@@ -262,8 +264,8 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                 <Zap size={18} />
                             </div>
                             <div className="stat-content">
-                                <span className="stat-value">{insights.avgInsulinPerMeal}u</span>
-                                <span className="stat-label">Avg per Meal</span>
+                                <span className="stat-value">{insights.avgInsulinPerMeal}{t.results.units}</span>
+                                <span className="stat-label">{t.insights.avgPerMeal}</span>
                             </div>
                         </div>
                         <div className="quick-stat">
@@ -272,7 +274,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                             </div>
                             <div className="stat-content">
                                 <span className="stat-value">{insights.avgCarbsPerMeal}g</span>
-                                <span className="stat-label">Avg Carbs/Meal</span>
+                                <span className="stat-label">{t.insights.avgCarbsPerMeal}</span>
                             </div>
                         </div>
                     </div>
@@ -282,7 +284,7 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                         <div className="chart-section">
                             <h3 className="section-title">
                                 <TrendingUp size={16} />
-                                Glucose Trend
+                                {t.insights.glucoseTrend}
                             </h3>
                             <div className="chart-container">
                                 <ResponsiveContainer width="100%" height={160}>
@@ -293,35 +295,35 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                                                 <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
-                                        <XAxis 
-                                            dataKey="displayDate" 
-                                            axisLine={false} 
-                                            tickLine={false} 
+                                        <XAxis
+                                            dataKey="displayDate"
+                                            axisLine={false}
+                                            tickLine={false}
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                                             dy={8}
                                         />
-                                        <YAxis 
-                                            axisLine={false} 
-                                            tickLine={false} 
+                                        <YAxis
+                                            axisLine={false}
+                                            tickLine={false}
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                                             width={35}
                                         />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                background: 'var(--card)', 
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'var(--card)',
                                                 border: '1px solid var(--border)',
                                                 borderRadius: '8px',
                                                 fontSize: '13px'
                                             }}
                                             labelStyle={{ color: 'var(--muted-foreground)' }}
                                         />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="avgGlucose" 
-                                            stroke="var(--primary)" 
+                                        <Area
+                                            type="monotone"
+                                            dataKey="avgGlucose"
+                                            stroke="var(--primary)"
                                             strokeWidth={2}
                                             fill="url(#glucoseGradient)"
-                                            name="Avg Glucose"
+                                            name={t.insights.glucoseTrend}
                                         />
                                     </AreaChart>
                                 </ResponsiveContainer>
@@ -334,43 +336,43 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                         <div className="chart-section">
                             <h3 className="section-title">
                                 <Droplet size={16} />
-                                Daily Insulin
+                                {t.insights.dailyInsulin}
                             </h3>
                             <div className="chart-container">
                                 <ResponsiveContainer width="100%" height={140}>
                                     <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <XAxis 
-                                            dataKey="displayDate" 
-                                            axisLine={false} 
-                                            tickLine={false} 
+                                        <XAxis
+                                            dataKey="displayDate"
+                                            axisLine={false}
+                                            tickLine={false}
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                                             dy={8}
                                         />
-                                        <YAxis 
-                                            axisLine={false} 
-                                            tickLine={false} 
+                                        <YAxis
+                                            axisLine={false}
+                                            tickLine={false}
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                                             width={35}
                                         />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                background: 'var(--card)', 
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'var(--card)',
                                                 border: '1px solid var(--border)',
                                                 borderRadius: '8px',
                                                 fontSize: '13px'
                                             }}
                                             labelStyle={{ color: 'var(--muted-foreground)' }}
-                                            formatter={(value) => [`${value}u`, 'Insulin']}
+                                            formatter={(value) => [`${value}${t.results.units}`, t.history.insulin]}
                                         />
-                                        <Bar 
-                                            dataKey="totalInsulin" 
+                                        <Bar
+                                            dataKey="totalInsulin"
                                             radius={[4, 4, 0, 0]}
-                                            name="Insulin"
+                                            name={t.history.insulin}
                                         >
                                             {chartData.map((entry, index) => (
-                                                <Cell 
-                                                    key={`cell-${index}`} 
-                                                    fill="var(--primary)" 
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill="var(--primary)"
                                                     fillOpacity={0.7 + (index / chartData.length) * 0.3}
                                                 />
                                             ))}
@@ -386,8 +388,8 @@ export default function ReportView({ onBack }: { onBack: () => void }) {
                     <div className="empty-visual">
                         <Activity size={40} strokeWidth={1.5} />
                     </div>
-                    <h3>No data yet</h3>
-                    <p>Start logging meals to see your insights and trends here.</p>
+                    <h3>{t.insights.noData}</h3>
+                    <p>{t.insights.noDataSub}</p>
                 </div>
             )}
         </section>

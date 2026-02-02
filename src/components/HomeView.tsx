@@ -7,6 +7,7 @@ import RecentHistory from './RecentHistory';
 import { useStore } from '@/lib/store';
 import { HistoryItem, Favorite } from '@/types';
 import { SignInButton } from '@clerk/nextjs';
+import { useTranslations } from '@/lib/translations';
 
 interface HomeViewProps {
     onAnalyze: (input: File | string, type: 'image' | 'text') => void;
@@ -17,16 +18,9 @@ interface HomeViewProps {
     isGuest?: boolean;
 }
 
-const PRO_TIPS = [
-    "Include portion sizes for better accuracy",
-    "Add cooking method for precise carb counts",
-    "Mention brand names when possible",
-    "Describe sauces and toppings separately",
-    "Good lighting helps AI identify foods better",
-];
-
 export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canLogFood = true, remainingLogs = 5, isGuest = false }: HomeViewProps) {
     const { history, chainedMeals, isChaining, clearChain } = useStore();
+    const t = useTranslations();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const viewRef = useRef<HTMLElement>(null);
     const [inputMode, setInputMode] = useState<'photo' | 'text'>('photo');
@@ -42,10 +36,10 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setTipIndex((prev) => (prev + 1) % PRO_TIPS.length);
+            setTipIndex((prev) => (prev + 1) % t.home.tips.length);
         }, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [t.home.tips.length]);
 
     const handleScanClick = () => {
         if (inputMode === 'photo') {
@@ -88,8 +82,8 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
                         <Link2 size={18} />
                     </div>
                     <div className="chain-info">
-                        <span>Adding to meal ({chainedMeals.length} item{chainedMeals.length > 1 ? 's' : ''})</span>
-                        <small>{chainedMeals.reduce((sum, m) => sum + m.total_carbs, 0)}g carbs so far</small>
+                        <span>{t.home.addingToMeal} ({chainedMeals.length} {chainedMeals.length > 1 ? t.home.items : t.home.item})</span>
+                        <small>{chainedMeals.reduce((sum, m) => sum + m.total_carbs, 0)}g {t.home.soFar}</small>
                     </div>
                     <button className="chain-clear" onClick={clearChain}>
                         <X size={14} />
@@ -101,7 +95,7 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
             {isGuest && remainingLogs <= 2 && remainingLogs > 0 && (
                 <div className="limit-warning">
                     <AlertCircle size={16} />
-                    <span>{remainingLogs} free log{remainingLogs !== 1 ? 's' : ''} remaining today. Sign in for unlimited access.</span>
+                    <span>{remainingLogs} {remainingLogs !== 1 ? t.home.freeLogsRemaining : t.home.freeLogRemaining}</span>
                 </div>
             )}
 
@@ -110,7 +104,7 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
                 <div className={`log-food-card ${!canLogFood ? 'blurred' : ''}`}>
                     <div className="log-food-header">
                         <Sparkles size={20} className="sparkle-icon" />
-                        <h2>{isChaining ? 'Add Another Food' : 'Log Food'}</h2>
+                        <h2>{isChaining ? t.home.addAnother : t.home.logFood}</h2>
                     </div>
 
                     {/* Mode Toggle */}
@@ -120,22 +114,22 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
                             onClick={() => canLogFood && setInputMode('photo')}
                         >
                             <Camera size={18} />
-                            <span>Photo</span>
+                            <span>{t.home.photo}</span>
                         </button>
                         <button
                             className={`mode-btn ${inputMode === 'text' ? 'active' : ''}`}
                             onClick={() => canLogFood && setInputMode('text')}
                         >
                             <Type size={18} />
-                            <span>Text</span>
+                            <span>{t.home.text}</span>
                         </button>
                     </div>
 
                     {/* Scan Zone */}
-                    <button 
-                        className="scan-zone" 
+                    <button
+                        className="scan-zone"
                         onClick={canLogFood ? handleScanClick : undefined}
-                        aria-label={inputMode === 'photo' ? 'Take a photo of your food' : 'Enter food manually'}
+                        aria-label={inputMode === 'photo' ? t.home.tapScan : t.home.tapType}
                         disabled={!canLogFood}
                     >
                         <div className="scan-icon-wrapper">
@@ -146,12 +140,12 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
                             )}
                         </div>
                         <span className="scan-title">
-                            {inputMode === 'photo' ? 'Tap to scan food' : 'Tap to type food'}
+                            {inputMode === 'photo' ? t.home.tapScan : t.home.tapType}
                         </span>
                         <span className="scan-subtitle">
-                            {inputMode === 'photo' 
-                                ? 'AI will identify carbs instantly' 
-                                : 'Describe what you\'re eating'}
+                            {inputMode === 'photo'
+                                ? t.home.aiIdentify
+                                : t.home.describeEating}
                         </span>
                     </button>
 
@@ -159,9 +153,9 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
                     <div className="pro-tip">
                         <div className="pro-tip-label">
                             <Lightbulb size={14} />
-                            <span>Pro tip</span>
+                            <span>{t.home.proTip}</span>
                         </div>
-                        <p key={tipIndex} className="fade-in">{PRO_TIPS[tipIndex]}</p>
+                        <p key={tipIndex} className="fade-in">{t.home.tips[tipIndex]}</p>
                         <ChevronRight size={16} className="tip-arrow" />
                     </div>
                 </div>
@@ -172,10 +166,10 @@ export default function HomeView({ onAnalyze, onManualEntry, onViewHistory, canL
                         <div className="limit-overlay-icon">
                             <Lock size={32} />
                         </div>
-                        <h3>Daily Limit Reached</h3>
-                        <p>Sign in to unlock unlimited food logging and track your meals without restrictions.</p>
+                        <h3>{t.home.limitReached}</h3>
+                        <p>{t.home.limitReachedSub}</p>
                         <SignInButton mode="modal">
-                            <button className="btn primary">Sign In to Continue</button>
+                            <button className="btn primary">{t.home.signInContinue}</button>
                         </SignInButton>
                     </div>
                 )}

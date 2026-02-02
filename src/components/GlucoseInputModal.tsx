@@ -2,6 +2,7 @@
 
 import { Activity } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslations } from '@/lib/translations';
 
 interface GlucoseInputModalProps {
     onClose: () => void;
@@ -9,13 +10,14 @@ interface GlucoseInputModalProps {
 }
 
 export default function GlucoseInputModal({ onClose, onSave }: GlucoseInputModalProps) {
+    const t = useTranslations();
     const [glucose, setGlucose] = useState('');
     const [error, setError] = useState('');
 
     const handleSubmit = () => {
         const val = parseInt(glucose);
         if (isNaN(val) || val <= 0 || val > 600) {
-            setError('Please enter a valid glucose level (1-600)');
+            setError(t.history.glucoseInvalid);
             return;
         }
         onSave(val);
@@ -29,8 +31,8 @@ export default function GlucoseInputModal({ onClose, onSave }: GlucoseInputModal
     };
 
     return (
-        <div 
-            className="glucose-overlay" 
+        <div
+            className="glucose-overlay"
             onClick={onClose}
             role="dialog"
             aria-modal="true"
@@ -40,14 +42,14 @@ export default function GlucoseInputModal({ onClose, onSave }: GlucoseInputModal
                 <div className="modal-icon">
                     <Activity size={22} />
                 </div>
-                
-                <h3 id="glucose-title">2-Hour Check</h3>
-                <p>Enter your blood glucose level 2 hours after the meal</p>
+
+                <h3 id="glucose-title">{t.history.glucoseCheck}</h3>
+                <p>{t.history.glucoseCheckSub}</p>
 
                 <div className="input-wrapper">
                     <input
                         type="number"
-                        placeholder="120"
+                        placeholder={t.history.glucosePlaceholder}
                         value={glucose}
                         onChange={(e) => {
                             setGlucose(e.target.value);
@@ -55,9 +57,9 @@ export default function GlucoseInputModal({ onClose, onSave }: GlucoseInputModal
                         }}
                         onKeyDown={handleKeyDown}
                         autoFocus
-                        aria-label="Glucose level"
+                        aria-label={t.history.glucoseAria}
                     />
-                    <span className="unit-label">mg/dL</span>
+                    <span className="unit-label">{t.history.glucoseUnit}</span>
                 </div>
 
                 {error && (
@@ -68,14 +70,14 @@ export default function GlucoseInputModal({ onClose, onSave }: GlucoseInputModal
 
                 <div className="modal-actions">
                     <button className="btn cancel-btn" onClick={onClose}>
-                        Cancel
+                        {t.general.cancel}
                     </button>
-                    <button 
-                        className="btn save-btn" 
+                    <button
+                        className="btn save-btn"
                         onClick={handleSubmit}
                         disabled={!glucose}
                     >
-                        Save
+                        {t.general.save}
                     </button>
                 </div>
             </div>

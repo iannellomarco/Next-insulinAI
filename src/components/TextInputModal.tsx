@@ -2,6 +2,7 @@
 
 import { X, Utensils } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslations } from '@/lib/translations';
 
 export default function TextInputModal({
     onClose,
@@ -10,12 +11,13 @@ export default function TextInputModal({
     onClose: () => void;
     onAnalyze: (text: string) => void;
 }) {
+    const t = useTranslations();
     const [text, setText] = useState('');
     const [error, setError] = useState('');
 
     const handleSubmit = () => {
         if (!text.trim()) {
-            setError('Please enter a food description');
+            setError(t.textInput.error);
             return;
         }
         onAnalyze(text);
@@ -29,15 +31,15 @@ export default function TextInputModal({
     };
 
     return (
-        <div 
-            className="modal-overlay" 
+        <div
+            className="modal-overlay"
             onClick={onClose}
             role="dialog"
             aria-modal="true"
             aria-labelledby="text-input-title"
         >
-            <div 
-                className="text-input-modal" 
+            <div
+                className="text-input-modal"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="modal-header-row">
@@ -45,13 +47,13 @@ export default function TextInputModal({
                         <Utensils size={20} />
                     </div>
                     <div className="modal-title-section">
-                        <h3 id="text-input-title">Describe Your Food</h3>
-                        <p>Enter what you are eating with portions</p>
+                        <h3 id="text-input-title">{t.textInput.title}</h3>
+                        <p>{t.textInput.subtitle}</p>
                     </div>
-                    <button 
-                        className="close-btn" 
-                        onClick={onClose} 
-                        aria-label="Close dialog"
+                    <button
+                        className="close-btn"
+                        onClick={onClose}
+                        aria-label={t.general.close}
                     >
                         <X size={20} />
                     </button>
@@ -60,7 +62,7 @@ export default function TextInputModal({
                 <div className="textarea-container">
                     <textarea
                         id="food-text-input"
-                        placeholder="e.g., 1 cup rice with grilled chicken breast and vegetables"
+                        placeholder={t.textInput.placeholder}
                         rows={4}
                         value={text}
                         onChange={(e) => {
@@ -84,14 +86,14 @@ export default function TextInputModal({
                         className="btn secondary"
                         onClick={onClose}
                     >
-                        Cancel
+                        {t.general.cancel}
                     </button>
                     <button
                         className="btn primary"
                         onClick={handleSubmit}
                         disabled={!text.trim()}
                     >
-                        Analyze
+                        {t.textInput.analyze}
                     </button>
                 </div>
             </div>

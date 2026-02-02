@@ -2,8 +2,10 @@
 
 import { User, Droplets } from 'lucide-react';
 import { SignedIn, SignedOut, UserButton, SignInButton } from '@clerk/nextjs';
+import { useTranslations } from '@/lib/translations';
 
 export default function Header() {
+    const t = useTranslations();
     return (
         <header className="app-header">
             <div className="flex items-center gap-2">
@@ -24,7 +26,7 @@ export default function Header() {
                 </SignedIn>
                 <SignedOut>
                     <SignInButton mode="modal">
-                        <button className="user-circle-btn" aria-label="Sign In">
+                        <button className="user-circle-btn" aria-label={t.home.signInContinue}>
                             <User size={20} />
                         </button>
                     </SignInButton>

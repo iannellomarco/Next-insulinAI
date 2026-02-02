@@ -1,17 +1,19 @@
 'use client';
 
-import { Calculator, Target, Zap, Sun, Clock, Moon, Activity, Key, Brain, Loader2, CheckCircle, XCircle, Link } from 'lucide-react';
+import { Calculator, Target, Zap, Sun, Clock, Moon, Activity, Key, Brain, Loader2, CheckCircle, XCircle, Link, Globe } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect, useRef } from 'react';
 import { CarbRatios } from '@/types';
 import { fetchLibreDataAction } from '@/app/actions/libre';
 import { useUser, SignInButton } from '@clerk/nextjs';
+import { useTranslations, Language } from '@/lib/translations';
 
 type SettingsTab = 'insulin' | 'glucose' | 'advanced';
 
 export default function SettingsView() {
     const { settings, updateSettings } = useStore();
     const { user } = useUser();
+    const t = useTranslations();
     const [localSettings, setLocalSettings] = useState(settings);
     const [activeTab, setActiveTab] = useState<SettingsTab>('insulin');
     const [showToast, setShowToast] = useState(false);
@@ -34,12 +36,12 @@ export default function SettingsView() {
         try {
             const result = await fetchLibreDataAction();
             if (result.success) {
-                setTestResult({ success: true, message: `Connected to ${result.connectionName}` });
+                setTestResult({ success: true, message: `${t.settings.connected} ${result.connectionName}` });
             } else {
-                setTestResult({ success: false, message: result.error || 'Connection failed' });
+                setTestResult({ success: false, message: result.error || t.general.error });
             }
         } catch (error) {
-            setTestResult({ success: false, message: 'Connection failed' });
+            setTestResult({ success: false, message: t.general.error });
         } finally {
             setIsTesting(false);
         }
@@ -94,8 +96,10 @@ export default function SettingsView() {
         };
     }, [localSettings, settings, updateSettings]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { id, value, type, checked } = e.target;
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { id, value, type } = e.target;
+        const checked = (e.target as HTMLInputElement).checked;
+
         setLocalSettings((prev) => ({
             ...prev,
             [id]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value),
@@ -129,21 +133,21 @@ export default function SettingsView() {
                         onClick={() => handleTabChange('insulin')}
                     >
                         <Calculator size={16} />
-                        <span>Insulin</span>
+                        <span>{t.settings.insulin}</span>
                     </button>
                     <button
                         className={`settings-tab ${activeTab === 'glucose' ? 'active' : ''}`}
                         onClick={() => handleTabChange('glucose')}
                     >
                         <Activity size={16} />
-                        <span>Glucose</span>
+                        <span>{t.settings.glucose}</span>
                     </button>
                     <button
                         className={`settings-tab ${activeTab === 'advanced' ? 'active' : ''}`}
                         onClick={() => handleTabChange('advanced')}
                     >
                         <Zap size={16} />
-                        <span>Advanced</span>
+                        <span>{t.settings.advanced}</span>
                     </button>
                 </div>
             </div>
@@ -155,8 +159,8 @@ export default function SettingsView() {
                     {activeTab === 'insulin' && (
                         <div className="settings-panel">
                             <div className="panel-header">
-                                <h3>Carbohydrate Ratios</h3>
-                                <p>Configure how many grams of carbs are covered by 1 unit of insulin</p>
+                                <h3>{t.settings.carbRatios}</h3>
+                                <p>{t.settings.carbRatiosSub}</p>
                             </div>
 
                             <div className="ratio-mode-selector">
@@ -164,13 +168,13 @@ export default function SettingsView() {
                                     className={`mode-btn ${!localSettings.useMealSpecificRatios ? 'active' : ''}`}
                                     onClick={() => localSettings.useMealSpecificRatios && toggleMealSpecificRatios()}
                                 >
-                                    Single Ratio
+                                    {t.settings.singleRatio}
                                 </button>
                                 <button
                                     className={`mode-btn ${localSettings.useMealSpecificRatios ? 'active' : ''}`}
                                     onClick={() => !localSettings.useMealSpecificRatios && toggleMealSpecificRatios()}
                                 >
-                                    Per Meal
+                                    {t.settings.perMeal}
                                 </button>
                             </div>
 
@@ -189,7 +193,7 @@ export default function SettingsView() {
                                         />
                                         <span className="ratio-suffix">g</span>
                                     </div>
-                                    <p className="ratio-description">1 unit of insulin covers {localSettings.carbRatio}g of carbs</p>
+                                    <p className="ratio-description">{t.settings.covers} {localSettings.carbRatio}g {t.home.carbsShort}</p>
                                 </div>
                             ) : (
                                 <div className="meal-ratios-grid">
@@ -198,8 +202,8 @@ export default function SettingsView() {
                                             <Sun size={20} />
                                         </div>
                                         <div className="meal-info">
-                                            <span className="meal-name">Breakfast</span>
-                                            <span className="meal-time">5:00 - 11:00</span>
+                                            <span className="meal-name">{t.settings.breakfast}</span>
+                                            <span className="meal-time">{t.settings.breakfastTime}</span>
                                         </div>
                                         <div className="meal-input">
                                             <input
@@ -209,7 +213,7 @@ export default function SettingsView() {
                                                 value={localSettings.carbRatios?.breakfast ?? 8}
                                                 onChange={(e) => handleCarbRatioChange('breakfast', Number(e.target.value))}
                                             />
-                                            <span>g/u</span>
+                                            <span>{t.settings.unitGU}</span>
                                         </div>
                                     </div>
                                     <div className="meal-ratio-card">
@@ -217,8 +221,8 @@ export default function SettingsView() {
                                             <Clock size={20} />
                                         </div>
                                         <div className="meal-info">
-                                            <span className="meal-name">Lunch</span>
-                                            <span className="meal-time">11:00 - 16:00</span>
+                                            <span className="meal-name">{t.settings.lunch}</span>
+                                            <span className="meal-time">{t.settings.lunchTime}</span>
                                         </div>
                                         <div className="meal-input">
                                             <input
@@ -228,7 +232,7 @@ export default function SettingsView() {
                                                 value={localSettings.carbRatios?.lunch ?? 10}
                                                 onChange={(e) => handleCarbRatioChange('lunch', Number(e.target.value))}
                                             />
-                                            <span>g/u</span>
+                                            <span>{t.settings.unitGU}</span>
                                         </div>
                                     </div>
                                     <div className="meal-ratio-card">
@@ -236,8 +240,8 @@ export default function SettingsView() {
                                             <Moon size={20} />
                                         </div>
                                         <div className="meal-info">
-                                            <span className="meal-name">Dinner</span>
-                                            <span className="meal-time">16:00 - 5:00</span>
+                                            <span className="meal-name">{t.settings.dinner}</span>
+                                            <span className="meal-time">{t.settings.dinnerTime}</span>
                                         </div>
                                         <div className="meal-input">
                                             <input
@@ -247,7 +251,7 @@ export default function SettingsView() {
                                                 value={localSettings.carbRatios?.dinner ?? 12}
                                                 onChange={(e) => handleCarbRatioChange('dinner', Number(e.target.value))}
                                             />
-                                            <span>g/u</span>
+                                            <span>{t.settings.unitGU}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -256,8 +260,8 @@ export default function SettingsView() {
                             <div className="divider" />
 
                             <div className="panel-header">
-                                <h3>Correction Factor</h3>
-                                <p>How much 1 unit of insulin lowers your blood sugar</p>
+                                <h3>{t.settings.correctionFactor}</h3>
+                                <p>{t.settings.correctionFactorSub}</p>
                             </div>
 
                             <div className="correction-card">
@@ -265,7 +269,7 @@ export default function SettingsView() {
                                     <Target size={24} />
                                 </div>
                                 <div className="correction-input">
-                                    <span className="correction-prefix">1u drops</span>
+                                    <span className="correction-prefix">{t.settings.drops}</span>
                                     <input
                                         type="number"
                                         id="correctionFactor"
@@ -275,7 +279,7 @@ export default function SettingsView() {
                                         value={localSettings.correctionFactor}
                                         onChange={handleChange}
                                     />
-                                    <span className="correction-suffix">mg/dL</span>
+                                    <span className="correction-suffix">{t.history.glucoseUnit}</span>
                                 </div>
                             </div>
                         </div>
@@ -285,14 +289,14 @@ export default function SettingsView() {
                     {activeTab === 'glucose' && (
                         <div className="settings-panel">
                             <div className="panel-header">
-                                <h3>Glucose Thresholds</h3>
-                                <p>Define your target range for glucose readings</p>
+                                <h3>{t.settings.thresholds}</h3>
+                                <p>{t.settings.thresholdsSub}</p>
                             </div>
 
                             <div className="threshold-cards">
                                 <div className="threshold-card high">
                                     <div className="threshold-header">
-                                        <span className="threshold-label">High Threshold</span>
+                                        <span className="threshold-label">{t.settings.high}</span>
                                         <span className="threshold-indicator high-indicator" />
                                     </div>
                                     <div className="threshold-input-group">
@@ -304,14 +308,14 @@ export default function SettingsView() {
                                             value={localSettings.highThreshold}
                                             onChange={handleChange}
                                         />
-                                        <span className="threshold-unit">mg/dL</span>
+                                        <span className="threshold-unit">{t.history.glucoseUnit}</span>
                                     </div>
-                                    <p className="threshold-hint">Values above this will be flagged as high</p>
+                                    <p className="threshold-hint">{t.settings.highHint}</p>
                                 </div>
 
                                 <div className="threshold-card low">
                                     <div className="threshold-header">
-                                        <span className="threshold-label">Low Threshold</span>
+                                        <span className="threshold-label">{t.settings.low}</span>
                                         <span className="threshold-indicator low-indicator" />
                                     </div>
                                     <div className="threshold-input-group">
@@ -323,9 +327,9 @@ export default function SettingsView() {
                                             value={localSettings.lowThreshold}
                                             onChange={handleChange}
                                         />
-                                        <span className="threshold-unit">mg/dL</span>
+                                        <span className="threshold-unit">{t.history.glucoseUnit}</span>
                                     </div>
-                                    <p className="threshold-hint">Values below this will be flagged as low</p>
+                                    <p className="threshold-hint">{t.settings.lowHint}</p>
                                 </div>
                             </div>
 
@@ -355,8 +359,42 @@ export default function SettingsView() {
                     {activeTab === 'advanced' && (
                         <div className="settings-panel">
                             <div className="panel-header">
-                                <h3>Smart Features</h3>
-                                <p>AI-powered enhancements for better suggestions</p>
+                                <h3>{t.settings.language || 'Language'}</h3>
+                                <p>{t.settings.languageSub || 'Choose your preferred language'}</p>
+                            </div>
+
+                            <div className="feature-card">
+                                <div className="feature-icon">
+                                    <Globe size={24} />
+                                </div>
+                                <div className="feature-content">
+                                    <div className="feature-header">
+                                        <select
+                                            id="language"
+                                            className="settings-select"
+                                            value={localSettings.language}
+                                            onChange={handleChange}
+                                            style={{
+                                                width: '100%',
+                                                padding: '8px',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--border)',
+                                                background: 'var(--secondary)',
+                                                color: 'var(--foreground)'
+                                            }}
+                                        >
+                                            <option value="en">English</option>
+                                            <option value="it">Italiano</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="divider" />
+
+                            <div className="panel-header">
+                                <h3>{t.settings.smartFeatures}</h3>
+                                <p>{t.settings.smartFeaturesSub}</p>
                             </div>
 
                             <div className="feature-card">
@@ -365,7 +403,7 @@ export default function SettingsView() {
                                 </div>
                                 <div className="feature-content">
                                     <div className="feature-header">
-                                        <span className="feature-name">Smart History</span>
+                                        <span className="feature-name">{t.settings.smartHistory}</span>
                                         <label className="switch">
                                             <input
                                                 type="checkbox"
@@ -377,8 +415,7 @@ export default function SettingsView() {
                                         </label>
                                     </div>
                                     <p className="feature-description">
-                                        Use your past meal data to improve insulin suggestions.
-                                        The AI learns from your glucose responses to similar meals.
+                                        {t.settings.smartHistorySub}
                                     </p>
                                 </div>
                             </div>
@@ -386,8 +423,8 @@ export default function SettingsView() {
                             <div className="divider" />
 
                             <div className="panel-header">
-                                <h3>Freestyle Libre Integration</h3>
-                                <p>Connect your account to view glucose data</p>
+                                <h3>{t.settings.libre}</h3>
+                                <p>{t.settings.libreSub}</p>
                             </div>
 
                             <div className="api-card" style={{ position: 'relative', overflow: 'hidden' }}>
@@ -395,7 +432,7 @@ export default function SettingsView() {
                                     <Link size={20} />
                                 </div>
                                 <div className={`api-content ${!user ? 'blurred-content' : ''}`}>
-                                    <label htmlFor="libreUsername">LibreView Email</label>
+                                    <label htmlFor="libreUsername">{t.settings.email}</label>
                                     <input
                                         type="email"
                                         id="libreUsername"
@@ -405,7 +442,7 @@ export default function SettingsView() {
                                         disabled={!user}
                                     />
 
-                                    <label htmlFor="librePassword" style={{ marginTop: '12px' }}>Password</label>
+                                    <label htmlFor="librePassword" style={{ marginTop: '12px' }}>{t.settings.password}</label>
                                     <input
                                         type="password"
                                         id="librePassword"
@@ -437,10 +474,10 @@ export default function SettingsView() {
                                             {isTesting ? (
                                                 <>
                                                     <Loader2 size={16} className="animate-spin" />
-                                                    Connecting...
+                                                    {t.settings.connecting}
                                                 </>
                                             ) : (
-                                                'Test Connection'
+                                                t.settings.test
                                             )}
                                         </button>
 
@@ -488,13 +525,13 @@ export default function SettingsView() {
                                             <Link size={24} className="text-primary" />
                                         </div>
                                         <div>
-                                            <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}>Connect LibreView</h4>
+                                            <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}>{t.settings.connectLibre}</h4>
                                             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
-                                                Sign in to sync your glucose data directly from Freestyle Libre.
+                                                {t.settings.connectLibreSub}
                                             </p>
                                             <SignInButton mode="modal">
                                                 <button className="btn primary" style={{ width: 'auto', padding: '8px 20px', fontSize: '14px' }}>
-                                                    Sign In to Connect
+                                                    {t.settings.signInConnect}
                                                 </button>
                                             </SignInButton>
                                         </div>
@@ -505,8 +542,8 @@ export default function SettingsView() {
                             <div className="divider" />
 
                             <div className="panel-header">
-                                <h3>API Configuration</h3>
-                                <p>Use your own API key for unlimited requests</p>
+                                <h3>{t.settings.api}</h3>
+                                <p>{t.settings.apiSub}</p>
                             </div>
 
                             <div className="api-card">
@@ -514,7 +551,7 @@ export default function SettingsView() {
                                     <Key size={20} />
                                 </div>
                                 <div className="api-content">
-                                    <label htmlFor="apiKey">OpenAI API Key</label>
+                                    <label htmlFor="apiKey">{t.settings.apiKey}</label>
                                     <input
                                         type="password"
                                         id="apiKey"
@@ -522,7 +559,7 @@ export default function SettingsView() {
                                         value={localSettings.apiKey}
                                         onChange={handleChange}
                                     />
-                                    <p className="api-hint">Leave blank to use the default system key</p>
+                                    <p className="api-hint">{t.settings.apiKeySub}</p>
                                 </div>
                             </div>
                         </div>
@@ -533,7 +570,7 @@ export default function SettingsView() {
             {/* Toast Notification */}
             {showToast && (
                 <div className="settings-toast">
-                    ✓ Settings saved
+                    ✓ {t.settings.saved}
                 </div>
             )}
         </section>

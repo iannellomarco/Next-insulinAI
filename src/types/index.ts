@@ -56,6 +56,7 @@ export interface Settings {
     smartHistory: boolean;
     libreUsername?: string;
     librePassword?: string;
+    language: 'en' | 'it';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -74,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
     smartHistory: true,
     libreUsername: '',
     librePassword: '',
+    language: 'en',
 };
 
 // Helper to get current meal period

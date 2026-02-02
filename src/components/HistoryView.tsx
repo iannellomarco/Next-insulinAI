@@ -8,47 +8,44 @@ import GlucoseInputModal from '@/components/GlucoseInputModal';
 import { HistoryItem } from '@/types';
 import GlucoseGraph from './GlucoseGraph';
 import { fetchLibreDataAction, GlucoseReading } from '@/app/actions/libre';
+import { useTranslations } from '@/lib/translations';
 
-function getFoodIcon(name: string): string {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes('apple')) return '🍎';
-    if (lowerName.includes('sandwich')) return '🥪';
-    if (lowerName.includes('salad')) return '🥗';
-    if (lowerName.includes('pizza')) return '🍕';
-    if (lowerName.includes('coffee') || lowerName.includes('latte')) return '☕';
-    if (lowerName.includes('banana')) return '🍌';
-    if (lowerName.includes('oat') || lowerName.includes('cereal')) return '🥣';
-    if (lowerName.includes('burger')) return '🍔';
-    if (lowerName.includes('chicken')) return '🍗';
-    if (lowerName.includes('rice')) return '🍚';
-    if (lowerName.includes('pasta')) return '🍝';
-    if (lowerName.includes('bread') || lowerName.includes('toast')) return '🍞';
-    if (lowerName.includes('fries') || lowerName.includes('fry')) return '🍟';
-    if (lowerName.includes('beef') || lowerName.includes('steak')) return '🥩';
-    if (lowerName.includes('taco')) return '🌮';
-    if (lowerName.includes('sushi')) return '🍣';
-    return '🍽️';
-}
-
-// Group chained items together
 interface MealGroup {
     chainId: string | null;
     items: HistoryItem[];
     totalCarbs: number;
     totalInsulin: number;
-    actualInsulin?: number;
+    actualInsulin: number | undefined;
     timestamp: number;
     preGlucose?: number;
     postGlucose?: number;
     splitBolusAccepted?: boolean;
     splitBolusInfo?: {
-        split_percentage?: string;
-        duration?: string;
+        split_percentage: string;
+        duration: string;
     };
 }
 
+const getFoodIcon = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('pizza')) return '🍕';
+    if (n.includes('pasta')) return '🍝';
+    if (n.includes('burger') || n.includes('panino')) return '🍔';
+    if (n.includes('insalata') || n.includes('salad')) return '🥗';
+    if (n.includes('sushi')) return '🍣';
+    if (n.includes('carne') || n.includes('meat') || n.includes('steak')) return '🥩';
+    if (n.includes('pollo') || n.includes('chicken')) return '🍗';
+    if (n.includes('pesce') || n.includes('fish')) return '🐟';
+    if (n.includes('riso') || n.includes('rice')) return '🍚';
+    if (n.includes('caffè') || n.includes('coffee')) return '☕';
+    if (n.includes('mela') || n.includes('apple') || n.includes('frutta')) return '🍎';
+    if (n.includes('pane') || n.includes('bread')) return '🍞';
+    return '🍽️';
+};
+
 export default function HistoryView({ onBack }: { onBack: () => void }) {
     const { history, settings, clearHistory, updateHistoryItem, deleteHistoryItem } = useStore();
+    const t = useTranslations();
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [glucoseModalItem, setGlucoseModalItem] = useState<string | null>(null);
     const [selectedMealGroup, setSelectedMealGroup] = useState<MealGroup | null>(null);
@@ -76,8 +73,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         const endTime = new Date(mealTime.getTime() + 180 * 60000);
 
                         const relevantReadings = result.data.filter((h: GlucoseReading) => {
-                            const t = new Date(h.timestamp);
-                            return t >= startTime && t <= endTime;
+                            const rt = new Date(h.timestamp);
+                            return rt >= startTime && rt <= endTime;
                         });
 
                         setGlucoseData(relevantReadings);
@@ -102,8 +99,6 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
             setGlucoseData([]);
         }
     }, [selectedMealGroup, settings.libreUsername, settings.librePassword]);
-
-
 
     const handleDeleteItem = (id: string) => {
         deleteHistoryItem(id);
@@ -137,7 +132,9 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
         const groups: MealGroup[] = [];
         const processedChains = new Set<string>();
 
-        for (const item of history) {
+        const sortedHistory = [...history].sort((a, b) => b.timestamp - a.timestamp);
+
+        for (const item of sortedHistory) {
             if (item.chainId) {
                 if (processedChains.has(item.chainId)) continue;
                 processedChains.add(item.chainId);
@@ -158,8 +155,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     postGlucose: chainItems[chainItems.length - 1]?.post_glucose,
                     splitBolusAccepted: firstItem?.split_bolus_accepted,
                     splitBolusInfo: firstItem?.split_bolus_recommendation?.recommended ? {
-                        split_percentage: firstItem.split_bolus_recommendation.split_percentage,
-                        duration: firstItem.split_bolus_recommendation.duration,
+                        split_percentage: firstItem.split_bolus_recommendation.split_percentage || '50/50',
+                        duration: firstItem.split_bolus_recommendation.duration || '1.5h',
                     } : undefined,
                 });
             } else {
@@ -174,8 +171,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     postGlucose: item.post_glucose,
                     splitBolusAccepted: item.split_bolus_accepted,
                     splitBolusInfo: item.split_bolus_recommendation?.recommended ? {
-                        split_percentage: item.split_bolus_recommendation.split_percentage,
-                        duration: item.split_bolus_recommendation.duration,
+                        split_percentage: item.split_bolus_recommendation.split_percentage || '50/50',
+                        duration: item.split_bolus_recommendation.duration || '1.5h',
                     } : undefined,
                 });
             }
@@ -187,15 +184,15 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     // Group by date
     const groupedByDate = useMemo(() => {
         return groupedMeals.reduce((groups, meal) => {
-            const date = new Date(meal.timestamp).toLocaleDateString('en-US', {
+            const dateStr = new Date(meal.timestamp).toLocaleDateString(undefined, {
                 weekday: 'long',
                 month: 'short',
                 day: 'numeric'
             });
-            if (!groups[date]) {
-                groups[date] = [];
+            if (!groups[dateStr]) {
+                groups[dateStr] = [];
             }
-            groups[date].push(meal);
+            groups[dateStr].push(meal);
             return groups;
         }, {} as Record<string, MealGroup[]>);
     }, [groupedMeals]);
@@ -204,10 +201,10 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
         <section id="history-view" className="view">
             <ConfirmationModal
                 isOpen={showClearConfirm}
-                title="Clear All History?"
-                message="This will permanently delete all your meal history. This action cannot be undone."
-                confirmText="Delete All"
-                cancelText="Cancel"
+                title={t.history.clearAll}
+                message={t.history.clearConfirm}
+                confirmText={t.history.deleteAll}
+                cancelText={t.general.cancel}
                 isDestructive={true}
                 onConfirm={handleClearConfirm}
                 onCancel={() => setShowClearConfirm(false)}
@@ -215,10 +212,10 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
 
             <ConfirmationModal
                 isOpen={!!deleteConfirmItem}
-                title="Delete This Meal?"
-                message="This will permanently delete this meal from your history."
-                confirmText="Delete"
-                cancelText="Cancel"
+                title={t.history.deleteMeal}
+                message={t.history.deleteConfirm}
+                confirmText={t.general.delete}
+                cancelText={t.general.cancel}
                 isDestructive={true}
                 onConfirm={() => deleteConfirmItem && handleDeleteItem(deleteConfirmItem)}
                 onCancel={() => setDeleteConfirmItem(null)}
@@ -238,7 +235,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         <button
                             className="meal-detail-close"
                             onClick={() => setSelectedMealGroup(null)}
-                            aria-label="Close details"
+                            aria-label={t.general.close}
                         >
                             <X size={18} />
                         </button>
@@ -246,11 +243,11 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         <div className="meal-detail-header">
                             <h3>
                                 {selectedMealGroup.items.length > 1
-                                    ? `Combined Meal (${selectedMealGroup.items.length} items)`
-                                    : selectedMealGroup.items[0]?.food_items?.[0]?.name || 'Meal Details'}
+                                    ? `${t.results.combinedMeal} (${selectedMealGroup.items.length} ${selectedMealGroup.items.length > 1 ? t.home.items : t.home.item})`
+                                    : selectedMealGroup.items[0]?.food_items?.[0]?.name || t.history.mealDetails}
                             </h3>
                             <span className="meal-detail-time">
-                                {new Date(selectedMealGroup.timestamp).toLocaleString([], {
+                                {new Date(selectedMealGroup.timestamp).toLocaleString(undefined, {
                                     weekday: 'short',
                                     month: 'short',
                                     day: 'numeric',
@@ -265,24 +262,24 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             <div className="detail-stat">
                                 <Droplet size={16} />
                                 <span className="detail-stat-value">
-                                    {selectedMealGroup.actualInsulin ?? selectedMealGroup.totalInsulin}u
+                                    {selectedMealGroup.actualInsulin ?? selectedMealGroup.totalInsulin}{t.history.units}
                                 </span>
                                 <span className="detail-stat-label">
                                     {selectedMealGroup.actualInsulin && selectedMealGroup.actualInsulin !== selectedMealGroup.totalInsulin
-                                        ? 'Taken'
-                                        : 'Insulin'}
+                                        ? t.history.taken
+                                        : t.history.insulin}
                                 </span>
                             </div>
                             {selectedMealGroup.actualInsulin && selectedMealGroup.actualInsulin !== selectedMealGroup.totalInsulin && (
                                 <div className="detail-stat muted">
-                                    <span className="detail-stat-value">{selectedMealGroup.totalInsulin}u</span>
-                                    <span className="detail-stat-label">Suggested</span>
+                                    <span className="detail-stat-value">{selectedMealGroup.totalInsulin}{t.history.units}</span>
+                                    <span className="detail-stat-label">{t.history.suggested}</span>
                                 </div>
                             )}
                             <div className="detail-stat">
                                 <Utensils size={16} />
                                 <span className="detail-stat-value">{selectedMealGroup.totalCarbs}g</span>
-                                <span className="detail-stat-label">Carbs</span>
+                                <span className="detail-stat-label">{t.history.carbs}</span>
                             </div>
                         </div>
 
@@ -291,15 +288,15 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             <div className="meal-detail-split">
                                 <h4>
                                     <Clock size={14} />
-                                    Split Bolus
+                                    {t.history.splitBolus}
                                 </h4>
                                 <div className="split-info-row">
                                     <div className="split-info-item">
-                                        <span className="split-info-label">Split</span>
+                                        <span className="split-info-label">{t.results.splitLabel}</span>
                                         <span className="split-info-value">{selectedMealGroup.splitBolusInfo.split_percentage}</span>
                                     </div>
                                     <div className="split-info-item">
-                                        <span className="split-info-label">2nd dose in</span>
+                                        <span className="split-info-label">{t.results.timeBetweenDoses}</span>
                                         <span className="split-info-value">{selectedMealGroup.splitBolusInfo.duration || '1.5 hours'}</span>
                                     </div>
                                 </div>
@@ -311,11 +308,11 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             <div className="meal-detail-glucose">
                                 <h4>
                                     <Activity size={14} />
-                                    Glucose Response
+                                    {t.history.glucoseResponse}
                                 </h4>
                                 <div className="glucose-response-row">
                                     <div className="glucose-point">
-                                        <span className="glucose-label">Pre-meal</span>
+                                        <span className="glucose-label">{t.history.preMeal}</span>
                                         <span className="glucose-value">
                                             {selectedMealGroup.preGlucose || '—'}
                                         </span>
@@ -338,7 +335,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                         </div>
                                     )}
                                     <div className="glucose-point">
-                                        <span className="glucose-label">2h Post</span>
+                                        <span className="glucose-label">{t.history.postMeal}</span>
                                         <span className={`glucose-value ${selectedMealGroup.postGlucose && selectedMealGroup.postGlucose > settings.highThreshold
                                             ? 'high'
                                             : selectedMealGroup.postGlucose && selectedMealGroup.postGlucose < settings.lowThreshold
@@ -352,7 +349,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             </div>
                         )}
 
-                        {/* Live Graph from Libre - Independent of manual readings */}
+                        {/* Live Graph from Libre */}
                         {settings.libreUsername && (
                             <div className="meal-detail-glucose" style={{ marginTop: '16px' }}>
                                 <div className="glucose-graph-container" style={{
@@ -364,7 +361,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                     {isLoadingGlucose ? (
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px', gap: '8px', color: '#64748b' }}>
                                             <Loader2 className="animate-spin" size={20} />
-                                            <span style={{ fontSize: '13px' }}>Loading Libre data...</span>
+                                            <span style={{ fontSize: '13px' }}>{t.history.loadingLibre}</span>
                                         </div>
                                     ) : glucoseData.length > 0 ? (
                                         <GlucoseGraph
@@ -374,14 +371,11 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                         />
                                     ) : (
                                         <div style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                                            <p>No glucose data available for this period.</p>
+                                            <p>{t.history.noGlucoseData}</p>
                                             {debugRange && (
-                                                <div style={{ marginTop: '8px', fontSize: '11px', color: '#94a3b8', background: '#f1f5f9', padding: '6px', borderRadius: '6px' }}>
-                                                    <p><strong>Debug Info:</strong></p>
-                                                    <p>Available Range:</p>
-                                                    <p>{new Date(debugRange.oldest).toLocaleString()} -</p>
-                                                    <p>{new Date(debugRange.newest).toLocaleString()}</p>
-                                                </div>
+                                                <p style={{ fontSize: '11px', marginTop: '4px', color: '#94a3b8' }}>
+                                                    Data available from {new Date(debugRange.oldest).toLocaleString()} to {new Date(debugRange.newest).toLocaleString()}
+                                                </p>
                                             )}
                                         </div>
                                     )}
@@ -391,7 +385,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
 
                         {/* Food Items */}
                         <div className="meal-detail-foods">
-                            <h4>Foods</h4>
+                            <h4>{t.history.foods}</h4>
                             {selectedMealGroup.items.map((item, idx) => (
                                 <div key={item.id} className="detail-food-item">
                                     <span className="detail-food-icon">
@@ -399,13 +393,13 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                     </span>
                                     <div className="detail-food-info">
                                         <span className="detail-food-name">
-                                            {item.food_items?.[0]?.name || 'Unknown'}
+                                            {item.food_items?.[0]?.name || t.history.unknown}
                                         </span>
                                         <span className="detail-food-macros">
-                                            {item.total_carbs}g carbs · {item.total_fat}g fat · {item.total_protein}g protein
+                                            {item.total_carbs}g {t.history.carbs.toLowerCase()} · {item.total_fat}g {t.results.fat.toLowerCase()} · {item.total_protein}g {t.results.protein.toLowerCase()}
                                         </span>
                                     </div>
-                                    <span className="detail-food-insulin">{item.suggested_insulin}u</span>
+                                    <span className="detail-food-insulin">{item.suggested_insulin}{t.history.units}</span>
                                 </div>
                             ))}
                         </div>
@@ -417,14 +411,14 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                 <button
                     className="icon-btn"
                     onClick={onBack}
-                    aria-label="Go back"
+                    aria-label={t.general.back}
                 >
                     <ArrowLeft size={22} />
                 </button>
-                <h2>Meal History</h2>
+                <h2>{t.history.title}</h2>
                 <button
                     className="icon-btn"
-                    aria-label="Clear all history"
+                    aria-label={t.history.deleteAll}
                     onClick={() => {
                         if (history.length > 0) setShowClearConfirm(true);
                     }}
@@ -444,8 +438,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         <div className="empty-icon">
                             <Utensils size={32} strokeWidth={1.5} />
                         </div>
-                        <h3>No meals logged yet</h3>
-                        <p>Scan or enter your first meal to start tracking</p>
+                        <h3>{t.history.noMeals}</h3>
+                        <p>{t.history.scanFirst}</p>
                     </div>
                 ) : (
                     Object.entries(groupedByDate).map(([date, meals]) => (
@@ -458,7 +452,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                 const isChained = mealGroup.items.length > 1;
                                 const isHigh = mealGroup.postGlucose && mealGroup.postGlucose > settings.highThreshold;
                                 const isLow = mealGroup.postGlucose && mealGroup.postGlucose < settings.lowThreshold;
-                                const itemId = mealGroup.chainId || mealGroup.items[0]?.id;
+                                const itemId = mealGroup.chainId || mealGroup.items[0]?.id || '';
 
                                 return (
                                     <div
@@ -473,7 +467,6 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                             onKeyDown={(e) => e.key === 'Enter' && setSelectedMealGroup(mealGroup)}
                                         >
                                             {isChained ? (
-                                                // Chained meal display
                                                 <div className="chained-meal-card">
                                                     <div className="chain-connector">
                                                         <Link2 size={14} />
@@ -481,7 +474,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                     <div className="chained-content">
                                                         <div className="chained-items">
                                                             {mealGroup.items.map((item, idx) => {
-                                                                const foodName = item.food_items?.[0]?.name || 'Unknown';
+                                                                const foodName = item.food_items?.[0]?.name || t.history.unknown;
                                                                 return (
                                                                     <div
                                                                         key={item.id}
@@ -498,7 +491,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                         </div>
                                                         <div className="chained-footer">
                                                             <span className="chained-time">
-                                                                {new Date(mealGroup.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                {new Date(mealGroup.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
                                                             {mealGroup.postGlucose ? (
                                                                 <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
@@ -509,28 +502,27 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                                     className="add-glucose-btn"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        setGlucoseModalItem(mealGroup.items[0]?.id);
+                                                                        setGlucoseModalItem(mealGroup.items[0]?.id || '');
                                                                     }}
                                                                 >
                                                                     <Plus size={12} />
-                                                                    Add 2h
+                                                                    {t.history.add2h}
                                                                 </button>
                                                             )}
                                                         </div>
                                                     </div>
                                                     <div className="chained-summary">
-                                                        <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}u</span>
+                                                        <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}{t.history.units}</span>
                                                         <span className="total-label">{mealGroup.totalCarbs}g</span>
                                                         {mealGroup.splitBolusAccepted && (
                                                             <span className="split-badge">
                                                                 <Clock size={10} />
-                                                                Split
+                                                                {t.history.split}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </div>
                                             ) : (
-                                                // Single meal display
                                                 <div className="history-item">
                                                     <div className="history-item-icon">
                                                         {getFoodIcon(mealGroup.items[0]?.food_items?.[0]?.name || '')}
@@ -538,42 +530,40 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                     <div className="history-item-content">
                                                         <div className="history-main">
                                                             <span className="history-food">
-                                                                {mealGroup.items[0]?.food_items?.[0]?.name || 'Unknown'}
+                                                                {mealGroup.items[0]?.food_items?.[0]?.name || t.history.unknown}
                                                             </span>
-                                                            <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}u</span>
+                                                            <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}{t.history.units}</span>
                                                         </div>
                                                         <div className="history-stats">
-                                                            <span className="stat-carbs">{mealGroup.totalCarbs}g carbs</span>
+                                                            <span className="stat-carbs">{mealGroup.totalCarbs} {t.history.carbs.toLowerCase()}</span>
                                                             {mealGroup.preGlucose && (
-                                                                <span className="stat-pre">Pre: {mealGroup.preGlucose}</span>
+                                                                <span className="stat-pre">{t.history.preMeal}: {mealGroup.preGlucose}</span>
                                                             )}
                                                             {mealGroup.postGlucose ? (
                                                                 <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
                                                                     2h: {mealGroup.postGlucose}
-                                                                    {isLow && ' ↓'}
-                                                                    {isHigh && ' ↑'}
                                                                 </span>
                                                             ) : (
                                                                 <button
                                                                     className="add-glucose-btn"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        setGlucoseModalItem(mealGroup.items[0]?.id);
+                                                                        setGlucoseModalItem(mealGroup.items[0]?.id || '');
                                                                     }}
                                                                 >
                                                                     <Plus size={14} />
-                                                                    <span>Add 2h</span>
+                                                                    <span>{t.history.add2h}</span>
                                                                 </button>
                                                             )}
                                                             {mealGroup.splitBolusAccepted && (
                                                                 <span className="split-badge">
                                                                     <Clock size={12} />
-                                                                    Split
+                                                                    {t.history.split}
                                                                 </span>
                                                             )}
                                                         </div>
                                                         <span className="history-time">
-                                                            {new Date(mealGroup.timestamp).toLocaleTimeString([], {
+                                                            {new Date(mealGroup.timestamp).toLocaleTimeString(undefined, {
                                                                 hour: '2-digit',
                                                                 minute: '2-digit'
                                                             })}
@@ -583,14 +573,13 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                             )}
                                         </div>
 
-                                        {/* Delete button */}
                                         <button
                                             className="history-delete-btn"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setDeleteConfirmItem(itemId);
                                             }}
-                                            aria-label="Delete meal"
+                                            aria-label={t.general.delete}
                                         >
                                             <Trash2 size={16} />
                                         </button>

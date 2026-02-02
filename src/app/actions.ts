@@ -141,6 +141,7 @@ export async function getRemoteSettingsAction() {
             smartHistory: row.smartHistory ?? true,
             libreUsername: row.libreUsername || '',
             librePassword: row.librePassword || '',
+            language: (row.language as 'en' | 'it') || 'en',
         };
         return settings;
 

@@ -1,31 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth, SignInButton } from '@clerk/nextjs';
 import { Sparkles, Activity, History, Settings, ChevronRight, X, Zap } from 'lucide-react';
-
-const FEATURES = [
-    {
-        icon: History,
-        title: 'Sync History',
-        description: 'Access your meal logs on any device'
-    },
-    {
-        icon: Settings,
-        title: 'Save Settings',
-        description: 'Your carb ratio and preferences stay put'
-    },
-    {
-        icon: Activity,
-        title: 'Track Progress',
-        description: 'View insights and glucose trends over time'
-    }
-];
+import { useTranslations } from '@/lib/translations';
 
 export default function SoftLoginModal() {
     const { isLoaded, userId } = useAuth();
+    const t = useTranslations();
     const [showModal, setShowModal] = useState(false);
     const [currentSlide, setCurrentSlide] = useState(0);
+
+    const FEATURES = useMemo(() => [
+        {
+            icon: History,
+            title: t.onboarding.syncTitle,
+            description: t.onboarding.syncDesc
+        },
+        {
+            icon: Settings,
+            title: t.onboarding.saveTitle,
+            description: t.onboarding.saveDesc
+        },
+        {
+            icon: Activity,
+            title: t.onboarding.trackTitle,
+            description: t.onboarding.trackDesc
+        }
+    ], [t]);
 
     useEffect(() => {
         if (!isLoaded) return;
@@ -52,22 +54,16 @@ export default function SoftLoginModal() {
         sessionStorage.setItem('skipped_login_prompt', 'true');
     };
 
-    const nextSlide = () => {
-        if (currentSlide < FEATURES.length - 1) {
-            setCurrentSlide(currentSlide + 1);
-        }
-    };
-
     if (!showModal) return null;
 
     return (
         <div className="onboarding-overlay">
             <div className="onboarding-modal">
                 {/* Close Button */}
-                <button 
-                    className="onboarding-close" 
+                <button
+                    className="onboarding-close"
                     onClick={handleSkip}
-                    aria-label="Close"
+                    aria-label={t.general.close}
                 >
                     <X size={20} />
                 </button>
@@ -77,8 +73,8 @@ export default function SoftLoginModal() {
                     <div className="onboarding-icon">
                         <Zap size={28} />
                     </div>
-                    <h2>Unlock Full Features</h2>
-                    <p>Create a free account to get the most out of InsulinAI</p>
+                    <h2>{t.onboarding.unlockTitle}</h2>
+                    <p>{t.onboarding.unlockSub}</p>
                 </div>
 
                 {/* Feature Cards */}
@@ -86,8 +82,8 @@ export default function SoftLoginModal() {
                     {FEATURES.map((feature, index) => {
                         const Icon = feature.icon;
                         return (
-                            <div 
-                                key={index} 
+                            <div
+                                key={index}
                                 className={`onboarding-feature ${index === currentSlide ? 'active' : ''}`}
                             >
                                 <div className="feature-icon-wrap">
@@ -106,19 +102,19 @@ export default function SoftLoginModal() {
                 {/* Guest Notice */}
                 <div className="guest-notice">
                     <Sparkles size={14} />
-                    <span>Guest mode: Data is stored locally and won't sync across devices</span>
+                    <span>{t.onboarding.guestNotice}</span>
                 </div>
 
                 {/* Actions */}
                 <div className="onboarding-actions">
                     <SignInButton mode="modal">
                         <button className="onboarding-btn primary">
-                            Create Free Account
+                            {t.onboarding.createAccount}
                         </button>
                     </SignInButton>
 
                     <button className="onboarding-btn secondary" onClick={handleSkip}>
-                        Continue as Guest
+                        {t.onboarding.continueGuest}
                     </button>
                 </div>
             </div>

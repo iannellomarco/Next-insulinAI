@@ -10,22 +10,23 @@ export class AIService {
 
         const API_URL = '/api/analyze';
         const model = 'sonar-pro';
-        
+
         // Get the appropriate carb ratio based on meal time
         const currentCarbRatio = getCarbRatioForCurrentMeal(settings);
-        
+
         console.log("[v0] AI Service - useMealSpecificRatios:", settings.useMealSpecificRatios, "carbRatios:", settings.carbRatios, "currentCarbRatio:", currentCarbRatio);
 
         // Optimized compact prompt for token efficiency
         const instructions = `You are a diabetes nutrition assistant.
+        LANGUAGE: ${settings.language === 'it' ? 'Italian' : 'English'}
 
-TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
+        TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
 
-RULES:
-1. ALWAYS assume the input is food unless it's clearly unrelated (e.g., "car", "politics"). Be VERY lenient - if it could possibly be food, analyze it. Regional dishes, street food, ethnic cuisine, brand names, restaurant items, combos like "piadina kebab", "burger king whopper", "döner box" are ALL valid food.
-2. Identify foods, estimate macros, calculate insulin using 1:${currentCarbRatio} carb ratio.
-3. Flag split bolus if fat>20g AND protein>25g.
-4. IMPORTANT: Preserve the user's specific food name - do NOT generalize "pasta alla carbonara" to "spaghetti". BUT fix obvious typos (e.g., "psta alw carbonara" → "Pasta alla carbonara"). Use proper capitalization.
+        RULES:
+        1. ALWAYS assume the input is food unless it's clearly unrelated (e.g., "car", "politics"). Be VERY lenient - if it could possibly be food, analyze it. Regional dishes, street food, ethnic cuisine, brand names, restaurant items, combos like "piadina kebab", "burger king whopper", "döner box" are ALL valid food.
+        2. Identify foods, estimate macros, calculate insulin using 1:${currentCarbRatio} carb ratio.
+        3. Flag split bolus if fat>20g AND protein>25g.
+        4. IMPORTANT: Preserve the user's specific food name - do NOT generalize "pasta alla carbonara" to "spaghetti". BUT fix obvious typos (e.g., "psta alw carbonara" → "Pasta alla carbonara"). Use proper capitalization. Respond in ${settings.language === 'it' ? 'Italian' : 'English'}.
 5. Only return error if absolutely certain input is not food-related.
 
 OUTPUT (valid JSON only, no markdown):
@@ -106,7 +107,7 @@ ${historyContext.slice(0, 3).map(h => `${h.food_items[0]?.name}:${h.total_carbs}
     }
 
     // Analyze multiple foods and combine results (for meal chaining)
-    static combineResults(results: AnalysisResult[]): AnalysisResult {
+    static combineResults(results: AnalysisResult[], lang = 'en'): AnalysisResult {
         const allFoodItems = results.flatMap(r => r.food_items);
         const totalCarbs = results.reduce((sum, r) => sum + r.total_carbs, 0);
         const totalFat = results.reduce((sum, r) => sum + r.total_fat, 0);
@@ -129,7 +130,7 @@ ${historyContext.slice(0, 3).map(h => `${h.food_items[0]?.name}:${h.total_carbs}
                 duration: "2-3 hours",
                 reason: `Combined meal has ${Math.round(totalFat)}g fat and ${Math.round(totalProtein)}g protein.`
             } : { recommended: false },
-            reasoning: [`Combined ${results.length} items totaling ${Math.round(totalCarbs)}g carbs.`],
+            reasoning: [lang === 'it' ? `Combinati ${results.length} elementi per un totale di ${Math.round(totalCarbs)}g di carbo.` : `Combined ${results.length} items totaling ${Math.round(totalCarbs)}g carbs.`],
             warnings: results.flatMap(r => r.warnings || [])
         };
     }

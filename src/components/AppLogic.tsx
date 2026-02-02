@@ -16,6 +16,7 @@ import { fileToBase64, resizeImage } from '@/lib/utils';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
 import SoftLoginModal from '@/components/SoftLoginModal';
 import { useUser } from '@clerk/nextjs';
+import { useTranslations } from '@/lib/translations';
 
 const DAILY_LIMIT_GUEST = 5;
 const SCAN_COUNT_KEY = 'insulinai_daily_scans';
@@ -59,15 +60,16 @@ type NavType = 'home' | 'log' | 'insights' | 'settings';
 export default function AppLogic() {
     const { settings, history, setAnalysisResult, setIsLoading } = useStore();
     const { user } = useUser();
+    const t = useTranslations();
     const [currentView, setCurrentView] = useState<ViewType>('home');
     const [activeNav, setActiveNav] = useState<NavType>('home');
     const [showTextModal, setShowTextModal] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
     const { toasts, addToast, removeToast } = useToast();
-    
+
     // Track daily scan count (separate from history to prevent bypass via clearing history)
     const [dailyScanCount, setDailyScanCount] = useState(0);
-    
+
     // Load scan count from localStorage on mount
     useEffect(() => {
         setDailyScanCount(getDailyScanCount());
@@ -75,7 +77,7 @@ export default function AppLogic() {
 
     const canLogFood = !!user || dailyScanCount < DAILY_LIMIT_GUEST;
     const remainingLogs = Math.max(0, DAILY_LIMIT_GUEST - dailyScanCount);
-    
+
     // Increment scan count (called after successful analysis)
     const incrementDailyScans = useCallback(() => {
         if (!user) {
@@ -100,9 +102,9 @@ export default function AppLogic() {
     const handleAnalyze = async (input: File | string, type: 'image' | 'text') => {
         // Check daily limit for guest users
         if (!canLogFood) {
-            setErrorModal({ 
-                open: true, 
-                message: `You've reached your daily limit of ${DAILY_LIMIT_GUEST} food logs. Sign in for unlimited access!` 
+            setErrorModal({
+                open: true,
+                message: t.errors.limitReachedMsg
             });
             return;
         }
@@ -125,7 +127,7 @@ export default function AppLogic() {
             incrementDailyScans();
 
         } catch (error) {
-            const msg = error instanceof Error ? error.message : "Analysis failed. Please try again.";
+            const msg = error instanceof Error ? error.message : t.errors.analysisFailed;
             const isValidationError = msg.includes("analyze food") || msg.includes("No food items") || msg.includes("help with food");
 
             if (isValidationError) {
@@ -164,7 +166,7 @@ export default function AppLogic() {
                 )}
 
                 {currentView === 'results' && (
-                    <ResultsView 
+                    <ResultsView
                         onBack={() => {
                             setCurrentView('home');
                             setActiveNav('home');

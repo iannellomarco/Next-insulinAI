@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertCircle } from 'lucide-react';
+import { useTranslations } from '@/lib/translations';
 
 interface ErrorModalProps {
     message: string;
@@ -8,9 +9,10 @@ interface ErrorModalProps {
 }
 
 export default function ErrorModal({ message, onClose }: ErrorModalProps) {
+    const t = useTranslations();
     return (
-        <div 
-            className="error-overlay" 
+        <div
+            className="error-overlay"
             onClick={onClose}
             role="alertdialog"
             aria-modal="true"
@@ -20,12 +22,12 @@ export default function ErrorModal({ message, onClose }: ErrorModalProps) {
                 <div className="error-icon">
                     <AlertCircle size={28} />
                 </div>
-                
-                <h3 id="error-title">Unable to Analyze</h3>
+
+                <h3 id="error-title">{t.errors.unableToAnalyze}</h3>
                 <p>{message}</p>
 
                 <button className="btn dismiss-btn" onClick={onClose}>
-                    Got it
+                    {t.errors.gotIt}
                 </button>
             </div>
 

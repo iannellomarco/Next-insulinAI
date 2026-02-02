@@ -23,5 +23,6 @@ export const userSettings = pgTable('user_settings', {
     smartHistory: boolean('smart_history').default(true),
     libreUsername: text('libre_username'),
     librePassword: text('libre_password'),
+    language: text('language').default('en').notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
