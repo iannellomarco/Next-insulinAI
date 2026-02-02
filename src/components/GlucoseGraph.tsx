@@ -59,24 +59,22 @@ export default function GlucoseGraph({ data, mealTime, height = 200 }: GlucoseGr
                         dataKey="timestamp"
                         type="number"
                         domain={['dataMin', 'dataMax']}
-                        stroke="#9ca3af"
-                        fontSize={11}
-                        tickLine={false}
-                        axisLine={false}
+                        stroke="#64748b"
+                        fontSize={10}
+                        tickLine={true}
+                        axisLine={true}
                         tickFormatter={(unix) => format(new Date(unix), 'HH:mm')}
-                        ticks={chartData.length > 0 ? [
-                            chartData[0].timestamp,
-                            chartData[Math.floor(chartData.length / 2)].timestamp,
-                            chartData[chartData.length - 1].timestamp
-                        ] : []}
+                        interval="preserveStartEnd"
+                        minTickGap={30}
                     />
                     <YAxis
                         domain={yDomain}
-                        stroke="#9ca3af"
-                        fontSize={11}
-                        tickLine={false}
-                        axisLine={false}
+                        stroke="#64748b"
+                        fontSize={10}
+                        tickLine={true}
+                        axisLine={true}
                         width={30}
+                        tickFormatter={(val) => Math.round(val).toString()}
                     />
                     <Tooltip
                         labelFormatter={(unix) => format(new Date(unix), 'HH:mm')}
