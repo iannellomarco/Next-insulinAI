@@ -4,6 +4,7 @@ import { Calculator, Target, Zap, Sun, Clock, Moon, Activity, Key, Brain } from 
 import { useStore } from '@/lib/store';
 import { useState, useEffect, useRef } from 'react';
 import { CarbRatios } from '@/types';
+import { fetchLibreDataAction } from '@/app/actions/libre';
 
 type SettingsTab = 'insulin' | 'glucose' | 'advanced';
 
@@ -12,6 +13,7 @@ export default function SettingsView() {
     const [localSettings, setLocalSettings] = useState(settings);
     const [activeTab, setActiveTab] = useState<SettingsTab>('insulin');
     const [showToast, setShowToast] = useState(false);
+    const [isTesting, setIsTesting] = useState(false);
     const isInitialMount = useRef(true);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -21,6 +23,31 @@ export default function SettingsView() {
         setActiveTab(tab);
         if (scrollAreaRef.current) {
             scrollAreaRef.current.scrollTop = 0;
+        }
+    };
+
+    const handleTestConnection = async () => {
+        setIsTesting(true);
+        try {
+            // First ensure settings are saved (basic validation)
+            if (!localSettings.libreUsername || !localSettings.librePassword) {
+                alert('Please enter email and password first. Settings auto-save in 500ms.');
+                setIsTesting(false);
+                return;
+            }
+
+            const result = await fetchLibreDataAction();
+            if (result.success) {
+                // Determine reading count safely
+                const count = result.data ? result.data.length : 0;
+                alert(`Success! Connected to ${result.connectionName}. Retrieved ${count} readings.`);
+            } else {
+                alert(`Error: ${result.connectionName || result.error}`);
+            }
+        } catch (e) {
+            alert('Test failed: ' + (e instanceof Error ? e.message : String(e)));
+        } finally {
+            setIsTesting(false);
         }
     };
 
@@ -375,6 +402,66 @@ export default function SettingsView() {
                                         onChange={handleChange}
                                     />
                                     <p className="api-hint">Leave blank to use the default system key</p>
+                                </div>
+                            </div>
+
+                            <div className="divider" />
+
+                            <div className="panel-header">
+                                <h3>Freestyle Libre Integration</h3>
+                                <p>Connect your LibreLinkUp account to sync glucose data</p>
+                            </div>
+
+                            <div className="api-card">
+                                <div className="api-icon">
+                                    <Activity size={20} />
+                                </div>
+                                <div className="api-content">
+                                    <div className="input-group">
+                                        <label htmlFor="libreUsername">LibreLinkUp Email</label>
+                                        <input
+                                            type="email"
+                                            id="libreUsername"
+                                            placeholder="email@example.com"
+                                            value={localSettings.libreUsername || ''}
+                                            onChange={handleChange}
+                                            className="settings-input"
+                                            style={{ marginBottom: '0.75rem', width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--background)' }}
+                                        />
+                                    </div>
+                                    <div className="input-group">
+                                        <label htmlFor="librePassword">Password</label>
+                                        <input
+                                            type="password"
+                                            id="librePassword"
+                                            placeholder="••••••••"
+                                            value={localSettings.librePassword || ''}
+                                            onChange={handleChange}
+                                            className="settings-input"
+                                            style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--background)' }}
+                                        />
+                                    </div>
+                                    <p className="api-hint" style={{ marginTop: '0.5rem' }}>Credentials are stored securely and used only to fetch your data.</p>
+
+                                    <button
+                                        className="test-connection-btn"
+                                        onClick={handleTestConnection}
+                                        disabled={isTesting}
+                                        style={{
+                                            marginTop: '1rem',
+                                            padding: '0.5rem 1rem',
+                                            borderRadius: 'var(--radius-md)',
+                                            background: isTesting ? 'var(--muted)' : 'var(--primary)',
+                                            color: 'var(--primary-foreground)',
+                                            border: 'none',
+                                            cursor: isTesting ? 'not-allowed' : 'pointer',
+                                            fontSize: '0.875rem',
+                                            fontWeight: 500,
+                                            width: '100%'
+                                        }}
+                                    >
+                                        {isTesting ? 'Testing...' : 'Test Connection'}
+                                    </button>
                                 </div>
                             </div>
                         </div>

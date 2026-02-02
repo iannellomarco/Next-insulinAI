@@ -92,6 +92,8 @@ export async function syncSettingsAction(settings: Settings) {
             highThreshold: settings.highThreshold,
             lowThreshold: settings.lowThreshold,
             smartHistory: settings.smartHistory,
+            libreUsername: settings.libreUsername,
+            librePassword: settings.librePassword,
         }).onConflictDoUpdate({
             target: userSettings.userId,
             set: {
@@ -99,10 +101,11 @@ export async function syncSettingsAction(settings: Settings) {
                 carbRatios: settings.carbRatios,
                 useMealSpecificRatios: settings.useMealSpecificRatios,
                 correctionFactor: settings.correctionFactor,
-                targetGlucose: settings.targetGlucose,
                 highThreshold: settings.highThreshold,
                 lowThreshold: settings.lowThreshold,
                 smartHistory: settings.smartHistory,
+                libreUsername: settings.libreUsername,
+                librePassword: settings.librePassword,
                 updatedAt: new Date()
             }
         });
@@ -135,6 +138,8 @@ export async function getRemoteSettingsAction() {
             highThreshold: row.highThreshold || 180,
             lowThreshold: row.lowThreshold || 70,
             smartHistory: row.smartHistory ?? true,
+            libreUsername: row.libreUsername || '',
+            librePassword: row.librePassword || '',
         };
         return settings;
 

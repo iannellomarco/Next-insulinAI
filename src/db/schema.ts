@@ -21,5 +21,10 @@ export const userSettings = pgTable('user_settings', {
     lowThreshold: integer('low_threshold'),
 
     smartHistory: boolean('smart_history').default(true),
+
+    // LibreLinkUp Integration
+    libreUsername: text('libre_username'),
+    librePassword: text('libre_password'),
+
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
