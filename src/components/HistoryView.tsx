@@ -349,42 +349,43 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                         </span>
                                     </div>
                                 </div>
+                            </div>
+                        )}
 
-                                {/* Live Graph from Libre */}
-                                {settings.libreUsername && (
-                                    <div className="glucose-graph-container" style={{
-                                        backgroundColor: '#f8fafc',
-                                        borderRadius: '12px',
-                                        padding: '12px',
-                                        marginTop: '8px',
-                                        height: '240px' // Added fixed height for ResponsiveContainer
-                                    }}>
-                                        {isLoadingGlucose ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px', gap: '8px', color: '#64748b' }}>
-                                                <Loader2 className="animate-spin" size={20} />
-                                                <span style={{ fontSize: '13px' }}>Loading Libre data...</span>
-                                            </div>
-                                        ) : glucoseData.length > 0 ? (
-                                            <GlucoseGraph
-                                                data={glucoseData}
-                                                mealTime={new Date(selectedMealGroup.timestamp)}
-                                                height={200}
-                                            />
-                                        ) : (
-                                            <div style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                                                <p>No glucose data available for this period.</p>
-                                                {debugRange && (
-                                                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#94a3b8', background: '#f1f5f9', padding: '6px', borderRadius: '6px' }}>
-                                                        <p><strong>Debug Info:</strong></p>
-                                                        <p>Available Range:</p>
-                                                        <p>{new Date(debugRange.oldest).toLocaleString()} -</p>
-                                                        <p>{new Date(debugRange.newest).toLocaleString()}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                        {/* Live Graph from Libre - Independent of manual readings */}
+                        {settings.libreUsername && (
+                            <div className="meal-detail-glucose" style={{ marginTop: '16px' }}>
+                                <div className="glucose-graph-container" style={{
+                                    backgroundColor: '#f8fafc',
+                                    borderRadius: '12px',
+                                    padding: '12px',
+                                    height: '240px'
+                                }}>
+                                    {isLoadingGlucose ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px', gap: '8px', color: '#64748b' }}>
+                                            <Loader2 className="animate-spin" size={20} />
+                                            <span style={{ fontSize: '13px' }}>Loading Libre data...</span>
+                                        </div>
+                                    ) : glucoseData.length > 0 ? (
+                                        <GlucoseGraph
+                                            data={glucoseData}
+                                            mealTime={new Date(selectedMealGroup.timestamp)}
+                                            height={200}
+                                        />
+                                    ) : (
+                                        <div style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                                            <p>No glucose data available for this period.</p>
+                                            {debugRange && (
+                                                <div style={{ marginTop: '8px', fontSize: '11px', color: '#94a3b8', background: '#f1f5f9', padding: '6px', borderRadius: '6px' }}>
+                                                    <p><strong>Debug Info:</strong></p>
+                                                    <p>Available Range:</p>
+                                                    <p>{new Date(debugRange.oldest).toLocaleString()} -</p>
+                                                    <p>{new Date(debugRange.newest).toLocaleString()}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
 
