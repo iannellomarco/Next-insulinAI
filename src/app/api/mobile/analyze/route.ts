@@ -30,6 +30,7 @@ User Settings:
 
 Return a JSON response ONLY with this structure:
 {
+  "friendly_description": "A short, readable title for the meal",
   "food_items": [
     { "name": "Food Name", "carbs": 50, "fat": 10, "protein": 20, "quantity": "1 serving" }
   ],
@@ -37,6 +38,12 @@ Return a JSON response ONLY with this structure:
   "total_fat": 10,
   "total_protein": 20,
   "suggested_insulin": 5.0,
+  "split_bolus_recommendation": {
+    "recommended": false,
+    "split_percentage": "50/50",
+    "duration": "2 hours",
+    "reason": "High fat content delays absorption"
+  },
   "reasoning": ["Explanation point 1", "Explanation point 2"]
 }
 
