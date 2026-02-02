@@ -4,8 +4,9 @@ const isPublicRoute = createRouteMatcher([
     '/',
     '/api/analyze(.*)',
     '/api/welcome(.*)',
-    '/api/greeting(.*)', // New route fallback
-    '/api/mobile(.*)',   // Mobile API routes (auth via Bearer token)
+    '/api/greeting(.*)',
+    '/api/mobile(.*)',
+    '/api/test',
     '/sign-in(.*)',
     '/sign-up(.*)'
 ]);
