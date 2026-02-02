@@ -2183,9 +2183,9 @@ input:checked + .slider:before {
 }
 
 .mode-btn.active {
-    background: var(--card);
-    color: var(--foreground);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
 }
 
 /* Single Ratio Card */
