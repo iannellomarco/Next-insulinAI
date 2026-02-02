@@ -80,14 +80,6 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             return t >= startTime && t <= endTime;
                         });
 
-                        console.log('[GlucoseDebug] Meal:', mealTime.toLocaleString());
-                        console.log('[GlucoseDebug] Window:', startTime.toLocaleString(), '-', endTime.toLocaleString());
-                        console.log('[GlucoseDebug] Data Count:', result.data.length);
-                        if (result.data.length > 0) {
-                            console.log('[GlucoseDebug] First Point:', new Date(result.data[0].timestamp).toLocaleString());
-                        }
-                        console.log('[GlucoseDebug] Relevant Count:', relevantReadings.length);
-
                         setGlucoseData(relevantReadings);
 
                         if (relevantReadings.length === 0 && result.debug) {
