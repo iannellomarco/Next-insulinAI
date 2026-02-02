@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { userSettings } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
 import { eq } from 'drizzle-orm';
-import { LibreLinkUpClient, LibreGlucoseReading } from '@/lib/libre-client';
+import { createLibreClient, LibreGlucoseReading } from '@/lib/libre-client';
 
 export interface LibreDataResponse {
     success: boolean;
@@ -19,6 +19,7 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
 
     if (!userId) {
         console.error('[fetchLibreDataAction] No userId found in auth()');
+        // If testing locally without auth, you might mock this, but for prod we need auth.
         return { success: false, error: 'Unauthorized: No verified session' };
     }
 
@@ -35,31 +36,38 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
             return { success: false, error: 'No LibreLinkUp credentials found. Please update settings.' };
         }
 
-        // 2. Login
-        console.log('Logging into LibreLinkUp...');
-        const authTicket = await LibreLinkUpClient.login({
+        // 2. Initialize Client (Factory pattern)
+        const client = createLibreClient({
             email: settings.libreUsername,
             password: settings.librePassword
         });
 
-        if (!authTicket) {
-            return { success: false, error: 'Failed to login to LibreLinkUp. Check credentials.' };
+        // 3. Login
+        console.log('Logging into LibreLinkUp...');
+        const loginResponse = await client.login();
+
+        if (!loginResponse) {
+            return { success: false, error: 'Failed to login to LibreLinkUp. Check credentials or region.' };
         }
 
-        // 3. Get Connection (Patient ID)
-        const connections = await LibreLinkUpClient.getConnections(authTicket);
+        console.log(`[LibreLinkUp] Logged in successfully. User ID: ${loginResponse.userId}`);
+
+        // 4. Get Connection (Patient ID)
+        // Note: New client handles auth internally via interceptors
+        const connections = await client.getConnections();
 
         if (connections.length === 0) {
             return { success: false, error: 'No LibreLinkUp connections found.' };
         }
 
         // Use the first connection (usually the user themselves)
-        const patientId = connections[0].id;
-        const patientName = `${connections[0].firstName} ${connections[0].lastName}`;
+        const patient = connections[0];
+        const patientId = patient.patientId || patient.id; // Library uses patientId, my interface has both mapped
+        const patientName = `${patient.firstName} ${patient.lastName}`;
         console.log(`Fetching data for patient: ${patientName} (${patientId})`);
 
-        // 4. Get Graph Data
-        const readings = await LibreLinkUpClient.getGlucoseData(authTicket, patientId);
+        // 5. Get Graph Data
+        const readings = await client.getGlucoseData(patientId);
 
         console.log(`Retrieved ${readings.length} glucose readings.`);
 

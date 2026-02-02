@@ -1,3 +1,7 @@
+import axios from 'axios';
+import { sha256 } from 'js-sha256';
+
+// --- Types adapted from library ---
 export interface LibreCredentials {
     email: string;
     password: string;
@@ -7,7 +11,7 @@ export interface LibreAuthTicket {
     token: string;
     expiresAt: number;
     userId: string;
-    region?: string; // The base URL that worked for login
+    region?: string;
 }
 
 export interface LibreConnection {
@@ -16,106 +20,187 @@ export interface LibreConnection {
     lastName: string;
     targetLow?: number;
     targetHigh?: number;
+    patientId?: string; // Library uses patientId sometimes
 }
 
 export interface LibreGlucoseReading {
-    Value: number; // mg/dL
-    Timestamp: string; // "2023-10-27T10:00:00"
+    Value: number;
+    Timestamp: string;
     isHigh: boolean;
     isLow: boolean;
-    TrendArrow?: number; // 1=Falling, 3=Stable, 5=Rising etc (approx)
+    TrendArrow?: number;
 }
 
-export class LibreLinkUpClient {
-    // List of known regional endpoints to try
-    // Order matters: EU is first as it's the likely solution for this user
-    private static REGIONS = [
-        'https://api-eu.libreview.io/llu', // Europe 
-        'https://api.libreview.io/llu',    // Global/US
-        'https://api-de.libreview.io/llu', // Germany
-        'https://api-fr.libreview.io/llu', // France
-        'https://api-jp.libreview.io/llu', // Japan
-        'https://api-ae.libreview.io/llu'  // Asia Pacific
-    ];
+// Minimal types for internal logic
+interface LoginResponse {
+    status: number;
+    data: {
+        user?: { id: string };
+        authTicket?: { token: string; expires: number; duration: number };
+        redirect?: boolean;
+        region?: string;
+    };
+}
 
-    private static HEADERS = {
-        'version': '4.7.0',
-        'product': 'llu.ios',
-        'culture': 'en-US',
-        'accept-encoding': 'gzip, deflate, br',
-        'current-time': new Date().toISOString(),
-        'content-type': 'application/json'
+interface RegionalMap {
+    [key: string]: { lslApi: string };
+}
+
+interface CountryResponse {
+    status: number;
+    data: {
+        regionalMap: RegionalMap;
+    };
+}
+
+// --- Constants ---
+const REGIONS = [
+    'https://api-eu.libreview.io', // Europe First
+    'https://api.libreview.io',    // Global/US
+    'https://api-de.libreview.io', // Germany
+    'https://api-fr.libreview.io', // France
+    'https://api-jp.libreview.io', // Japan
+    'https://api-ae.libreview.io', // Asia Pacific
+];
+
+const DEFAULT_HEADERS = {
+    'accept-encoding': 'gzip',
+    'cache-control': 'no-cache',
+    'connection': 'Keep-Alive',
+    'content-type': 'application/json',
+    'product': 'llu.android',
+    'version': '4.12.0',
+    'account-id': '',
+};
+
+const URL_MAP = {
+    login: '/llu/auth/login',
+    connections: '/llu/connections',
+    countries: '/llu/config/country?country=DE', // Fallback country query
+};
+
+/**
+ * Factory to create a client instance (DiaKEM style)
+ * but with added multi-region capability.
+ */
+export const createLibreClient = (creds: LibreCredentials) => {
+    let jwtToken: string | null = null;
+    let accountId: string | null = null;
+
+    // Create axios instance
+    const instance = axios.create({
+        baseURL: REGIONS[0],
+        headers: DEFAULT_HEADERS,
+    });
+
+    // Interceptor to inject token and account-id (critical features from library)
+    instance.interceptors.request.use(
+        config => {
+            if (jwtToken && config.headers && accountId) {
+                config.headers.authorization = `Bearer ${jwtToken}`;
+                config.headers['account-id'] = sha256(accountId);
+            }
+            return config;
+        },
+        e => Promise.reject(e)
+    );
+
+    /**
+     * Core login function logic from library
+     */
+    const attemptLogin = async (): Promise<LoginResponse | null> => {
+        try {
+            const response = await instance.post<LoginResponse>(URL_MAP.login, {
+                email: creds.email,
+                password: creds.password,
+            });
+
+            const body = response.data;
+
+            // 1. Check for specific Library logic: 2FA or Consents
+            if (body.status === 2) {
+                console.warn('LibreLinkUp: Bad credentials (or wrong server)');
+                // We return null to allow the multi-region loop to continue trying others
+                // UNLESS we are sure it's the right server. 
+                // But typically 401/Status 2 on wrong server happens.
+                return null;
+            }
+
+            // 2. Handle Redirect (Official API feature)
+            if (body.data.redirect && body.data.region) {
+                console.log(`LibreLinkUp: Redirect requested to ${body.data.region}`);
+                try {
+                    // Fetch country map to resolve region to URL
+                    const countryRes = await instance.get<CountryResponse>(URL_MAP.countries);
+                    const regionMap = countryRes.data.data.regionalMap;
+                    const regionDef = regionMap[body.data.region];
+
+                    if (regionDef && regionDef.lslApi) {
+                        console.log(`LibreLinkUp: Redirecting to ${regionDef.lslApi}`);
+                        instance.defaults.baseURL = regionDef.lslApi;
+                        // Retry login on new URL
+                        return attemptLogin();
+                    }
+                } catch (e) {
+                    console.error('LibreLinkUp: Failed to resolve redirect region', e);
+                }
+            }
+
+            // 3. Success
+            if (body.status === 0 && body.data.authTicket && body.data.user) {
+                jwtToken = body.data.authTicket.token;
+                accountId = body.data.user.id;
+                return body; // Success
+            }
+
+            return null;
+        } catch (error) {
+            // Axios throws on 401/403 usually, or network error
+            // console.warn('Login attempt failed:', error);
+            return null;
+        }
     };
 
     /**
-     * Login to LibreLinkUp to get an auth ticket (JWT)
-     * Iterates through all regions until one works.
+     * Robust login that iterates regions if the first attempt fails
      */
-    static async login(credentials: LibreCredentials): Promise<LibreAuthTicket | null> {
-        console.log('[LibreLinkUp] Starting multi-region login process...');
+    const login = async (): Promise<LibreAuthTicket | null> => {
+        console.log('[LibreLinkUp] Starting login...');
 
-        for (const baseUrl of this.REGIONS) {
-            try {
-                console.log(`[LibreLinkUp] Trying region: ${baseUrl}`);
-                const response = await fetch(`${baseUrl}/auth/login`, {
-                    method: 'POST',
-                    headers: this.HEADERS,
-                    body: JSON.stringify({
-                        email: credentials.email,
-                        password: credentials.password
-                    })
-                });
+        // Try current baseURL (default) first? OR iterate all?
+        // Let's iterate all to be safe, starting with EU/US
+        for (const regionUrl of REGIONS) {
+            instance.defaults.baseURL = regionUrl;
+            // UPDATE: instance.defaults.baseURL handles future requests, 
+            // but we must ensure the loop uses it.
 
-                if (!response.ok) {
-                    // If 401, it likely means wrong region (or wrong password, but we assume regions first)
-                    // If 404, wrong region.
-                    console.warn(`[LibreLinkUp] Login failed on ${baseUrl}: ${response.status}`);
-                    continue;
-                }
+            console.log(`[LibreLinkUp] Trying ${regionUrl}...`);
+            const result = await attemptLogin();
 
-                const data = await response.json();
-
-                if (data.status === 0 && data.data?.authTicket) {
-                    console.log(`[LibreLinkUp] Login SUCCESS on ${baseUrl}`);
-                    return {
-                        token: data.data.authTicket.token,
-                        expiresAt: data.data.authTicket.expires,
-                        userId: data.data.user.id,
-                        region: baseUrl // Store the working region
-                    };
-                }
-            } catch (error) {
-                console.warn(`[LibreLinkUp] Network error on ${baseUrl}:`, error);
-                // Continue to next region
+            if (result && result.data.authTicket) {
+                console.log(`[LibreLinkUp] Connected to ${regionUrl}`);
+                return {
+                    token: result.data.authTicket.token,
+                    expiresAt: result.data.authTicket.expires,
+                    userId: result.data.user!.id,
+                    region: regionUrl
+                };
             }
         }
 
-        console.error('[LibreLinkUp] All regional login attempts failed.');
+        console.error('[LibreLinkUp] All regions failed.');
         return null;
-    }
+    };
 
-    /**
-     * Get list of connections using the region from the ticket
-     */
-    static async getConnections(ticket: LibreAuthTicket): Promise<LibreConnection[]> {
-        const baseUrl = ticket.region || this.REGIONS[0];
-
+    const getConnections = async (): Promise<LibreConnection[]> => {
         try {
-            const response = await fetch(`${baseUrl}/connections`, {
-                headers: {
-                    ...this.HEADERS,
-                    'authorization': `Bearer ${ticket.token}`
-                }
-            });
-
-            if (!response.ok) return [];
-
-            const data = await response.json();
-
+            const response = await instance.get(URL_MAP.connections);
+            const data = response.data;
             if (data.status !== 0 || !data.data) return [];
 
             return data.data.map((conn: any) => ({
                 id: conn.patientId,
+                patientId: conn.patientId,
                 firstName: conn.firstName,
                 lastName: conn.lastName,
                 targetLow: conn.targetLow,
@@ -125,25 +210,13 @@ export class LibreLinkUpClient {
             console.error('Libre getConnections error:', error);
             return [];
         }
-    }
+    };
 
-    /**
-     * Get glucose graph data using the region from the ticket
-     */
-    static async getGlucoseData(ticket: LibreAuthTicket, patientId: string): Promise<LibreGlucoseReading[]> {
-        const baseUrl = ticket.region || this.REGIONS[0];
-
+    const getGlucoseData = async (patientId: string): Promise<LibreGlucoseReading[]> => {
         try {
-            const response = await fetch(`${baseUrl}/connections/${patientId}/graph`, {
-                headers: {
-                    ...this.HEADERS,
-                    'authorization': `Bearer ${ticket.token}`
-                }
-            });
-
-            if (!response.ok) return [];
-
-            const data = await response.json();
+            const url = `${URL_MAP.connections}/${patientId}/graph`;
+            const response = await instance.get(url);
+            const data = response.data;
 
             if (data.status !== 0 || !data.data?.graphData) return [];
 
@@ -158,5 +231,12 @@ export class LibreLinkUpClient {
             console.error('Libre getGlucoseData error:', error);
             return [];
         }
-    }
-}
+    };
+
+    // Return the client interface
+    return {
+        login,
+        getConnections,
+        getGlucoseData
+    };
+};
