@@ -32,7 +32,11 @@ export default function GlucoseGraph({ data, mealTime, height = 200 }: GlucoseGr
     const yDomain = [Math.max(0, minVal - 20), maxVal + 20];
 
     return (
-        <div style={{ width: '100%', height: height, marginTop: '8px' }}>
+        <div style={{ width: '100%', height: height, marginTop: '8px', border: '2px solid red', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 10, background: 'rgba(255,255,255,0.8)', fontSize: '10px', pointerEvents: 'none' }}>
+                DEBUG: Rendering {data.length} points.<br />
+                Range: {chartData[0]?.timeStr} - {chartData[chartData.length - 1]?.timeStr}
+            </div>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
                     <defs>
