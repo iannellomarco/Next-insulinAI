@@ -1,11 +1,13 @@
 'use client';
 
-import { ArrowLeft, Trash2, Plus, Calendar, Utensils, Link2, X, Activity, Droplet, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Calendar, Utensils, Link2, X, Activity, Droplet, TrendingUp, TrendingDown, Clock, Loader2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useMemo, useEffect } from 'react';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import GlucoseInputModal from '@/components/GlucoseInputModal';
 import { HistoryItem } from '@/types';
+import GlucoseGraph from './GlucoseGraph';
+import { fetchLibreDataAction, GlucoseReading } from '@/app/actions/libre';
 
 function getFoodIcon(name: string): string {
     const lowerName = name.toLowerCase();
@@ -51,11 +53,46 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     const [glucoseModalItem, setGlucoseModalItem] = useState<string | null>(null);
     const [selectedMealGroup, setSelectedMealGroup] = useState<MealGroup | null>(null);
     const [deleteConfirmItem, setDeleteConfirmItem] = useState<string | null>(null);
+    const [glucoseData, setGlucoseData] = useState<GlucoseReading[]>([]);
+    const [isLoadingGlucose, setIsLoadingGlucose] = useState(false);
 
     // Scroll to top when component mounts
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'instant' });
     }, []);
+
+    // Fetch glucose data when a meal is selected
+    useEffect(() => {
+        if (selectedMealGroup && settings.libreUsername && settings.librePassword) {
+            const fetchGlucose = async () => {
+                setIsLoadingGlucose(true);
+                try {
+                    const result = await fetchLibreDataAction();
+                    if (result.success && result.data) {
+                        // Filter for meal window: -30 mins to +3 hours
+                        const mealTime = new Date(selectedMealGroup.timestamp);
+                        const startTime = new Date(mealTime.getTime() - 30 * 60000);
+                        const endTime = new Date(mealTime.getTime() + 180 * 60000);
+
+                        const relevantReadings = result.data.filter((h: GlucoseReading) => {
+                            const t = new Date(h.timestamp);
+                            return t >= startTime && t <= endTime;
+                        });
+                        setGlucoseData(relevantReadings);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch glucose data", e);
+                } finally {
+                    setIsLoadingGlucose(false);
+                }
+            };
+            fetchGlucose();
+        } else {
+            setGlucoseData([]);
+        }
+    }, [selectedMealGroup, settings.libreUsername, settings.librePassword]);
+
+
 
     const handleDeleteItem = (id: string) => {
         deleteHistoryItem(id);
@@ -73,7 +110,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
             const item = history.find(h => h.id === glucoseModalItem);
             if (item?.chainId) {
                 const chainItems = history.filter(h => h.chainId === item.chainId);
-                const lastItem = chainItems.reduce((a, b) => 
+                const lastItem = chainItems.reduce((a, b) =>
                     (a.chainIndex || 0) > (b.chainIndex || 0) ? a : b
                 );
                 updateHistoryItem(lastItem.id, { post_glucose: value });
@@ -93,11 +130,11 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
             if (item.chainId) {
                 if (processedChains.has(item.chainId)) continue;
                 processedChains.add(item.chainId);
-                
+
                 const chainItems = history
                     .filter(h => h.chainId === item.chainId)
                     .sort((a, b) => (a.chainIndex || 0) - (b.chainIndex || 0));
-                
+
                 const firstItem = chainItems[0];
                 groups.push({
                     chainId: item.chainId,
@@ -187,18 +224,18 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
             {selectedMealGroup && (
                 <div className="meal-detail-overlay" onClick={() => setSelectedMealGroup(null)}>
                     <div className="meal-detail-modal" onClick={(e) => e.stopPropagation()}>
-                        <button 
-                            className="meal-detail-close" 
+                        <button
+                            className="meal-detail-close"
                             onClick={() => setSelectedMealGroup(null)}
                             aria-label="Close details"
                         >
                             <X size={18} />
                         </button>
-                        
+
                         <div className="meal-detail-header">
                             <h3>
-                                {selectedMealGroup.items.length > 1 
-                                    ? `Combined Meal (${selectedMealGroup.items.length} items)` 
+                                {selectedMealGroup.items.length > 1
+                                    ? `Combined Meal (${selectedMealGroup.items.length} items)`
                                     : selectedMealGroup.items[0]?.food_items?.[0]?.name || 'Meal Details'}
                             </h3>
                             <span className="meal-detail-time">
@@ -220,8 +257,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                     {selectedMealGroup.actualInsulin ?? selectedMealGroup.totalInsulin}u
                                 </span>
                                 <span className="detail-stat-label">
-                                    {selectedMealGroup.actualInsulin && selectedMealGroup.actualInsulin !== selectedMealGroup.totalInsulin 
-                                        ? 'Taken' 
+                                    {selectedMealGroup.actualInsulin && selectedMealGroup.actualInsulin !== selectedMealGroup.totalInsulin
+                                        ? 'Taken'
                                         : 'Insulin'}
                                 </span>
                             </div>
@@ -280,8 +317,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                 <TrendingDown size={16} className="trend-down" />
                                             )}
                                             <span className={
-                                                selectedMealGroup.postGlucose > selectedMealGroup.preGlucose 
-                                                    ? 'trend-up' 
+                                                selectedMealGroup.postGlucose > selectedMealGroup.preGlucose
+                                                    ? 'trend-up'
                                                     : 'trend-down'
                                             }>
                                                 {selectedMealGroup.postGlucose > selectedMealGroup.preGlucose ? '+' : ''}
@@ -291,17 +328,39 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                     )}
                                     <div className="glucose-point">
                                         <span className="glucose-label">2h Post</span>
-                                        <span className={`glucose-value ${
-                                            selectedMealGroup.postGlucose && selectedMealGroup.postGlucose > settings.highThreshold 
-                                                ? 'high' 
-                                                : selectedMealGroup.postGlucose && selectedMealGroup.postGlucose < settings.lowThreshold 
-                                                    ? 'low' 
-                                                    : ''
-                                        }`}>
+                                        <span className={`glucose-value ${selectedMealGroup.postGlucose && selectedMealGroup.postGlucose > settings.highThreshold
+                                            ? 'high'
+                                            : selectedMealGroup.postGlucose && selectedMealGroup.postGlucose < settings.lowThreshold
+                                                ? 'low'
+                                                : ''
+                                            }`}>
                                             {selectedMealGroup.postGlucose || '—'}
                                         </span>
                                     </div>
                                 </div>
+
+                                {/* Live Graph from Libre */}
+                                {settings.libreUsername && (
+                                    <div className="glucose-graph-container" style={{
+                                        backgroundColor: '#f8fafc',
+                                        borderRadius: '12px',
+                                        padding: '12px',
+                                        marginTop: '8px'
+                                    }}>
+                                        {isLoadingGlucose ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px', gap: '8px', color: '#64748b' }}>
+                                                <Loader2 className="animate-spin" size={20} />
+                                                <span style={{ fontSize: '13px' }}>Loading Libre data...</span>
+                                            </div>
+                                        ) : (
+                                            <GlucoseGraph
+                                                data={glucoseData}
+                                                mealTime={new Date(selectedMealGroup.timestamp)}
+                                                height={200}
+                                            />
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -330,8 +389,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
             )}
 
             <div className="view-header">
-                <button 
-                    className="icon-btn" 
+                <button
+                    className="icon-btn"
                     onClick={onBack}
                     aria-label="Go back"
                 >
@@ -345,7 +404,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         if (history.length > 0) setShowClearConfirm(true);
                     }}
                     disabled={history.length === 0}
-                    style={{ 
+                    style={{
                         opacity: history.length === 0 ? 0.4 : 1,
                         color: history.length > 0 ? 'var(--destructive)' : undefined
                     }}
@@ -377,128 +436,128 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                 const itemId = mealGroup.chainId || mealGroup.items[0]?.id;
 
                                 return (
-                                    <div 
-                                        key={itemId} 
+                                    <div
+                                        key={itemId}
                                         className="history-item-container"
                                     >
-                                        <div 
+                                        <div
                                             className={`history-item-wrapper ${isChained ? 'chained' : ''}`}
                                             onClick={() => setSelectedMealGroup(mealGroup)}
                                             role="button"
                                             tabIndex={0}
                                             onKeyDown={(e) => e.key === 'Enter' && setSelectedMealGroup(mealGroup)}
                                         >
-                                        {isChained ? (
-                                            // Chained meal display
-                                            <div className="chained-meal-card">
-                                                <div className="chain-connector">
-                                                    <Link2 size={14} />
-                                                </div>
-                                                <div className="chained-content">
-                                                    <div className="chained-items">
-                                                        {mealGroup.items.map((item, idx) => {
-                                                            const foodName = item.food_items?.[0]?.name || 'Unknown';
-                                                            return (
-                                                                <div 
-                                                                    key={item.id} 
-                                                                    className={`chained-item ${idx === 0 ? 'first' : ''} ${idx === mealGroup.items.length - 1 ? 'last' : ''}`}
-                                                                >
-                                                                    <div className="chained-item-icon">
-                                                                        {getFoodIcon(foodName)}
+                                            {isChained ? (
+                                                // Chained meal display
+                                                <div className="chained-meal-card">
+                                                    <div className="chain-connector">
+                                                        <Link2 size={14} />
+                                                    </div>
+                                                    <div className="chained-content">
+                                                        <div className="chained-items">
+                                                            {mealGroup.items.map((item, idx) => {
+                                                                const foodName = item.food_items?.[0]?.name || 'Unknown';
+                                                                return (
+                                                                    <div
+                                                                        key={item.id}
+                                                                        className={`chained-item ${idx === 0 ? 'first' : ''} ${idx === mealGroup.items.length - 1 ? 'last' : ''}`}
+                                                                    >
+                                                                        <div className="chained-item-icon">
+                                                                            {getFoodIcon(foodName)}
+                                                                        </div>
+                                                                        <span className="chained-item-name">{foodName}</span>
+                                                                        <span className="chained-item-carbs">{item.total_carbs}g</span>
                                                                     </div>
-                                                                    <span className="chained-item-name">{foodName}</span>
-                                                                    <span className="chained-item-carbs">{item.total_carbs}g</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    <div className="chained-footer">
-                                                        <span className="chained-time">
-                                                            {new Date(mealGroup.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                        {mealGroup.postGlucose ? (
-                                                            <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
-                                                                2h: {mealGroup.postGlucose}
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <div className="chained-footer">
+                                                            <span className="chained-time">
+                                                                {new Date(mealGroup.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
-                                                        ) : (
-                                                            <button
-                                                                className="add-glucose-btn"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setGlucoseModalItem(mealGroup.items[0]?.id);
-                                                                }}
-                                                            >
-                                                                <Plus size={12} />
-                                                                Add 2h
-                                                            </button>
-                                                        )}
+                                                            {mealGroup.postGlucose ? (
+                                                                <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
+                                                                    2h: {mealGroup.postGlucose}
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    className="add-glucose-btn"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setGlucoseModalItem(mealGroup.items[0]?.id);
+                                                                    }}
+                                                                >
+                                                                    <Plus size={12} />
+                                                                    Add 2h
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="chained-summary">
-                                                    <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}u</span>
-                                                    <span className="total-label">{mealGroup.totalCarbs}g</span>
-                                                    {mealGroup.splitBolusAccepted && (
-                                                        <span className="split-badge">
-                                                            <Clock size={10} />
-                                                            Split
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            // Single meal display
-                                            <div className="history-item">
-                                                <div className="history-item-icon">
-                                                    {getFoodIcon(mealGroup.items[0]?.food_items?.[0]?.name || '')}
-                                                </div>
-                                                <div className="history-item-content">
-                                                    <div className="history-main">
-                                                        <span className="history-food">
-                                                            {mealGroup.items[0]?.food_items?.[0]?.name || 'Unknown'}
-                                                        </span>
+                                                    <div className="chained-summary">
                                                         <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}u</span>
-                                                    </div>
-                                                    <div className="history-stats">
-                                                        <span className="stat-carbs">{mealGroup.totalCarbs}g carbs</span>
-                                                        {mealGroup.preGlucose && (
-                                                            <span className="stat-pre">Pre: {mealGroup.preGlucose}</span>
-                                                        )}
-                                                        {mealGroup.postGlucose ? (
-                                                            <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
-                                                                2h: {mealGroup.postGlucose}
-                                                                {isLow && ' ↓'}
-                                                                {isHigh && ' ↑'}
-                                                            </span>
-                                                        ) : (
-                                                            <button
-                                                                className="add-glucose-btn"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setGlucoseModalItem(mealGroup.items[0]?.id);
-                                                                }}
-                                                            >
-                                                                <Plus size={14} />
-                                                                <span>Add 2h</span>
-                                                            </button>
-                                                        )}
+                                                        <span className="total-label">{mealGroup.totalCarbs}g</span>
                                                         {mealGroup.splitBolusAccepted && (
                                                             <span className="split-badge">
-                                                                <Clock size={12} />
+                                                                <Clock size={10} />
                                                                 Split
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className="history-time">
-                                                        {new Date(mealGroup.timestamp).toLocaleTimeString([], { 
-                                                            hour: '2-digit', 
-                                                            minute: '2-digit' 
-                                                        })}
-                                                    </span>
                                                 </div>
-                                            </div>
-                                        )}
+                                            ) : (
+                                                // Single meal display
+                                                <div className="history-item">
+                                                    <div className="history-item-icon">
+                                                        {getFoodIcon(mealGroup.items[0]?.food_items?.[0]?.name || '')}
+                                                    </div>
+                                                    <div className="history-item-content">
+                                                        <div className="history-main">
+                                                            <span className="history-food">
+                                                                {mealGroup.items[0]?.food_items?.[0]?.name || 'Unknown'}
+                                                            </span>
+                                                            <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}u</span>
+                                                        </div>
+                                                        <div className="history-stats">
+                                                            <span className="stat-carbs">{mealGroup.totalCarbs}g carbs</span>
+                                                            {mealGroup.preGlucose && (
+                                                                <span className="stat-pre">Pre: {mealGroup.preGlucose}</span>
+                                                            )}
+                                                            {mealGroup.postGlucose ? (
+                                                                <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
+                                                                    2h: {mealGroup.postGlucose}
+                                                                    {isLow && ' ↓'}
+                                                                    {isHigh && ' ↑'}
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    className="add-glucose-btn"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setGlucoseModalItem(mealGroup.items[0]?.id);
+                                                                    }}
+                                                                >
+                                                                    <Plus size={14} />
+                                                                    <span>Add 2h</span>
+                                                                </button>
+                                                            )}
+                                                            {mealGroup.splitBolusAccepted && (
+                                                                <span className="split-badge">
+                                                                    <Clock size={12} />
+                                                                    Split
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="history-time">
+                                                            {new Date(mealGroup.timestamp).toLocaleTimeString([], {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        
+
                                         {/* Delete button */}
                                         <button
                                             className="history-delete-btn"
