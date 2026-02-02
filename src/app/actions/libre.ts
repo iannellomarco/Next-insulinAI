@@ -21,6 +21,11 @@ export interface LibreDataResponse {
     currentReading?: GlucoseReading;
     error?: string;
     connectionName?: string;
+    debug?: {
+        oldest: string;
+        newest: string;
+        count: number;
+    };
 }
 
 export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
@@ -81,11 +86,24 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
             isLow: reading.isLow || false,
         });
 
+        const transformedHistory = history?.map(transformReading) || [];
+        transformedHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); // Descending
+
+        const newest = transformedHistory[0]?.timestamp;
+        const oldest = transformedHistory[transformedHistory.length - 1]?.timestamp;
+
+        console.log(`[LibreLinkUp] Range: ${oldest} - ${newest}`);
+
         return {
             success: true,
             currentReading: currentReading ? transformReading(currentReading) : undefined,
-            data: history?.map(transformReading) || [],
-            connectionName: patientName
+            data: transformedHistory,
+            connectionName: patientName,
+            debug: {
+                oldest: oldest ? new Date(oldest).toISOString() : 'N/A',
+                newest: newest ? new Date(newest).toISOString() : 'N/A',
+                count: transformedHistory.length
+            }
         };
 
     } catch (error) {
