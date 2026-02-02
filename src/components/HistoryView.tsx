@@ -55,6 +55,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     const [deleteConfirmItem, setDeleteConfirmItem] = useState<string | null>(null);
     const [glucoseData, setGlucoseData] = useState<GlucoseReading[]>([]);
     const [isLoadingGlucose, setIsLoadingGlucose] = useState(false);
+    const [debugRange, setDebugRange] = useState<{ oldest: string; newest: string } | null>(null);
 
     // Scroll to top when component mounts
     useEffect(() => {
@@ -79,6 +80,15 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             return t >= startTime && t <= endTime;
                         });
                         setGlucoseData(relevantReadings);
+
+                        if (relevantReadings.length === 0 && result.debug) {
+                            setDebugRange({
+                                oldest: result.debug.oldest,
+                                newest: result.debug.newest
+                            });
+                        } else {
+                            setDebugRange(null);
+                        }
                     }
                 } catch (e) {
                     console.error("Failed to fetch glucose data", e);
@@ -352,12 +362,24 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                 <Loader2 className="animate-spin" size={20} />
                                                 <span style={{ fontSize: '13px' }}>Loading Libre data...</span>
                                             </div>
-                                        ) : (
+                                        ) : glucoseData.length > 0 ? (
                                             <GlucoseGraph
                                                 data={glucoseData}
                                                 mealTime={new Date(selectedMealGroup.timestamp)}
                                                 height={200}
                                             />
+                                        ) : (
+                                            <div style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                                                <p>No glucose data available for this period.</p>
+                                                {debugRange && (
+                                                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#94a3b8', background: '#f1f5f9', padding: '6px', borderRadius: '6px' }}>
+                                                        <p><strong>Debug Info:</strong></p>
+                                                        <p>Available Range:</p>
+                                                        <p>{new Date(debugRange.oldest).toLocaleString()} -</p>
+                                                        <p>{new Date(debugRange.newest).toLocaleString()}</p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 )}
