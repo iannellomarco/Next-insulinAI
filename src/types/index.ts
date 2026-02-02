@@ -53,11 +53,6 @@ export interface Settings {
     targetGlucose: number;
     highThreshold: number;
     lowThreshold: number;
-
-    // LibreLinkUp
-    libreUsername?: string;
-    librePassword?: string;
-
     smartHistory: boolean;
 }
 
@@ -75,8 +70,6 @@ export const DEFAULT_SETTINGS: Settings = {
     highThreshold: 180,
     lowThreshold: 70,
     smartHistory: true,
-    libreUsername: '',
-    librePassword: '',
 };
 
 // Helper to get current meal period
