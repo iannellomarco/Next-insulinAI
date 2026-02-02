@@ -1,4 +1,4 @@
-import { Settings, AnalysisResult } from "@/types";
+import { Settings, AnalysisResult, getCarbRatioForCurrentMeal } from "@/types";
 
 export class AIService {
     static async analyze(
@@ -10,6 +10,9 @@ export class AIService {
 
         const API_URL = '/api/analyze';
         const model = 'sonar-pro';
+        
+        // Get the appropriate carb ratio based on meal time
+        const currentCarbRatio = getCarbRatioForCurrentMeal(settings);
 
         // Optimized compact prompt for token efficiency
         const instructions = `You are a diabetes nutrition assistant.
@@ -18,7 +21,7 @@ TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} a
 
 RULES:
 1. ALWAYS assume the input is food unless it's clearly unrelated (e.g., "car", "politics"). Be VERY lenient - if it could possibly be food, analyze it. Regional dishes, street food, ethnic cuisine, brand names, restaurant items, combos like "piadina kebab", "burger king whopper", "döner box" are ALL valid food.
-2. Identify foods, estimate macros, calculate insulin using 1:${settings.carbRatio} carb ratio.
+2. Identify foods, estimate macros, calculate insulin using 1:${currentCarbRatio} carb ratio.
 3. Flag split bolus if fat>20g AND protein>25g.
 4. IMPORTANT: Preserve the user's specific food name - do NOT generalize "pasta alla carbonara" to "spaghetti". BUT fix obvious typos (e.g., "psta alw carbonara" → "Pasta alla carbonara"). Use proper capitalization.
 5. Only return error if absolutely certain input is not food-related.

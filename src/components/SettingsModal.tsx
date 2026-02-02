@@ -1,8 +1,9 @@
 'use client';
 
-import { Calculator, Target, ChevronDown, Zap } from 'lucide-react';
+import { Calculator, Target, ChevronDown, Zap, Sun, Clock, Moon } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
+import { CarbRatios } from '@/types';
 
 export default function SettingsView() {
     const { settings, updateSettings } = useStore();
@@ -23,6 +24,25 @@ export default function SettingsView() {
         }));
     };
 
+    const handleCarbRatioChange = (meal: keyof CarbRatios, value: number) => {
+        setSaved(false);
+        setLocalSettings((prev) => ({
+            ...prev,
+            carbRatios: {
+                ...prev.carbRatios,
+                [meal]: value,
+            },
+        }));
+    };
+
+    const toggleMealSpecificRatios = () => {
+        setSaved(false);
+        setLocalSettings((prev) => ({
+            ...prev,
+            useMealSpecificRatios: !prev.useMealSpecificRatios,
+        }));
+    };
+
     const handleSave = () => {
         updateSettings(localSettings);
         setSaved(true);
@@ -40,20 +60,89 @@ export default function SettingsView() {
                     </div>
                     <div className="section-content">
                         <div className="input-group">
-                            <label htmlFor="carbRatio">Carb Ratio</label>
-                            <p className="hint">1 unit of insulin covers X grams of carbs</p>
-                            <div className="input-with-unit">
-                                <input
-                                    type="number"
-                                    id="carbRatio"
-                                    placeholder="10"
-                                    min="1"
-                                    max="100"
-                                    value={localSettings.carbRatio}
-                                    onChange={handleChange}
-                                />
-                                <span className="input-unit">g/unit</span>
+                            <div className="ratio-header">
+                                <label>Carb Ratios</label>
+                                <button 
+                                    type="button"
+                                    className={`ratio-toggle ${localSettings.useMealSpecificRatios ? 'active' : ''}`}
+                                    onClick={toggleMealSpecificRatios}
+                                >
+                                    {localSettings.useMealSpecificRatios ? 'Per Meal' : 'Single'}
+                                </button>
                             </div>
+                            <p className="hint">1 unit of insulin covers X grams of carbs</p>
+                            
+                            {!localSettings.useMealSpecificRatios ? (
+                                <div className="input-with-unit">
+                                    <input
+                                        type="number"
+                                        id="carbRatio"
+                                        placeholder="10"
+                                        min="1"
+                                        max="100"
+                                        value={localSettings.carbRatio}
+                                        onChange={handleChange}
+                                    />
+                                    <span className="input-unit">g/unit</span>
+                                </div>
+                            ) : (
+                                <div className="meal-ratios">
+                                    <div className="meal-ratio-item">
+                                        <div className="meal-ratio-label">
+                                            <Sun size={14} />
+                                            <span>Breakfast</span>
+                                            <span className="time-hint">5am - 11am</span>
+                                        </div>
+                                        <div className="input-with-unit compact">
+                                            <input
+                                                type="number"
+                                                placeholder="8"
+                                                min="1"
+                                                max="100"
+                                                value={localSettings.carbRatios?.breakfast ?? 8}
+                                                onChange={(e) => handleCarbRatioChange('breakfast', Number(e.target.value))}
+                                            />
+                                            <span className="input-unit">g/u</span>
+                                        </div>
+                                    </div>
+                                    <div className="meal-ratio-item">
+                                        <div className="meal-ratio-label">
+                                            <Clock size={14} />
+                                            <span>Lunch</span>
+                                            <span className="time-hint">11am - 4pm</span>
+                                        </div>
+                                        <div className="input-with-unit compact">
+                                            <input
+                                                type="number"
+                                                placeholder="10"
+                                                min="1"
+                                                max="100"
+                                                value={localSettings.carbRatios?.lunch ?? 10}
+                                                onChange={(e) => handleCarbRatioChange('lunch', Number(e.target.value))}
+                                            />
+                                            <span className="input-unit">g/u</span>
+                                        </div>
+                                    </div>
+                                    <div className="meal-ratio-item">
+                                        <div className="meal-ratio-label">
+                                            <Moon size={14} />
+                                            <span>Dinner</span>
+                                            <span className="time-hint">4pm - 5am</span>
+                                        </div>
+                                        <div className="input-with-unit compact">
+                                            <input
+                                                type="number"
+                                                placeholder="12"
+                                                min="1"
+                                                max="100"
+                                                value={localSettings.carbRatios?.dinner ?? 12}
+                                                onChange={(e) => handleCarbRatioChange('dinner', Number(e.target.value))}
+                                            />
+                                            <span className="input-unit">g/u</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -1,11 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Activity, Check, AlertTriangle, Clock, Percent, Plus, Link2 } from 'lucide-react';
+import { ArrowLeft, Activity, Check, AlertTriangle, Clock, Percent, Plus, Link2, Edit3 } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { HistoryItem, AnalysisResult } from '@/types';
+import { HistoryItem, AnalysisResult, getCurrentMealPeriod } from '@/types';
 import { AIService } from '@/lib/ai-service';
 import FunFactLoader from '@/components/ui/FunFactLoader';
+
+// Split bolus timing recommendations based on fat/protein content
+const SPLIT_TIMING_PRESETS = [
+    { label: '2 hours', value: '2 hours', description: 'Standard for moderate fat meals' },
+    { label: '3 hours', value: '3 hours', description: 'Recommended for high fat meals' },
+    { label: '4 hours', value: '4 hours', description: 'For very high fat/protein meals' },
+];
 
 interface ResultsViewProps {
     onBack: () => void;
@@ -27,6 +34,9 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
     const [preGlucose, setPreGlucose] = useState<string>('');
     const [saved, setSaved] = useState(false);
     const [splitBolusAccepted, setSplitBolusAccepted] = useState<boolean | null>(null);
+    const [isEditingInsulin, setIsEditingInsulin] = useState(false);
+    const [customInsulin, setCustomInsulin] = useState<string>('');
+    const [selectedSplitDuration, setSelectedSplitDuration] = useState<string>('');
 
     if (isLoading) {
         return (
@@ -58,6 +68,8 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
         const baseTimestamp = Date.now();
         const parsedPreGlucose = preGlucose ? parseInt(preGlucose, 10) : undefined;
         const hasSplitBolus = split_bolus_recommendation?.recommended && splitBolusAccepted === true;
+        const actualInsulinValue = customInsulin ? parseFloat(customInsulin) : undefined;
+        const mealPeriod = getCurrentMealPeriod();
         
         if (allMeals.length > 1) {
             // Save each meal individually with a shared chainId for visualization
@@ -67,10 +79,12 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                     ...meal,
                     id: `meal-${baseTimestamp}-${index}`,
                     timestamp: baseTimestamp,
-                    pre_glucose: index === 0 ? parsedPreGlucose : undefined, // Only first item gets pre-glucose
+                    pre_glucose: index === 0 ? parsedPreGlucose : undefined,
                     chainId,
                     chainIndex: index,
-                    split_bolus_accepted: index === 0 ? hasSplitBolus : undefined, // Only first item gets split bolus flag
+                    split_bolus_accepted: index === 0 ? hasSplitBolus : undefined,
+                    actual_insulin: index === 0 ? actualInsulinValue : undefined,
+                    meal_period: index === 0 ? mealPeriod : undefined,
                 };
                 addHistoryItem(historyItem);
             });
@@ -82,6 +96,8 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                 timestamp: baseTimestamp,
                 pre_glucose: parsedPreGlucose,
                 split_bolus_accepted: hasSplitBolus,
+                actual_insulin: actualInsulinValue,
+                meal_period: mealPeriod,
             };
             addHistoryItem(historyItem);
         }
@@ -156,10 +172,49 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                 {/* Main Summary Card */}
                 <div className="summary-card">
                     <h3>Recommended Insulin</h3>
-                    <div className="insulin-dose">
-                        {suggested_insulin}
-                        <span className="unit">units</span>
-                    </div>
+                    {isEditingInsulin ? (
+                        <div className="insulin-edit-container">
+                            <input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max="100"
+                                className="insulin-edit-input"
+                                value={customInsulin}
+                                onChange={(e) => setCustomInsulin(e.target.value)}
+                                autoFocus
+                                onBlur={() => {
+                                    if (!customInsulin) setCustomInsulin(suggested_insulin.toString());
+                                    setIsEditingInsulin(false);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        if (!customInsulin) setCustomInsulin(suggested_insulin.toString());
+                                        setIsEditingInsulin(false);
+                                    }
+                                }}
+                            />
+                            <span className="unit">units</span>
+                        </div>
+                    ) : (
+                        <button 
+                            className="insulin-dose clickable"
+                            onClick={() => {
+                                setCustomInsulin(customInsulin || suggested_insulin.toString());
+                                setIsEditingInsulin(true);
+                            }}
+                            title="Click to edit insulin amount"
+                        >
+                            {customInsulin || suggested_insulin}
+                            <span className="unit">units</span>
+                            <Edit3 size={14} className="edit-icon" />
+                        </button>
+                    )}
+                    {customInsulin && parseFloat(customInsulin) !== suggested_insulin && (
+                        <p className="insulin-adjusted">
+                            Adjusted from {suggested_insulin}u suggested
+                        </p>
+                    )}
                     <p>{allMeals.length > 1 ? `Combined: ${friendly_description}` : friendly_description}</p>
                 </div>
 
@@ -197,9 +252,29 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                             </div>
                             <div className="split-row">
                                 <Clock size={14} />
-                                <p><strong>Duration:</strong> {split_bolus_recommendation.duration}</p>
+                                <p><strong>Duration:</strong> {selectedSplitDuration || split_bolus_recommendation.duration}</p>
                             </div>
                             <p className="split-reason">{split_bolus_recommendation.reason}</p>
+                            
+                            {/* Timing Presets */}
+                            <div className="split-timing-section">
+                                <p className="timing-label">Choose extended duration:</p>
+                                <div className="timing-presets">
+                                    {SPLIT_TIMING_PRESETS.map((preset) => (
+                                        <button
+                                            key={preset.value}
+                                            className={`timing-preset ${(selectedSplitDuration || split_bolus_recommendation.duration) === preset.value ? 'active' : ''}`}
+                                            onClick={() => setSelectedSplitDuration(preset.value)}
+                                            title={preset.description}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="timing-hint">
+                                    {SPLIT_TIMING_PRESETS.find(p => p.value === (selectedSplitDuration || split_bolus_recommendation.duration))?.description || 'Select a duration'}
+                                </p>
+                            </div>
                         </div>
                         {splitBolusAccepted === null && (
                             <div className="split-actions">
@@ -221,7 +296,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                         {splitBolusAccepted === true && (
                             <div className="split-status accepted">
                                 <Check size={16} />
-                                Split bolus accepted - will be saved with meal
+                                Split bolus accepted ({selectedSplitDuration || split_bolus_recommendation.duration})
                             </div>
                         )}
                         {splitBolusAccepted === false && (
