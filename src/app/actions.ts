@@ -125,13 +125,10 @@ export async function getRemoteSettingsAction() {
         const row = result[0];
 
         // Map back to Settings interface (excluding apiKey which is local/env only)
+        const defaultCarbRatios = { breakfast: 8, lunch: 10, dinner: 12 };
         const settings: Omit<Settings, 'apiKey'> = {
             carbRatio: row.carbRatio || 10,
-            carbRatios: (row.carbRatios as any) || {
-                breakfast: 8,
-                lunch: 10,
-                dinner: 12,
-            },
+            carbRatios: (row.carbRatios as { breakfast: number; lunch: number; dinner: number }) || defaultCarbRatios,
             useMealSpecificRatios: row.useMealSpecificRatios ?? false,
             correctionFactor: row.correctionFactor || 50,
             targetGlucose: row.targetGlucose || 110,

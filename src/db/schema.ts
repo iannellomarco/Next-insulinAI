@@ -13,12 +13,13 @@ export const historyItems = pgTable('history_items', {
 export const userSettings = pgTable('user_settings', {
     userId: text('user_id').primaryKey(), // Clerk User ID is the PK
     carbRatio: doublePrecision('carb_ratio'),
+    carbRatios: jsonb('carb_ratios'), // { breakfast: number, lunch: number, dinner: number }
+    useMealSpecificRatios: boolean('use_meal_specific_ratios').default(false),
     correctionFactor: doublePrecision('correction_factor'),
     targetGlucose: integer('target_glucose'),
     highThreshold: integer('high_threshold'),
     lowThreshold: integer('low_threshold'),
-    carbRatios: jsonb('carb_ratios'), // Stores { breakfast: number, lunch: number, dinner: number }
-    useMealSpecificRatios: boolean('use_meal_specific_ratios').default(false),
+
     smartHistory: boolean('smart_history').default(true),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
