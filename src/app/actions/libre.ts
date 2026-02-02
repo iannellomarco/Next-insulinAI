@@ -48,7 +48,8 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
         const client = new LibreLinkClient({
             email: settings.libreUsername,
             password: settings.librePassword,
-            cache: false // Don't cache in server action context
+            cache: false, // Don't cache in server action context
+            lluVersion: '4.16.0'
         });
 
         // 3. Login (handles region redirects internally)
