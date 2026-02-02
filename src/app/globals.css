@@ -2096,16 +2096,34 @@ input:checked+.slider:before {
    ========================================== */
 
 .settings-view-new {
+    /* Fill parent space AND extend into the padding-bottom */
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-height: 0;
-    /* Remove min-height constraint */
-    height: auto;
-    /* Allow content to determine height */
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
-    /* Extra padding for FAB and nav */
-    overflow-y: visible;
-    /* Allow parent to handle scrolling */
+    overflow: hidden;
+
+    /* CRITICAL: Extend into parent's padding-bottom to eliminate dark gap */
+    margin-bottom: -120px;
+    padding-bottom: 80px;
+    /* Space for bottom nav */
+}
+
+/* Fixed Header with Tabs - does NOT scroll */
+.settings-header-fixed {
+    flex-shrink: 0;
+    /* Never shrink */
+    background: var(--background);
+    z-index: 10;
+}
+
+/* Scrollable Content Area - ONLY this scrolls */
+.settings-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Space at bottom so content can scroll past bottom nav */
+    padding-bottom: 100px;
 }
 
 /* Tab Navigation */
@@ -2114,9 +2132,6 @@ input:checked+.slider:before {
     gap: 0.5rem;
     padding: 0.75rem 1rem;
     background: var(--background);
-    position: sticky;
-    top: 0;
-    z-index: 10;
     border-bottom: 1px solid var(--border);
 }
 
@@ -2154,10 +2169,7 @@ input:checked+.slider:before {
 
 /* Content Area */
 .settings-content {
-    flex: 1;
     padding: 1rem;
-    padding-bottom: 2rem;
-    /* Extra padding at bottom of content */
 }
 
 .settings-panel {
@@ -2632,59 +2644,33 @@ input:checked+.slider:before {
     margin-top: 0.375rem;
 }
 
-/* Save FAB */
-.settings-save-fab {
+/* Toast Notification */
+.settings-toast {
     position: fixed;
-    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-    right: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1.25rem;
-    background: var(--primary);
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.75rem 1.25rem;
+    background: var(--success);
     color: var(--primary-foreground);
-    border: none;
     border-radius: var(--radius-lg);
     font-size: 0.875rem;
     font-weight: 600;
-    cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    transition: all 0.2s ease;
-    z-index: 50;
-    animation: slideUp 0.2s ease-out;
+    z-index: 100;
+    animation: toastSlideUp 0.3s ease-out;
 }
 
-@keyframes slideUp {
+@keyframes toastSlideUp {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateX(-50%) translateY(20px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(-50%) translateY(0);
     }
-}
-
-.settings-save-fab:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-}
-
-.settings-save-fab:active {
-    transform: scale(0.98);
-}
-
-.settings-save-fab.saved {
-    background: var(--success);
-}
-
-.save-label {
-    display: none;
-}
-
-.settings-save-fab.saved .save-label {
-    display: inline;
 }
 
 /* Toggle Switch (keep existing) */
