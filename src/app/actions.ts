@@ -122,7 +122,13 @@ export async function getRemoteSettingsAction() {
 
         // Map back to Settings interface (excluding apiKey which is local/env only)
         const settings: Omit<Settings, 'apiKey'> = {
-            carbRatio: row.carbRatio || 15,
+            carbRatio: row.carbRatio || 10,
+            carbRatios: {
+                breakfast: 8,
+                lunch: 10,
+                dinner: 12,
+            },
+            useMealSpecificRatios: false,
             correctionFactor: row.correctionFactor || 50,
             targetGlucose: row.targetGlucose || 110,
             highThreshold: row.highThreshold || 180,
