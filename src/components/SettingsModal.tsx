@@ -1,6 +1,6 @@
 'use client';
 
-import { Calculator, Target, ChevronDown, Zap, Sun, Clock, Moon } from 'lucide-react';
+import { Calculator, Target, ChevronDown, Zap, Sun, Clock, Moon, Check } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 import { CarbRatios } from '@/types';
@@ -261,10 +261,11 @@ export default function SettingsView() {
             
             <button 
                 id="save-settings" 
-                className={`btn ${saved ? 'success' : 'primary'} full-width`}
+                className={`settings-save-fab ${saved ? 'saved' : ''}`}
                 onClick={handleSave}
+                aria-label={saved ? 'Saved' : 'Save Settings'}
             >
-                {saved ? 'Saved!' : 'Save Settings'}
+                {saved ? <Check size={24} /> : <Check size={24} />}
             </button>
         </section>
     );

@@ -2072,13 +2072,36 @@ input:checked + .slider:before {
     padding-bottom: 6rem;
 }
 
-.settings-view > button.full-width {
+.settings-save-fab {
     position: fixed;
-    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
-    left: 1rem;
-    right: 1rem;
-    max-width: calc(100% - 2rem);
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    right: 1.25rem;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-lg);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
     z-index: 50;
+}
+
+.settings-save-fab:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.settings-save-fab:active {
+    transform: scale(0.95);
+}
+
+.settings-save-fab.saved {
+    background: var(--success);
 }
 
 .settings-title {
