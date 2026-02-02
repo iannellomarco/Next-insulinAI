@@ -54,6 +54,8 @@ export interface Settings {
     highThreshold: number;
     lowThreshold: number;
     smartHistory: boolean;
+    libreUsername?: string;
+    librePassword?: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -70,6 +72,8 @@ export const DEFAULT_SETTINGS: Settings = {
     highThreshold: 180,
     lowThreshold: 70,
     smartHistory: true,
+    libreUsername: '',
+    librePassword: '',
 };
 
 // Helper to get current meal period

@@ -1,9 +1,10 @@
 'use client';
 
-import { Calculator, Target, Zap, Sun, Clock, Moon, Activity, Key, Brain } from 'lucide-react';
+import { Calculator, Target, Zap, Sun, Clock, Moon, Activity, Key, Brain, Loader2, CheckCircle, XCircle, Link } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { useState, useEffect, useRef } from 'react';
 import { CarbRatios } from '@/types';
+import { fetchLibreDataAction } from '@/app/actions/libre';
 
 type SettingsTab = 'insulin' | 'glucose' | 'advanced';
 
@@ -12,9 +13,35 @@ export default function SettingsView() {
     const [localSettings, setLocalSettings] = useState(settings);
     const [activeTab, setActiveTab] = useState<SettingsTab>('insulin');
     const [showToast, setShowToast] = useState(false);
+
     const isInitialMount = useRef(true);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+    // Libre Testing State
+    const [isTesting, setIsTesting] = useState(false);
+    const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+    const handleTestConnection = async () => {
+        setIsTesting(true);
+        setTestResult(null);
+
+        // Force save current credentials first
+        await updateSettings(localSettings);
+
+        try {
+            const result = await fetchLibreDataAction();
+            if (result.success) {
+                setTestResult({ success: true, message: `Connected to ${result.connectionName}` });
+            } else {
+                setTestResult({ success: false, message: result.error || 'Connection failed' });
+            }
+        } catch (error) {
+            setTestResult({ success: false, message: 'Connection failed' });
+        } finally {
+            setIsTesting(false);
+        }
+    };
 
     // Handle tab change - scroll to top
     const handleTabChange = (tab: SettingsTab) => {
@@ -351,6 +378,82 @@ export default function SettingsView() {
                                         Use your past meal data to improve insulin suggestions.
                                         The AI learns from your glucose responses to similar meals.
                                     </p>
+                                </div>
+                            </div>
+
+                            <div className="divider" />
+
+                            <div className="panel-header">
+                                <h3>Freestyle Libre Integration</h3>
+                                <p>Connect your account to view glucose data</p>
+                            </div>
+
+                            <div className="api-card">
+                                <div className="api-icon">
+                                    <Link size={20} />
+                                </div>
+                                <div className="api-content">
+                                    <label htmlFor="libreUsername">LibreView Email</label>
+                                    <input
+                                        type="email"
+                                        id="libreUsername"
+                                        placeholder="email@example.com"
+                                        value={localSettings.libreUsername || ''}
+                                        onChange={handleChange}
+                                    />
+
+                                    <label htmlFor="librePassword" style={{ marginTop: '12px' }}>Password</label>
+                                    <input
+                                        type="password"
+                                        id="librePassword"
+                                        placeholder="••••••••"
+                                        value={localSettings.librePassword || ''}
+                                        onChange={handleChange}
+                                    />
+
+                                    <div className="test-connection-wrapper" style={{ marginTop: '16px' }}>
+                                        <button
+                                            className="test-connection-btn"
+                                            onClick={handleTestConnection}
+                                            disabled={isTesting || !localSettings.libreUsername || !localSettings.librePassword}
+                                            style={{
+                                                padding: '8px 16px',
+                                                borderRadius: '8px',
+                                                backgroundColor: '#fafdff',
+                                                border: '1px solid #e1e6eb',
+                                                color: '#0066cc',
+                                                fontWeight: 500,
+                                                fontSize: '14px',
+                                                cursor: isTesting ? 'wait' : 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px'
+                                            }}
+                                        >
+                                            {isTesting ? (
+                                                <>
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                    Connecting...
+                                                </>
+                                            ) : (
+                                                'Test Connection'
+                                            )}
+                                        </button>
+
+                                        {testResult && (
+                                            <div style={{
+                                                marginTop: '12px',
+                                                fontSize: '13px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                color: testResult.success ? '#10b981' : '#ef4444'
+                                            }}>
+                                                {testResult.success ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                                                {testResult.message}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
