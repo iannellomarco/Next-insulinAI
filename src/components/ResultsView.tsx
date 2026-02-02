@@ -7,11 +7,12 @@ import { HistoryItem, AnalysisResult, getCurrentMealPeriod } from '@/types';
 import { AIService } from '@/lib/ai-service';
 import FunFactLoader from '@/components/ui/FunFactLoader';
 
-// Split bolus timing recommendations based on fat/protein content
-const SPLIT_TIMING_PRESETS = [
-    { label: '2 hours', value: '2 hours', description: 'Standard for moderate fat meals' },
-    { label: '3 hours', value: '3 hours', description: 'Recommended for high fat meals' },
-    { label: '4 hours', value: '4 hours', description: 'For very high fat/protein meals' },
+// Split bolus timing - time between first and second dose
+const SPLIT_INTERVAL_PRESETS = [
+    { label: '1h', value: '1 hour', description: 'Take second dose 1 hour after first' },
+    { label: '1.5h', value: '1.5 hours', description: 'Take second dose 1.5 hours after first' },
+    { label: '2h', value: '2 hours', description: 'Take second dose 2 hours after first' },
+    { label: '3h', value: '3 hours', description: 'Take second dose 3 hours after first (high fat)' },
 ];
 
 interface ResultsViewProps {
@@ -68,7 +69,8 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
         const baseTimestamp = Date.now();
         const parsedPreGlucose = preGlucose ? parseInt(preGlucose, 10) : undefined;
         const hasSplitBolus = split_bolus_recommendation?.recommended && splitBolusAccepted === true;
-        const actualInsulinValue = customInsulin ? parseFloat(customInsulin) : undefined;
+        // Save actual insulin: use custom value if set, otherwise use suggested
+        const finalInsulin = customInsulin ? parseFloat(customInsulin) : suggested_insulin;
         const mealPeriod = getCurrentMealPeriod();
         
         if (allMeals.length > 1) {
@@ -83,7 +85,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                     chainId,
                     chainIndex: index,
                     split_bolus_accepted: index === 0 ? hasSplitBolus : undefined,
-                    actual_insulin: index === 0 ? actualInsulinValue : undefined,
+                    actual_insulin: index === 0 ? finalInsulin : undefined,
                     meal_period: index === 0 ? mealPeriod : undefined,
                 };
                 addHistoryItem(historyItem);
@@ -96,7 +98,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                 timestamp: baseTimestamp,
                 pre_glucose: parsedPreGlucose,
                 split_bolus_accepted: hasSplitBolus,
-                actual_insulin: actualInsulinValue,
+                actual_insulin: finalInsulin,
                 meal_period: mealPeriod,
             };
             addHistoryItem(historyItem);
@@ -250,20 +252,16 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                                 <Percent size={14} />
                                 <p><strong>Split:</strong> {split_bolus_recommendation.split_percentage}</p>
                             </div>
-                            <div className="split-row">
-                                <Clock size={14} />
-                                <p><strong>Duration:</strong> {selectedSplitDuration || split_bolus_recommendation.duration}</p>
-                            </div>
                             <p className="split-reason">{split_bolus_recommendation.reason}</p>
                             
-                            {/* Timing Presets */}
+                            {/* Time Between Doses */}
                             <div className="split-timing-section">
-                                <p className="timing-label">Choose extended duration:</p>
+                                <p className="timing-label">Time between doses:</p>
                                 <div className="timing-presets">
-                                    {SPLIT_TIMING_PRESETS.map((preset) => (
+                                    {SPLIT_INTERVAL_PRESETS.map((preset) => (
                                         <button
                                             key={preset.value}
-                                            className={`timing-preset ${(selectedSplitDuration || split_bolus_recommendation.duration) === preset.value ? 'active' : ''}`}
+                                            className={`timing-preset ${(selectedSplitDuration || '1.5 hours') === preset.value ? 'active' : ''}`}
                                             onClick={() => setSelectedSplitDuration(preset.value)}
                                             title={preset.description}
                                         >
@@ -272,7 +270,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                                     ))}
                                 </div>
                                 <p className="timing-hint">
-                                    {SPLIT_TIMING_PRESETS.find(p => p.value === (selectedSplitDuration || split_bolus_recommendation.duration))?.description || 'Select a duration'}
+                                    {SPLIT_INTERVAL_PRESETS.find(p => p.value === (selectedSplitDuration || '1.5 hours'))?.description}
                                 </p>
                             </div>
                         </div>
@@ -296,7 +294,7 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
                         {splitBolusAccepted === true && (
                             <div className="split-status accepted">
                                 <Check size={16} />
-                                Split bolus accepted ({selectedSplitDuration || split_bolus_recommendation.duration})
+                                Take second dose in {selectedSplitDuration || '1.5 hours'}
                             </div>
                         )}
                         {splitBolusAccepted === false && (

@@ -34,6 +34,7 @@ interface MealGroup {
     items: HistoryItem[];
     totalCarbs: number;
     totalInsulin: number;
+    actualInsulin?: number;
     timestamp: number;
     preGlucose?: number;
     postGlucose?: number;
@@ -103,6 +104,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     items: chainItems,
                     totalCarbs: chainItems.reduce((sum, i) => sum + i.total_carbs, 0),
                     totalInsulin: chainItems.reduce((sum, i) => sum + i.suggested_insulin, 0),
+                    actualInsulin: firstItem?.actual_insulin,
                     timestamp: chainItems[0]?.timestamp || item.timestamp,
                     preGlucose: chainItems[0]?.pre_glucose,
                     postGlucose: chainItems[chainItems.length - 1]?.post_glucose,
@@ -118,6 +120,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                     items: [item],
                     totalCarbs: item.total_carbs,
                     totalInsulin: item.suggested_insulin,
+                    actualInsulin: item.actual_insulin,
                     timestamp: item.timestamp,
                     preGlucose: item.pre_glucose,
                     postGlucose: item.post_glucose,
@@ -213,9 +216,21 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         <div className="meal-detail-stats">
                             <div className="detail-stat">
                                 <Droplet size={16} />
-                                <span className="detail-stat-value">{selectedMealGroup.totalInsulin}u</span>
-                                <span className="detail-stat-label">Insulin</span>
+                                <span className="detail-stat-value">
+                                    {selectedMealGroup.actualInsulin ?? selectedMealGroup.totalInsulin}u
+                                </span>
+                                <span className="detail-stat-label">
+                                    {selectedMealGroup.actualInsulin && selectedMealGroup.actualInsulin !== selectedMealGroup.totalInsulin 
+                                        ? 'Taken' 
+                                        : 'Insulin'}
+                                </span>
                             </div>
+                            {selectedMealGroup.actualInsulin && selectedMealGroup.actualInsulin !== selectedMealGroup.totalInsulin && (
+                                <div className="detail-stat muted">
+                                    <span className="detail-stat-value">{selectedMealGroup.totalInsulin}u</span>
+                                    <span className="detail-stat-label">Suggested</span>
+                                </div>
+                            )}
                             <div className="detail-stat">
                                 <Utensils size={16} />
                                 <span className="detail-stat-value">{selectedMealGroup.totalCarbs}g</span>
@@ -236,8 +251,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                         <span className="split-info-value">{selectedMealGroup.splitBolusInfo.split_percentage}</span>
                                     </div>
                                     <div className="split-info-item">
-                                        <span className="split-info-label">Duration</span>
-                                        <span className="split-info-value">{selectedMealGroup.splitBolusInfo.duration}</span>
+                                        <span className="split-info-label">2nd dose in</span>
+                                        <span className="split-info-value">{selectedMealGroup.splitBolusInfo.duration || '1.5 hours'}</span>
                                     </div>
                                 </div>
                             </div>
