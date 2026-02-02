@@ -435,7 +435,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                     </div>
                                                 </div>
                                                 <div className="chained-summary">
-                                                    <span className="history-dose">{mealGroup.totalInsulin}u</span>
+                                                    <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}u</span>
                                                     <span className="total-label">{mealGroup.totalCarbs}g</span>
                                                     {mealGroup.splitBolusAccepted && (
                                                         <span className="split-badge">
@@ -456,7 +456,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                         <span className="history-food">
                                                             {mealGroup.items[0]?.food_items?.[0]?.name || 'Unknown'}
                                                         </span>
-                                                        <span className="history-dose">{mealGroup.totalInsulin}u</span>
+                                                        <span className="history-dose">{mealGroup.actualInsulin ?? mealGroup.totalInsulin}u</span>
                                                     </div>
                                                     <div className="history-stats">
                                                         <span className="stat-carbs">{mealGroup.totalCarbs}g carbs</span>

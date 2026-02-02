@@ -73,6 +73,8 @@ export default function ResultsView({ onBack, onSave, onAddMore }: ResultsViewPr
         const finalInsulin = customInsulin ? parseFloat(customInsulin) : suggested_insulin;
         const mealPeriod = getCurrentMealPeriod();
         
+        console.log("[v0] Saving meal - customInsulin:", customInsulin, "suggested:", suggested_insulin, "finalInsulin:", finalInsulin);
+        
         if (allMeals.length > 1) {
             // Save each meal individually with a shared chainId for visualization
             const chainId = `chain-${baseTimestamp}`;
