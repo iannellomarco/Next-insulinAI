@@ -5,11 +5,13 @@ import { useStore } from '@/lib/store';
 import { useState, useEffect, useRef } from 'react';
 import { CarbRatios } from '@/types';
 import { fetchLibreDataAction } from '@/app/actions/libre';
+import { useUser, SignInButton } from '@clerk/nextjs';
 
 type SettingsTab = 'insulin' | 'glucose' | 'advanced';
 
 export default function SettingsView() {
     const { settings, updateSettings } = useStore();
+    const { user } = useUser();
     const [localSettings, setLocalSettings] = useState(settings);
     const [activeTab, setActiveTab] = useState<SettingsTab>('insulin');
     const [showToast, setShowToast] = useState(false);
@@ -388,18 +390,19 @@ export default function SettingsView() {
                                 <p>Connect your account to view glucose data</p>
                             </div>
 
-                            <div className="api-card">
+                            <div className="api-card" style={{ position: 'relative', overflow: 'hidden' }}>
                                 <div className="api-icon">
                                     <Link size={20} />
                                 </div>
-                                <div className="api-content">
+                                <div className={`api-content ${!user ? 'blurred-content' : ''}`}>
                                     <label htmlFor="libreUsername">LibreView Email</label>
                                     <input
                                         type="email"
                                         id="libreUsername"
                                         placeholder="email@example.com"
-                                        value={localSettings.libreUsername || ''}
+                                        value={user ? (localSettings.libreUsername || '') : 'hidden@email.com'}
                                         onChange={handleChange}
+                                        disabled={!user}
                                     />
 
                                     <label htmlFor="librePassword" style={{ marginTop: '12px' }}>Password</label>
@@ -407,15 +410,16 @@ export default function SettingsView() {
                                         type="password"
                                         id="librePassword"
                                         placeholder="••••••••"
-                                        value={localSettings.librePassword || ''}
+                                        value={user ? (localSettings.librePassword || '') : 'password123'}
                                         onChange={handleChange}
+                                        disabled={!user}
                                     />
 
                                     <div className="test-connection-wrapper" style={{ marginTop: '16px' }}>
                                         <button
                                             className="test-connection-btn"
                                             onClick={handleTestConnection}
-                                            disabled={isTesting || !localSettings.libreUsername || !localSettings.librePassword}
+                                            disabled={isTesting || !user || !localSettings.libreUsername || !localSettings.librePassword}
                                             style={{
                                                 padding: '8px 16px',
                                                 borderRadius: '8px',
@@ -455,6 +459,47 @@ export default function SettingsView() {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Lock Overlay for Guest Users */}
+                                {!user && (
+                                    <div className="settings-lock-overlay" style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'rgba(255, 255, 255, 0.6)',
+                                        backdropFilter: 'blur(4px)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 10,
+                                        gap: '12px',
+                                        padding: '24px',
+                                        textAlign: 'center'
+                                    }}>
+                                        <div style={{
+                                            background: '#fff',
+                                            borderRadius: '50%',
+                                            padding: '12px',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                                        }}>
+                                            <Link size={24} className="text-primary" />
+                                        </div>
+                                        <div>
+                                            <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}>Connect LibreView</h4>
+                                            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
+                                                Sign in to sync your glucose data directly from Freestyle Libre.
+                                            </p>
+                                            <SignInButton mode="modal">
+                                                <button className="btn primary" style={{ width: 'auto', padding: '8px 20px', fontSize: '14px' }}>
+                                                    Sign In to Connect
+                                                </button>
+                                            </SignInButton>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="divider" />
