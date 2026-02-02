@@ -47,7 +47,7 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
         }
 
         // 3. Get Connection (Patient ID)
-        const connections = await LibreLinkUpClient.getConnections(authTicket.token);
+        const connections = await LibreLinkUpClient.getConnections(authTicket);
 
         if (connections.length === 0) {
             return { success: false, error: 'No LibreLinkUp connections found.' };
@@ -59,7 +59,7 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
         console.log(`Fetching data for patient: ${patientName} (${patientId})`);
 
         // 4. Get Graph Data
-        const readings = await LibreLinkUpClient.getGlucoseData(authTicket.token, patientId);
+        const readings = await LibreLinkUpClient.getGlucoseData(authTicket, patientId);
 
         console.log(`Retrieved ${readings.length} glucose readings.`);
 
