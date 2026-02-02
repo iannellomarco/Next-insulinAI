@@ -100,10 +100,14 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                         }
                     }
                 } catch (e) {
-                };
-                fetchGlucose();
-            } else {
-                setGlucoseData([]);
+                    console.error("Failed to fetch glucose data", e);
+                } finally {
+                    setIsLoadingGlucose(false);
+                }
+            };
+            fetchGlucose();
+        } else {
+            setGlucoseData([]);
         }
     }, [selectedMealGroup, settings.libreUsername, settings.librePassword]);
 
