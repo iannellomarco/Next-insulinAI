@@ -28,6 +28,16 @@ export interface LibreDataResponse {
     };
 }
 
+// Simple in-memory cache
+interface CacheEntry {
+    timestamp: number;
+    response: LibreDataResponse;
+    userId: string;
+}
+
+let requestCache: CacheEntry | null = null;
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
     const { userId } = await auth();
     console.log('[fetchLibreDataAction] UserID:', userId);
@@ -35,6 +45,14 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
     if (!userId) {
         console.error('[fetchLibreDataAction] No userId found in auth()');
         return { success: false, error: 'Unauthorized: No verified session' };
+    }
+
+    // Check cache
+    if (requestCache &&
+        requestCache.userId === userId &&
+        (Date.now() - requestCache.timestamp < CACHE_TTL_MS)) {
+        console.log('[fetchLibreDataAction] Returning cached data (Age:', Math.round((Date.now() - requestCache.timestamp) / 1000), 's)');
+        return requestCache.response;
     }
 
     try {
@@ -94,7 +112,7 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
 
         console.log(`[LibreLinkUp] Range: ${oldest} - ${newest}`);
 
-        return {
+        const response = {
             success: true,
             currentReading: currentReading ? transformReading(currentReading) : undefined,
             data: transformedHistory,
@@ -105,6 +123,15 @@ export async function fetchLibreDataAction(): Promise<LibreDataResponse> {
                 count: transformedHistory.length
             }
         };
+
+        // Update cache
+        requestCache = {
+            timestamp: Date.now(),
+            response,
+            userId
+        };
+
+        return response;
 
     } catch (error) {
         console.error('[LibreLinkUp] Error:', error);
