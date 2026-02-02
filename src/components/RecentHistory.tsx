@@ -2,7 +2,7 @@
 
 import { ChevronRight, Utensils } from 'lucide-react';
 import { HistoryItem } from '@/types';
-import { useTranslations, TranslationDict } from '@/lib/translations';
+import { useTranslations, Translations } from '@/lib/translations';
 
 interface RecentHistoryProps {
     items: HistoryItem[];
@@ -10,7 +10,7 @@ interface RecentHistoryProps {
     onItemClick: (item: HistoryItem) => void;
 }
 
-function formatTime(timestamp: number, t: TranslationDict): string {
+function formatTime(timestamp: number, t: Translations): string {
     const date = new Date(timestamp);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
