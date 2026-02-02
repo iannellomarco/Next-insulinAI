@@ -184,7 +184,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     // Group by date
     const groupedByDate = useMemo(() => {
         return groupedMeals.reduce((groups, meal) => {
-            const dateStr = new Date(meal.timestamp).toLocaleDateString(undefined, {
+            const locale = settings.language === 'it' ? 'it-IT' : 'en-US';
+            const dateStr = new Date(meal.timestamp).toLocaleDateString(locale, {
                 weekday: 'long',
                 month: 'short',
                 day: 'numeric'
@@ -247,7 +248,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                     : selectedMealGroup.items[0]?.food_items?.[0]?.name || t.history.mealDetails}
                             </h3>
                             <span className="meal-detail-time">
-                                {new Date(selectedMealGroup.timestamp).toLocaleString(undefined, {
+                                {new Date(selectedMealGroup.timestamp).toLocaleString(settings.language === 'it' ? 'it-IT' : 'en-US', {
                                     weekday: 'short',
                                     month: 'short',
                                     day: 'numeric',
@@ -374,7 +375,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                             <p>{t.history.noGlucoseData}</p>
                                             {debugRange && (
                                                 <p style={{ fontSize: '11px', marginTop: '4px', color: '#94a3b8' }}>
-                                                    Data available from {new Date(debugRange.oldest).toLocaleString()} to {new Date(debugRange.newest).toLocaleString()}
+                                                    Data available from {new Date(debugRange.oldest).toLocaleString(settings.language === 'it' ? 'it-IT' : 'en-US')} to {new Date(debugRange.newest).toLocaleString(settings.language === 'it' ? 'it-IT' : 'en-US')}
                                                 </p>
                                             )}
                                         </div>
@@ -491,7 +492,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                         </div>
                                                         <div className="chained-footer">
                                                             <span className="chained-time">
-                                                                {new Date(mealGroup.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                                                {new Date(mealGroup.timestamp).toLocaleTimeString(settings.language === 'it' ? 'it-IT' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
                                                             {mealGroup.postGlucose ? (
                                                                 <span className={`stat-post ${isHigh ? 'high' : ''} ${isLow ? 'low' : ''}`}>
@@ -563,7 +564,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                                             )}
                                                         </div>
                                                         <span className="history-time">
-                                                            {new Date(mealGroup.timestamp).toLocaleTimeString(undefined, {
+                                                            {new Date(mealGroup.timestamp).toLocaleTimeString(settings.language === 'it' ? 'it-IT' : 'en-US', {
                                                                 hour: '2-digit',
                                                                 minute: '2-digit'
                                                             })}

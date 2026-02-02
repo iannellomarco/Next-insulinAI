@@ -3,6 +3,7 @@
 import { ChevronRight, Utensils } from 'lucide-react';
 import { HistoryItem } from '@/types';
 import { useTranslations, Translations } from '@/lib/translations';
+import { useStore } from '@/lib/store';
 
 interface RecentHistoryProps {
     items: HistoryItem[];
@@ -10,16 +11,16 @@ interface RecentHistoryProps {
     onItemClick: (item: HistoryItem) => void;
 }
 
-function formatTime(timestamp: number, t: Translations): string {
+function formatTime(timestamp: number, t: Translations, lang: string): string {
     const date = new Date(timestamp);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
 
-    const locale = typeof window !== 'undefined' ? navigator.language : 'en-US';
+    const locale = lang === 'it' ? 'it-IT' : 'en-US';
     const time = date.toLocaleTimeString(locale, {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: locale !== 'it-IT' && locale !== 'it'
+        hour12: lang !== 'it'
     });
 
     if (isToday) {
@@ -54,6 +55,7 @@ function getFoodIcon(name: string): string {
 }
 
 export default function RecentHistory({ items, onViewAll, onItemClick }: RecentHistoryProps) {
+    const { settings } = useStore();
     const t = useTranslations();
     const recentItems = items.slice(0, 3);
 
@@ -98,7 +100,7 @@ export default function RecentHistory({ items, onViewAll, onItemClick }: RecentH
                             <div className="recent-item-info">
                                 <span className="recent-item-name">{mainFood}</span>
                                 <span className="recent-item-meta">
-                                    {formatTime(item.timestamp, t)}
+                                    {formatTime(item.timestamp, t, settings.language)}
                                     <span className="meta-dot">·</span>
                                     {item.total_carbs}g {t.home.carbsShort}
                                 </span>
