@@ -2065,247 +2065,594 @@ input:checked + .slider:before {
     color: var(--primary);
 }
 
-/* Settings View Styles */
-.settings-view {
-    padding: 1.25rem;
-    padding-top: 0.5rem;
-    padding-bottom: 6rem;
-}
+/* ==========================================
+   NEW SETTINGS VIEW - Tabbed Interface
+   ========================================== */
 
-.settings-save-fab {
-    position: fixed;
-    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-    right: 1.25rem;
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-lg);
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    transition: all 0.2s ease;
-    z-index: 50;
-}
-
-.settings-save-fab:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-}
-
-.settings-save-fab:active {
-    transform: scale(0.95);
-}
-
-.settings-save-fab.saved {
-    background: var(--success);
-}
-
-.settings-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--foreground);
-    margin-bottom: 1.25rem;
-}
-
-.settings-view .settings-form {
+.settings-view-new {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    min-height: 100%;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
 }
 
-.settings-section {
+/* Tab Navigation */
+.settings-tabs {
     display: flex;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--background);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
 }
 
-.section-icon {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    border-radius: var(--radius-md);
-    background: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--primary);
-}
-
-.section-content {
+.settings-tab {
     flex: 1;
-}
-
-/* Carb Ratio Toggle and Meal-specific Ratios */
-.ratio-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.25rem;
-}
-
-.ratio-toggle {
-    padding: 0.25rem 0.625rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    border-radius: var(--radius-sm);
-    background: var(--secondary);
-    color: var(--muted-foreground);
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: all 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-}
-
-.ratio-toggle:hover {
-    background: var(--accent);
-}
-
-.ratio-toggle.active {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-color: var(--primary);
-}
-
-.meal-ratios {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-}
-
-.meal-ratio-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 0.375rem;
     padding: 0.625rem 0.75rem;
     background: var(--secondary);
-    border-radius: var(--radius-md);
-}
-
-.meal-ratio-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--foreground);
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.meal-ratio-label svg {
-    color: var(--primary);
-}
-
-.time-hint {
-    font-size: 0.6875rem;
-    color: var(--muted-foreground);
-    font-weight: 400;
-}
-
-.meal-ratio-item .input-with-unit {
-    width: 100px;
-}
-
-.meal-ratio-item .input-with-unit input {
-    width: 50px;
-    padding: 0.375rem 0.5rem;
-    text-align: center;
-    font-size: 0.875rem;
-}
-
-.settings-card {
-    padding: 1rem;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-}
-
-.settings-card h3 {
-    font-size: 0.9375rem;
-    margin-bottom: 0.25rem;
-}
-
-.card-hint {
-    font-size: 0.8rem;
-    color: var(--muted-foreground);
-    margin-bottom: 1rem;
-}
-
-.threshold-inputs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-.input-with-unit {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.input-with-unit input {
-    flex: 1;
-}
-
-.input-with-unit.compact input {
-    text-align: center;
-}
-
-.input-unit {
-    font-size: 0.8rem;
-    color: var(--muted-foreground);
-    white-space: nowrap;
-}
-
-.advanced-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.875rem 1rem;
-    background: var(--secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     color: var(--muted-foreground);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.advanced-toggle:hover {
+.settings-tab:hover {
+    background: var(--accent);
     color: var(--foreground);
+}
+
+.settings-tab.active {
+    background: var(--primary);
     border-color: var(--primary);
+    color: var(--primary-foreground);
 }
 
-.toggle-icon {
-    margin-left: auto;
-    transition: transform 0.2s;
+.settings-tab svg {
+    flex-shrink: 0;
 }
 
-.toggle-icon.open {
-    transform: rotate(180deg);
-}
-
-.advanced-content {
+/* Content Area */
+.settings-content {
+    flex: 1;
     padding: 1rem;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    overflow-y: auto;
+}
+
+.settings-panel {
     display: flex;
     flex-direction: column;
     gap: 1rem;
     animation: fadeIn 0.2s ease-out;
 }
 
+.panel-header {
+    margin-bottom: 0.25rem;
+}
+
+.panel-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 0.25rem;
+}
+
+.panel-header p {
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+}
+
+.divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.5rem 0;
+}
+
+/* Ratio Mode Selector */
+.ratio-mode-selector {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    background: var(--secondary);
+    border-radius: var(--radius-md);
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover {
+    color: var(--foreground);
+}
+
+.mode-btn.active {
+    background: var(--card);
+    color: var(--foreground);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Single Ratio Card */
+.single-ratio-card {
+    padding: 1.5rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+
+.ratio-input-large {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.ratio-input-large input {
+    width: 80px;
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0.5rem;
+    background: var(--secondary);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--foreground);
+}
+
+.ratio-input-large input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.ratio-prefix, .ratio-suffix {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+}
+
+.ratio-description {
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+}
+
+/* Meal Ratios Grid */
+.meal-ratios-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.meal-ratio-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.meal-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.meal-icon.breakfast {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.meal-icon.lunch {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.meal-icon.dinner {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.meal-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.meal-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.meal-time {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+}
+
+.meal-input {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.meal-input input {
+    width: 56px;
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--foreground);
+}
+
+.meal-input input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.meal-input span {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+}
+
+/* Correction Card */
+.correction-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.correction-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.correction-input {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.correction-prefix {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+}
+
+.correction-input input {
+    width: 70px;
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 1.125rem;
+    font-weight: 600;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--foreground);
+}
+
+.correction-input input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.correction-suffix {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+}
+
+/* Threshold Cards */
+.threshold-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.threshold-card {
+    padding: 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.threshold-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.threshold-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.threshold-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.high-indicator {
+    background: var(--destructive);
+}
+
+.low-indicator {
+    background: #f59e0b;
+}
+
+.threshold-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.threshold-input-group input {
+    width: 100px;
+    padding: 0.625rem;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 600;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--foreground);
+}
+
+.threshold-input-group input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.threshold-unit {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+}
+
+.threshold-hint {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+}
+
+/* Range Visual */
+.range-visual {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.range-bar {
+    position: relative;
+    height: 24px;
+    background: var(--secondary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.range-zone {
+    position: absolute;
+    top: 0;
+    height: 100%;
+}
+
+.low-zone {
+    left: 0;
+    background: rgba(245, 158, 11, 0.3);
+}
+
+.target-zone {
+    background: rgba(16, 185, 129, 0.3);
+}
+
+.high-zone {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+}
+
+/* Feature Card */
+.feature-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.feature-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.feature-content {
+    flex: 1;
+}
+
+.feature-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.feature-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.feature-description {
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+    line-height: 1.4;
+}
+
+/* API Card */
+.api-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.api-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: var(--secondary);
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.api-content {
+    flex: 1;
+}
+
+.api-content label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    margin-bottom: 0.5rem;
+}
+
+.api-content input {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--foreground);
+    font-size: 0.875rem;
+}
+
+.api-content input:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.api-hint {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    margin-top: 0.375rem;
+}
+
+/* Save FAB */
+.settings-save-fab {
+    position: fixed;
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    right: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transition: all 0.2s ease;
+    z-index: 50;
+    animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.settings-save-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.settings-save-fab:active {
+    transform: scale(0.98);
+}
+
+.settings-save-fab.saved {
+    background: var(--success);
+}
+
+.save-label {
+    display: none;
+}
+
+.settings-save-fab.saved .save-label {
+    display: inline;
+}
+
+/* Toggle Switch (keep existing) */
 .toggle-setting {
     display: flex;
     justify-content: space-between;
