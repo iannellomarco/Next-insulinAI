@@ -364,7 +364,8 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                                         backgroundColor: '#f8fafc',
                                         borderRadius: '12px',
                                         padding: '12px',
-                                        marginTop: '8px'
+                                        marginTop: '8px',
+                                        height: '240px' // Added fixed height for ResponsiveContainer
                                     }}>
                                         {isLoadingGlucose ? (
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px', gap: '8px', color: '#64748b' }}>

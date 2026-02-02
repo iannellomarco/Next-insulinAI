@@ -48,7 +48,7 @@ export default function GlucoseGraph({ data, mealTime, height = 200 }: GlucoseGr
                     {/* Meal Time Marker */}
                     {mealTime && (
                         <ReferenceLine
-                            x={format(mealTime, 'HH:mm')}
+                            x={mealTime.getTime()}
                             stroke="#ef4444"
                             strokeDasharray="3 3"
                             label={{ position: 'top', value: 'Meal', fill: '#ef4444', fontSize: 10 }}
@@ -56,12 +56,19 @@ export default function GlucoseGraph({ data, mealTime, height = 200 }: GlucoseGr
                     )}
 
                     <XAxis
-                        dataKey="timeStr"
+                        dataKey="timestamp"
+                        type="number"
+                        domain={['dataMin', 'dataMax']}
                         stroke="#9ca3af"
                         fontSize={11}
                         tickLine={false}
                         axisLine={false}
-                        tickCount={5}
+                        tickFormatter={(unix) => format(new Date(unix), 'HH:mm')}
+                        ticks={chartData.length > 0 ? [
+                            chartData[0].timestamp,
+                            chartData[Math.floor(chartData.length / 2)].timestamp,
+                            chartData[chartData.length - 1].timestamp
+                        ] : []}
                     />
                     <YAxis
                         domain={yDomain}
@@ -72,6 +79,7 @@ export default function GlucoseGraph({ data, mealTime, height = 200 }: GlucoseGr
                         width={30}
                     />
                     <Tooltip
+                        labelFormatter={(unix) => format(new Date(unix), 'HH:mm')}
                         contentStyle={{
                             borderRadius: '8px',
                             border: 'none',
@@ -84,9 +92,9 @@ export default function GlucoseGraph({ data, mealTime, height = 200 }: GlucoseGr
                         dataKey="value"
                         stroke="#0066cc"
                         strokeWidth={2}
-                        dot={false}
+                        dot={chartData.length < 10} // Show dots for few points
                         activeDot={{ r: 4 }}
-                        isAnimationActive={false} // Better performance for mobile lists
+                        isAnimationActive={false}
                     />
                 </LineChart>
             </ResponsiveContainer>
