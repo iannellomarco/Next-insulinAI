@@ -65,11 +65,26 @@ export async function DELETE(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
+        console.log(`[DELETE History] Attempting to delete id: ${id} for user: ${userId}`);
+
         if (!id) {
             return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });
         }
 
-        await db.delete(historyItems).where(eq(historyItems.id, id));
+        // Use 'and' to ensure user owns the item
+        const { and } = await import('drizzle-orm');
+        const deleted = await db.delete(historyItems)
+            .where(and(eq(historyItems.id, id), eq(historyItems.userId, userId)))
+            .returning(); // Return deleted rows to verify
+
+        if (deleted.length === 0) {
+            console.log(`[DELETE History] No item found or unauthorized. ID: ${id}`);
+            // Return success even if not found to be idempotent, or 404? 
+            // Let's return success but log it.
+        } else {
+            console.log(`[DELETE History] Successfully deleted item: ${id}`);
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Failed to delete history:', error);
