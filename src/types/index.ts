@@ -44,6 +44,12 @@ export interface CarbRatios {
     dinner: number;
 }
 
+export interface ReminderTimes {
+    breakfast: number; // timestamp or ISO string? Let's use string for simpler JSON handling if needed, or number.
+    lunch: number;
+    dinner: number;
+}
+
 export interface Settings {
     apiKey: string;
     carbRatio: number; // Legacy single ratio (used as fallback)
@@ -57,6 +63,8 @@ export interface Settings {
     libreUsername?: string;
     librePassword?: string;
     language: 'en' | 'it';
+    mealRemindersEnabled: boolean;
+    reminderTimes: ReminderTimes;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -76,6 +84,12 @@ export const DEFAULT_SETTINGS: Settings = {
     libreUsername: '',
     librePassword: '',
     language: 'en',
+    mealRemindersEnabled: false,
+    reminderTimes: {
+        breakfast: new Date().setHours(8, 30, 0, 0),
+        lunch: new Date().setHours(12, 30, 0, 0),
+        dinner: new Date().setHours(19, 30, 0, 0),
+    }
 };
 
 // Helper to get current meal period

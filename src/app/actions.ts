@@ -95,6 +95,8 @@ export async function syncSettingsAction(settings: Settings) {
             libreUsername: settings.libreUsername,
             librePassword: settings.librePassword,
             language: settings.language,
+            mealRemindersEnabled: settings.mealRemindersEnabled,
+            reminderTimes: settings.reminderTimes,
         }).onConflictDoUpdate({
             target: userSettings.userId,
             set: {
@@ -109,6 +111,8 @@ export async function syncSettingsAction(settings: Settings) {
                 libreUsername: settings.libreUsername,
                 librePassword: settings.librePassword,
                 language: settings.language,
+                mealRemindersEnabled: settings.mealRemindersEnabled,
+                reminderTimes: settings.reminderTimes,
                 updatedAt: new Date()
             }
         });
@@ -144,6 +148,12 @@ export async function getRemoteSettingsAction() {
             libreUsername: row.libreUsername || '',
             librePassword: row.librePassword || '',
             language: (row.language as 'en' | 'it') || 'en',
+            mealRemindersEnabled: row.mealRemindersEnabled ?? false,
+            reminderTimes: (row.reminderTimes as { breakfast: number; lunch: number; dinner: number }) || {
+                breakfast: new Date().setHours(8, 30, 0, 0),
+                lunch: new Date().setHours(12, 30, 0, 0),
+                dinner: new Date().setHours(19, 30, 0, 0),
+            },
         };
         return settings;
 
