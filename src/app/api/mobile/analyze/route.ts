@@ -59,7 +59,12 @@ export async function POST(request: NextRequest) {
                         total_fat: p.fat100g,
                         total_protein: p.protein100g,
                         suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
-                        split_bolus_recommendation: { recommended: false },
+                        split_bolus_recommendation: {
+                            recommended: false,
+                            split_percentage: "",
+                            duration: "",
+                            reason: ""
+                        },
                         reasoning: ["Database match from Open Food Facts."],
                         warnings: ["Nutritional data is per 100g. Adjust if your portion is different."]
                     });

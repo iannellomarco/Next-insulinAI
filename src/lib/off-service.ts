@@ -33,9 +33,9 @@ export async function searchOFF(query: string): Promise<OFFProduct[]> {
 
         return products.map((p: any) => ({
             name: p.product_name || 'Unknown',
-            carbs100g: p.nutriments?.carbohydrates_100g || 0,
-            fat100g: p.nutriments?.fat_100g || 0,
-            protein100g: p.nutriments?.proteins_100g || 0,
+            carbs100g: parseFloat(p.nutriments?.carbohydrates_100g) || 0,
+            fat100g: parseFloat(p.nutriments?.fat_100g) || 0,
+            protein100g: parseFloat(p.nutriments?.proteins_100g) || 0,
             brand: p.brands
         })).filter((p: OFFProduct) => p.carbs100g > 0 || p.fat100g > 0 || p.protein100g > 0);
 
