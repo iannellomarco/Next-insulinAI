@@ -99,6 +99,8 @@ export async function POST(request: NextRequest) {
                             total_fat: result.fat100g,
                             total_protein: result.protein100g,
                             suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
+                            calculation_formula: `${totalCarbs}g carbs / ${carbRatio} ratio = ${Number((totalCarbs / carbRatio).toFixed(1))}U`,
+                            sources: ["Open Food Facts"],
                             split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
                             reasoning: [isBarcode ? "Matched via Barcode." : "Matched via Database Search."],
                             warnings: ["Nutritional data is per 100g from Open Food Facts."]
@@ -134,7 +136,9 @@ export async function POST(request: NextRequest) {
         2. Identify foods, estimate macros, calculate insulin using 1:${carbRatio} carb ratio.
         3. Flag split bolus if fat>20g AND protein>25g.
         4. Preserve user's specific food name but fix typos. Respond in ${language}.
-        5. Only return error if absolutely certain input is not food-related.
+        5. Provide the exact math used for insulin in 'calculation_formula' (e.g. \"50g carbs / 10 ratio = 5.0U\").
+        6. List nutritional data sources in 'sources' (e.g. \"USDA\", \"General estimate\").
+        7. Only return error if absolutely certain input is not food-related.
         ${offContext}
 
         OUTPUT (valid JSON only, no markdown):
@@ -145,6 +149,8 @@ export async function POST(request: NextRequest) {
           "total_fat":0,
           "total_protein":0,
           "suggested_insulin":0,
+          "calculation_formula": "Exact math string",
+          "sources": ["Source 1", "Source 2"],
           "split_bolus_recommendation":{"recommended":false,"split_percentage":"","duration":"","reason":""},
           "reasoning":["Step 1","Step 2"],
           "warnings":[]
@@ -172,7 +178,7 @@ export async function POST(request: NextRequest) {
 
         // 4. Call Perplexity
         const payload = {
-            model: 'sonar-pro', // Using strict sonar-pro as in web
+            model: 'sonar', // Using faster sonar model for lower latency
             messages: messages,
             temperature: 0.2
         };
