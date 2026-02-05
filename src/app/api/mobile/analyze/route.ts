@@ -40,90 +40,78 @@ export async function POST(request: NextRequest) {
         }
 
         let offContext = "";
-        if (userSettings?.analysisMode !== 'pplx_only' && typeof text === 'string' && text.length > 0) {
-            const products = await searchOFF(text);
+        let usedOFF = false;
+        const textToSearch = typeof text === 'string' ? text.trim() : "";
+        const isBarcode = /^\d{8,14}$/.test(textToSearch);
+
+        if (userSettings?.analysisMode !== 'pplx_only' && textToSearch.length > 0) {
+            const products = await searchOFF(textToSearch);
             if (products.length > 0) {
-                if (userSettings?.analysisMode === 'off_only') {
-                    // Pick the best match using a scoring system
-                    const queryLower = text.toLowerCase().trim();
-                    const scoredProducts = products.map(p => {
-                        let score = 0;
-                        const nameLower = p.name.toLowerCase();
+                const queryLower = textToSearch.toLowerCase();
+                const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
 
-                        // 1. Exact match (highest priority)
-                        if (nameLower === queryLower) score += 100;
+                // Scoring and selection logic
+                const scoredProducts = products.map(p => {
+                    let score = 0;
+                    const nameLower = p.name.toLowerCase();
+                    const brandLower = (p.brand || "").toLowerCase();
 
-                        // 2. Starts with query
-                        else if (nameLower.startsWith(queryLower)) score += 50;
+                    if (nameLower === queryLower) score += 100;
+                    else if (nameLower.startsWith(queryLower)) score += 50;
+                    else if (nameLower.includes(queryLower)) score += 20;
 
-                        // 3. Contains query
-                        else if (nameLower.includes(queryLower)) score += 20;
+                    const hasNoBrand = !p.brand || brandLower === 'unknown' || brandLower === 'generic' || brandLower.trim() === '';
+                    if (hasNoBrand) score += 40;
 
-                        // 4. Generic preference (no brand or "Unknown" brand)
-                        const hasNoBrand = !p.brand || p.brand.toLowerCase() === 'unknown' || p.brand.toLowerCase() === 'generic' || p.brand.trim() === '';
-                        if (hasNoBrand) {
-                            score += 40;
-                        }
+                    const isFruit = p.categories?.some(c => c.toLowerCase().includes('fruit') || c.toLowerCase().includes('frutta'));
+                    if (isFruit && !queryLower.includes('yogur') && !queryLower.includes('dessert')) score += 60;
+                    if (nameLower.includes('yogur') && !queryLower.includes('yogur')) score -= 100;
 
-                        // 5. Shortness preference (favor "Banana" over "Banana and Strawberry Yogurt")
-                        score -= p.name.length / 2;
+                    // Brand match check: does the query contain the brand name?
+                    const brandMatch = !hasNoBrand && queryWords.some(word => brandLower.includes(word));
+                    if (brandMatch) score += 80;
 
-                        // 6. Category check (favor fruits if query doesn't specify yogurt/dessert)
-                        const isFruit = p.categories?.some(c => c.toLowerCase().includes('fruit') || c.toLowerCase().includes('frutta'));
-                        if (isFruit && !queryLower.includes('yogur') && !queryLower.includes('dessert')) {
-                            score += 60;
-                        }
+                    return { product: p, score, brandMatch };
+                });
 
-                        // 7. Heavy penalty for "yogurt" when query is just a fruit
-                        if (nameLower.includes('yogur') && !queryLower.includes('yogur')) {
-                            score -= 100;
-                        }
+                const sortedResults = scoredProducts.sort((a, b) => b.score - a.score);
+                const best = sortedResults[0];
 
-                        // 8. Single word query penalty for branded items
-                        if (queryLower.split(' ').length === 1 && !hasNoBrand) {
-                            score -= 30;
-                        }
+                // Selective Trigger: Barcode OR (Brand Match AND complex query)
+                const shouldTrigger = isBarcode || (best.brandMatch && queryWords.length >= 1);
 
-                        return { product: p, score };
-                    });
+                if (shouldTrigger) {
+                    usedOFF = true;
+                    if (userSettings?.analysisMode === 'off_only') {
+                        const result = best.product;
+                        const totalCarbs = result.carbs100g;
+                        return NextResponse.json({
+                            friendly_description: result.name,
+                            food_items: [{
+                                name: result.name,
+                                carbs: result.carbs100g,
+                                fat: result.fat100g,
+                                protein: result.protein100g,
+                                approx_weight: "100g"
+                            }],
+                            total_carbs: totalCarbs,
+                            total_fat: result.fat100g,
+                            total_protein: result.protein100g,
+                            suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
+                            split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
+                            reasoning: [isBarcode ? "Matched via Barcode." : "Matched via Name + Brand."],
+                            warnings: ["Nutritional data is per 100g from Open Food Facts."]
+                        });
+                    }
 
-                    // Sort by score descending
-                    const sortedResults = scoredProducts.sort((a, b) => b.score - a.score);
-                    const bestResult = sortedResults[0].product;
-
-                    console.log(`[OFF Search] Best match for "${text}": ${bestResult.name} (Score: ${sortedResults[0].score})`);
-
-                    const totalCarbs = bestResult.carbs100g;
-
-                    return NextResponse.json({
-                        friendly_description: bestResult.name,
-                        food_items: [{
-                            name: bestResult.name,
-                            carbs: bestResult.carbs100g,
-                            fat: bestResult.fat100g,
-                            protein: bestResult.protein100g,
-                            approx_weight: "100g"
-                        }],
-                        total_carbs: totalCarbs,
-                        total_fat: bestResult.fat100g,
-                        total_protein: bestResult.protein100g,
-                        suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
-                        split_bolus_recommendation: {
-                            recommended: false,
-                            split_percentage: "",
-                            duration: "",
-                            reason: ""
-                        },
-                        reasoning: ["Database match from Open Food Facts."],
-                        warnings: ["Nutritional data is per 100g. Adjust if your portion is different."]
-                    });
+                    // Hybrid mode context
+                    offContext = "\n\nDATABASE CONTEXT (Open Food Facts):\n" +
+                        products.slice(0, 3).map(p => `- ${p.name} (${p.brand || ''}): Carbs: ${p.carbs100g}g, Fat: ${p.fat100g}g, Protein: ${p.protein100g}g per 100g`).join('\n');
                 }
-
-                // For hybrid mode, prepare context
-                offContext = "\n\nDATABASE CONTEXT (Open Food Facts - use as reference for macros):\n" +
-                    products.slice(0, 3).map(p => `- ${p.name} (${p.brand || ''}): Carbs: ${p.carbs100g}g, Fat: ${p.fat100g}g, Protein: ${p.protein100g}g per 100g`).join('\n');
             }
         }
+
+        // Fallback to AI if OFF not triggered or in hybrid/pplx_only
 
         const type = image ? 'image' : 'text';
 
