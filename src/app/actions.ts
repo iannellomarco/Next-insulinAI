@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { historyItems, userSettings } from '@/db/schema';
 import { auth } from '@clerk/nextjs/server';
 import { eq, desc, gte, asc } from 'drizzle-orm';
-import { HistoryItem, Settings } from '@/types';
+import { HistoryItem, Settings, AnalysisMode } from '@/types';
 
 // HISTORY ACTIONS
 
@@ -97,6 +97,7 @@ export async function syncSettingsAction(settings: Settings) {
             language: settings.language,
             mealRemindersEnabled: settings.mealRemindersEnabled,
             reminderTimes: settings.reminderTimes,
+            analysisMode: settings.analysisMode,
         }).onConflictDoUpdate({
             target: userSettings.userId,
             set: {
@@ -113,6 +114,7 @@ export async function syncSettingsAction(settings: Settings) {
                 language: settings.language,
                 mealRemindersEnabled: settings.mealRemindersEnabled,
                 reminderTimes: settings.reminderTimes,
+                analysisMode: settings.analysisMode,
                 updatedAt: new Date()
             }
         });
@@ -154,6 +156,7 @@ export async function getRemoteSettingsAction() {
                 lunch: new Date().setHours(12, 30, 0, 0),
                 dinner: new Date().setHours(19, 30, 0, 0),
             },
+            analysisMode: (row.analysisMode as AnalysisMode) || 'pplx_only',
         };
         return settings;
 

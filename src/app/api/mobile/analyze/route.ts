@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
+import { searchOFF } from '@/lib/off-service';
 
 export async function POST(request: NextRequest) {
     // 1. Authenticate Request
@@ -38,6 +39,38 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        let offContext = "";
+        if (userSettings?.analysisMode !== 'pplx_only' && typeof text === 'string' && text.length > 0) {
+            const products = await searchOFF(text);
+            if (products.length > 0) {
+                if (userSettings?.analysisMode === 'off_only') {
+                    const p = products[0];
+                    const totalCarbs = p.carbs100g;
+                    return NextResponse.json({
+                        friendly_description: p.name,
+                        food_items: [{
+                            name: p.name,
+                            carbs: p.carbs100g,
+                            fat: p.fat100g,
+                            protein: p.protein100g,
+                            approx_weight: "100g"
+                        }],
+                        total_carbs: totalCarbs,
+                        total_fat: p.fat100g,
+                        total_protein: p.protein100g,
+                        suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
+                        split_bolus_recommendation: { recommended: false },
+                        reasoning: ["Database match from Open Food Facts."],
+                        warnings: ["Nutritional data is per 100g. Adjust if your portion is different."]
+                    });
+                }
+
+                // For hybrid mode, prepare context
+                offContext = "\n\nDATABASE CONTEXT (Open Food Facts - use as reference for macros):\n" +
+                    products.slice(0, 3).map(p => `- ${p.name} (${p.brand || ''}): Carbs: ${p.carbs100g}g, Fat: ${p.fat100g}g, Protein: ${p.protein100g}g per 100g`).join('\n');
+            }
+        }
+
         const type = image ? 'image' : 'text';
 
         const instructions = `You are a diabetes nutrition assistant.
@@ -51,6 +84,7 @@ export async function POST(request: NextRequest) {
         3. Flag split bolus if fat>20g AND protein>25g.
         4. Preserve user's specific food name but fix typos. Respond in ${language}.
         5. Only return error if absolutely certain input is not food-related.
+        ${offContext}
 
         OUTPUT (valid JSON only, no markdown):
         {

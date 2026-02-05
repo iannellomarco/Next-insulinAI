@@ -44,6 +44,8 @@ export interface CarbRatios {
     dinner: number;
 }
 
+export type AnalysisMode = 'pplx_only' | 'off_only' | 'hybrid';
+
 export interface ReminderTimes {
     breakfast: number; // timestamp or ISO string? Let's use string for simpler JSON handling if needed, or number.
     lunch: number;
@@ -65,6 +67,7 @@ export interface Settings {
     language: 'en' | 'it';
     mealRemindersEnabled: boolean;
     reminderTimes: ReminderTimes;
+    analysisMode: AnalysisMode;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -89,7 +92,8 @@ export const DEFAULT_SETTINGS: Settings = {
         breakfast: new Date().setHours(8, 30, 0, 0),
         lunch: new Date().setHours(12, 30, 0, 0),
         dinner: new Date().setHours(19, 30, 0, 0),
-    }
+    },
+    analysisMode: 'pplx_only'
 };
 
 // Helper to get current meal period
