@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
 import { searchOFF } from '@/lib/off-service';
 
+export const runtime = 'edge'; // Enable Vercel Edge Runtime for 0ms cold starts
+
 export async function POST(request: NextRequest) {
     // 1. Authenticate Request
     const { userId } = await auth();
@@ -131,19 +133,27 @@ export async function POST(request: NextRequest) {
 
         TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
 
+        STRATEGY (Follow strictly for images):
+        1. IDENTIFY: List visible ingredients.
+        2. VOLUMETRICS: Estimate physical size/volume relative to standard tableware (e.g. "cup size", "fist size").
+        3. DENSITY: Convert volume to weight (g) using standard density factors.
+        4. MACROS: Calculate values based on estimated weight.
+
         RULES:
         1. ALWAYS assume the input is food unless it's clearly unrelated. Be VERY lenient.
-        2. Identify foods, estimate macros, calculate insulin using 1:${carbRatio} carb ratio.
+        2. Calculate insulin using 1:${carbRatio} carb ratio.
         3. Flag split bolus if fat>20g AND protein>25g.
         4. Preserve user's specific food name but fix typos. Respond in ${language}.
-        5. Provide the exact math used for insulin in 'calculation_formula' (e.g. \"50g carbs / 10 ratio = 5.0U\").
-        6. List nutritional data sources in 'sources' (e.g. \"USDA\", \"General estimate\").
-        7. Only return error if absolutely certain input is not food-related.
+        5. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
+        6. List nutritional data sources in 'sources' (e.g. "USDA", "General estimate").
+        7. Set 'confidence_level' to "high", "medium", or "low" based on image clarity and ambiguity.
+        8. Only return error if absolutely certain input is not food-related.
         ${offContext}
 
         OUTPUT (valid JSON only, no markdown):
         {
           "friendly_description":"Short title",
+          "confidence_level": "high|medium|low",
           "food_items":[{"name":"Food name","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
           "total_carbs":0,
           "total_fat":0,
