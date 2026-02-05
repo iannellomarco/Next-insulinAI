@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
 
 export async function POST(request: NextRequest) {
     // 1. Authenticate Request
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json();
-        const { text, image, userSettings } = body; // image is base64 string
+        const { text, image, userSettings, mealPeriod } = body; // image is base64 string
 
         // Validate inputs
         if (!text && !image) {
@@ -27,7 +28,15 @@ export async function POST(request: NextRequest) {
 
         // 2. Prepare Prompt (Copied from web AppLogic/AIService)
         const language = userSettings?.language === 'it' ? 'Italian' : 'English';
-        const carbRatio = userSettings?.carbRatio || 10;
+
+        let carbRatio = userSettings?.carbRatio || 10;
+        if (userSettings?.useMealSpecificRatios && userSettings?.carbRatios) {
+            if (mealPeriod && ['breakfast', 'lunch', 'dinner'].includes(mealPeriod)) {
+                carbRatio = userSettings.carbRatios[mealPeriod as MealPeriod];
+            } else {
+                carbRatio = getCarbRatioForCurrentMeal(userSettings);
+            }
+        }
 
         const type = image ? 'image' : 'text';
 
@@ -117,6 +126,7 @@ export async function POST(request: NextRequest) {
             const result = JSON.parse(cleanJson);
             return NextResponse.json(result);
         } catch (e) {
+            i
             console.error('Failed to parse AI response:', content);
             return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 });
         }
