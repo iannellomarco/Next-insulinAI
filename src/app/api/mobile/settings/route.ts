@@ -33,6 +33,7 @@ export async function GET() {
             libreUsername: row.libreUsername || '',
             librePassword: row.librePassword || '',
             language: row.language || 'en',
+            analysisMode: row.analysisMode || 'pplx_only',
         });
     } catch (error) {
         console.error('Failed to fetch settings:', error);
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
             libreUsername: settings.libreUsername,
             librePassword: settings.librePassword,
             language: settings.language,
+            analysisMode: settings.analysisMode,
         }).onConflictDoUpdate({
             target: userSettings.userId,
             set: {
@@ -77,6 +79,7 @@ export async function POST(request: NextRequest) {
                 libreUsername: settings.libreUsername,
                 librePassword: settings.librePassword,
                 language: settings.language,
+                analysisMode: settings.analysisMode,
                 updatedAt: new Date()
             }
         });
