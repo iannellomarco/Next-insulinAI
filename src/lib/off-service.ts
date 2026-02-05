@@ -4,6 +4,7 @@ export interface OFFProduct {
     fat100g: number;
     protein100g: number;
     brand?: string;
+    categories?: string[];
 }
 
 /**
@@ -14,7 +15,7 @@ export async function searchOFF(query: string): Promise<OFFProduct[]> {
     if (!query || query.length < 2) return [];
 
     // Use the search API
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,nutriments,brands`;
+    const url = `https://it.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&fields=product_name,nutriments,brands,categories`;
 
     try {
         const response = await fetch(url, {
@@ -36,7 +37,8 @@ export async function searchOFF(query: string): Promise<OFFProduct[]> {
             carbs100g: parseFloat(p.nutriments?.carbohydrates_100g) || 0,
             fat100g: parseFloat(p.nutriments?.fat_100g) || 0,
             protein100g: parseFloat(p.nutriments?.proteins_100g) || 0,
-            brand: p.brands
+            brand: p.brands,
+            categories: p.categories?.split(',').map((c: string) => c.trim()) || []
         })).filter((p: OFFProduct) => p.carbs100g > 0 || p.fat100g > 0 || p.protein100g > 0);
 
     } catch (error) {

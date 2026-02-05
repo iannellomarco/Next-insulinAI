@@ -60,18 +60,39 @@ export async function POST(request: NextRequest) {
                         else if (nameLower.includes(queryLower)) score += 20;
 
                         // 4. Generic preference (no brand or "Unknown" brand)
-                        if (!p.brand || p.brand.toLowerCase() === 'unknown' || p.brand.toLowerCase() === 'generic') {
-                            score += 30;
+                        const hasNoBrand = !p.brand || p.brand.toLowerCase() === 'unknown' || p.brand.toLowerCase() === 'generic' || p.brand.trim() === '';
+                        if (hasNoBrand) {
+                            score += 40;
                         }
 
                         // 5. Shortness preference (favor "Banana" over "Banana and Strawberry Yogurt")
                         score -= p.name.length / 2;
 
+                        // 6. Category check (favor fruits if query doesn't specify yogurt/dessert)
+                        const isFruit = p.categories?.some(c => c.toLowerCase().includes('fruit') || c.toLowerCase().includes('frutta'));
+                        if (isFruit && !queryLower.includes('yogur') && !queryLower.includes('dessert')) {
+                            score += 60;
+                        }
+
+                        // 7. Heavy penalty for "yogurt" when query is just a fruit
+                        if (nameLower.includes('yogur') && !queryLower.includes('yogur')) {
+                            score -= 100;
+                        }
+
+                        // 8. Single word query penalty for branded items
+                        if (queryLower.split(' ').length === 1 && !hasNoBrand) {
+                            score -= 30;
+                        }
+
                         return { product: p, score };
                     });
 
                     // Sort by score descending
-                    const bestResult = scoredProducts.sort((a, b) => b.score - a.score)[0].product;
+                    const sortedResults = scoredProducts.sort((a, b) => b.score - a.score);
+                    const bestResult = sortedResults[0].product;
+
+                    console.log(`[OFF Search] Best match for "${text}": ${bestResult.name} (Score: ${sortedResults[0].score})`);
+
                     const totalCarbs = bestResult.carbs100g;
 
                     return NextResponse.json({
