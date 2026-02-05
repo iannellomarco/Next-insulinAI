@@ -77,12 +77,13 @@ export async function POST(request: NextRequest) {
                 const sortedResults = scoredProducts.sort((a, b) => b.score - a.score);
                 const best = sortedResults[0];
 
-                // Selective Trigger: Barcode OR (Brand Match AND complex query)
-                const shouldTrigger = isBarcode || (best.brandMatch && queryWords.length >= 1);
+                // Selective Trigger: Barcode OR (Brand Match AND complex query) OR (OFF_ONLY mode and any good match)
+                const isOffOnly = userSettings?.analysisMode === 'off_only';
+                const shouldTrigger = isBarcode || (best.brandMatch && queryWords.length >= 1) || (isOffOnly && best.score > 20);
 
                 if (shouldTrigger) {
                     usedOFF = true;
-                    if (userSettings?.analysisMode === 'off_only') {
+                    if (isOffOnly) {
                         const result = best.product;
                         const totalCarbs = result.carbs100g;
                         return NextResponse.json({
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
                             total_protein: result.protein100g,
                             suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
                             split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
-                            reasoning: [isBarcode ? "Matched via Barcode." : "Matched via Name + Brand."],
+                            reasoning: [isBarcode ? "Matched via Barcode." : "Matched via Database Search."],
                             warnings: ["Nutritional data is per 100g from Open Food Facts."]
                         });
                     }
@@ -108,6 +109,14 @@ export async function POST(request: NextRequest) {
                     offContext = "\n\nDATABASE CONTEXT (Open Food Facts):\n" +
                         products.slice(0, 3).map(p => `- ${p.name} (${p.brand || ''}): Carbs: ${p.carbs100g}g, Fat: ${p.fat100g}g, Protein: ${p.protein100g}g per 100g`).join('\n');
                 }
+            }
+
+            // If we are in off_only and nothing was triggered above, we MUST NOT fall back to AI
+            if (userSettings?.analysisMode === 'off_only') {
+                return NextResponse.json({
+                    error: language === 'Italian' ? 'Alimento non trovato nel database.' : 'Food not found in database.',
+                    details: 'No database match found for: ' + textToSearch
+                }, { status: 404 });
             }
         }
 
