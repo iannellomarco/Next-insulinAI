@@ -423,6 +423,41 @@ export default function SettingsView() {
                             <div className="divider" />
 
                             <div className="panel-header">
+                                <h3>{t.settings.analysisMode}</h3>
+                                <p>{t.settings.analysisModeSub}</p>
+                            </div>
+
+                            <div className="feature-card">
+                                <div className="feature-icon">
+                                    <Zap size={24} />
+                                </div>
+                                <div className="feature-content">
+                                    <div className="feature-header">
+                                        <select
+                                            id="analysisMode"
+                                            className="settings-select"
+                                            value={localSettings.analysisMode}
+                                            onChange={handleChange}
+                                            style={{
+                                                width: '100%',
+                                                padding: '8px',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--border)',
+                                                background: 'var(--secondary)',
+                                                color: 'var(--foreground)'
+                                            }}
+                                        >
+                                            <option value="pplx_only">{t.settings.modes.pplxOnly}</option>
+                                            <option value="off_only">{t.settings.modes.offOnly}</option>
+                                            <option value="hybrid">{t.settings.modes.hybrid}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="divider" />
+
+                            <div className="panel-header">
                                 <h3>{t.settings.libre}</h3>
                                 <p>{t.settings.libreSub}</p>
                             </div>

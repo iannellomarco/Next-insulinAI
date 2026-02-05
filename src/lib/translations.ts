@@ -195,6 +195,13 @@ export const translations = {
             insulin: 'Insulin',
             glucose: 'Glucose',
             advanced: 'Advanced',
+            analysisMode: 'Analysis Mode',
+            analysisModeSub: 'Choose how to analyze meals',
+            modes: {
+                pplxOnly: 'AI Only (PPLX)',
+                offOnly: 'DB Only (OFF)',
+                hybrid: 'Hybrid (AI + OFF)'
+            },
             carbRatios: 'Carbohydrate Ratios',
             carbRatiosSub: 'Configure how many grams of carbs are covered by 1 unit of insulin',
             singleRatio: 'Single Ratio',
@@ -459,6 +466,13 @@ export const translations = {
             insulin: 'Insulina',
             glucose: 'Glicemia',
             advanced: 'Avanzate',
+            analysisMode: 'Modalità Analisi',
+            analysisModeSub: 'Scegli come analizzare i pasti',
+            modes: {
+                pplxOnly: 'Solo AI (PPLX)',
+                offOnly: 'Solo Database (OFF)',
+                hybrid: 'Ibrida (AI + OFF)'
+            },
             carbRatios: 'Rapporti Carboidrati',
             carbRatiosSub: 'Configura quanti grammi di carbo sono coperti da 1 unità di insulina',
             singleRatio: 'Rapporto Singolo',
