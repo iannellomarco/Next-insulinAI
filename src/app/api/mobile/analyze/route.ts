@@ -44,20 +44,48 @@ export async function POST(request: NextRequest) {
             const products = await searchOFF(text);
             if (products.length > 0) {
                 if (userSettings?.analysisMode === 'off_only') {
-                    const p = products[0];
-                    const totalCarbs = p.carbs100g;
+                    // Pick the best match using a scoring system
+                    const queryLower = text.toLowerCase().trim();
+                    const scoredProducts = products.map(p => {
+                        let score = 0;
+                        const nameLower = p.name.toLowerCase();
+
+                        // 1. Exact match (highest priority)
+                        if (nameLower === queryLower) score += 100;
+
+                        // 2. Starts with query
+                        else if (nameLower.startsWith(queryLower)) score += 50;
+
+                        // 3. Contains query
+                        else if (nameLower.includes(queryLower)) score += 20;
+
+                        // 4. Generic preference (no brand or "Unknown" brand)
+                        if (!p.brand || p.brand.toLowerCase() === 'unknown' || p.brand.toLowerCase() === 'generic') {
+                            score += 30;
+                        }
+
+                        // 5. Shortness preference (favor "Banana" over "Banana and Strawberry Yogurt")
+                        score -= p.name.length / 2;
+
+                        return { product: p, score };
+                    });
+
+                    // Sort by score descending
+                    const bestResult = scoredProducts.sort((a, b) => b.score - a.score)[0].product;
+                    const totalCarbs = bestResult.carbs100g;
+
                     return NextResponse.json({
-                        friendly_description: p.name,
+                        friendly_description: bestResult.name,
                         food_items: [{
-                            name: p.name,
-                            carbs: p.carbs100g,
-                            fat: p.fat100g,
-                            protein: p.protein100g,
+                            name: bestResult.name,
+                            carbs: bestResult.carbs100g,
+                            fat: bestResult.fat100g,
+                            protein: bestResult.protein100g,
                             approx_weight: "100g"
                         }],
                         total_carbs: totalCarbs,
-                        total_fat: p.fat100g,
-                        total_protein: p.protein100g,
+                        total_fat: bestResult.fat100g,
+                        total_protein: bestResult.protein100g,
                         suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
                         split_bolus_recommendation: {
                             recommended: false,
