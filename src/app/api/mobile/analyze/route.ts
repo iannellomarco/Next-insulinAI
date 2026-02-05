@@ -6,17 +6,16 @@ import { searchOFF } from '@/lib/off-service';
 export const runtime = 'edge'; // Enable Vercel Edge Runtime for 0ms cold starts
 
 export async function POST(request: NextRequest) {
-    // 1. Authenticate Request
-    const { userId } = await auth();
-    // In strict mode we should check userId here, but if auth() returns null 
-    // for mobile bearer tokens (depending on middleware config), we might need to skip.
-    // However, since we added /api/mobile to publicRoutes in middleware, Clerk middleware 
-    // won't auto-protect it, but auth() will define userId if token is valid.
-
-    // For now, let's proceed. 
+    // 1. Parallelize Auth & Body Parsing for Speed
+    // Start both promises immediately
+    const authPromise = auth();
+    const bodyPromise = request.json();
 
     try {
-        const body = await request.json();
+        const [{ userId }, body] = await Promise.all([authPromise, bodyPromise]);
+
+        // In strict mode check userId... (logic preserved)
+
         const { text, image, userSettings, mealPeriod } = body; // image is base64 string
 
         // Validate inputs
@@ -46,6 +45,35 @@ export async function POST(request: NextRequest) {
         const textToSearch = typeof text === 'string' ? text.trim() : "";
         const isBarcode = /^\d{8,14}$/.test(textToSearch);
 
+        // Early Return for Barcode (Speed Optimization)
+        if (isBarcode && userSettings?.analysisMode !== 'pplx_only') {
+            const products = await searchOFF(textToSearch);
+            if (products.length > 0) {
+                const result = products[0];
+                const totalCarbs = result.carbs100g;
+                return NextResponse.json({
+                    friendly_description: result.name,
+                    food_items: [{
+                        name: result.name,
+                        carbs: result.carbs100g,
+                        fat: result.fat100g,
+                        protein: result.protein100g,
+                        approx_weight: "100g"
+                    }],
+                    total_carbs: totalCarbs,
+                    total_fat: result.fat100g,
+                    total_protein: result.protein100g,
+                    suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
+                    calculation_formula: `${totalCarbs}g carbs / ${carbRatio} ratio = ${Number((totalCarbs / carbRatio).toFixed(1))}U`,
+                    sources: ["Open Food Facts (Barcode)"],
+                    split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
+                    reasoning: ["Direct Barcode Match."],
+                    confidence_level: "high",
+                    warnings: ["Nutritional data is per 100g."]
+                });
+            }
+        }
+
         if (userSettings?.analysisMode !== 'pplx_only' && textToSearch.length > 0) {
             const products = await searchOFF(textToSearch);
             if (products.length > 0) {
@@ -58,20 +86,32 @@ export async function POST(request: NextRequest) {
                     const nameLower = p.name.toLowerCase();
                     const brandLower = (p.brand || "").toLowerCase();
 
+                    // String Similarity Scoring
                     if (nameLower === queryLower) score += 100;
                     else if (nameLower.startsWith(queryLower)) score += 50;
                     else if (nameLower.includes(queryLower)) score += 20;
 
-                    const hasNoBrand = !p.brand || brandLower === 'unknown' || brandLower === 'generic' || brandLower.trim() === '';
-                    if (hasNoBrand) score += 40;
+                    // Brand Logic
+                    const hasNoBrand = !p.brand || brandLower === 'unknown' || brandLower === 'generic';
+                    if (hasNoBrand) score += 40; // Penalty for unknown brands implicitly removed by not adding bonus? No, keeping as baseline
 
-                    const isFruit = p.categories?.some(c => c.toLowerCase().includes('fruit') || c.toLowerCase().includes('frutta'));
-                    if (isFruit && !queryLower.includes('yogur') && !queryLower.includes('dessert')) score += 60;
-                    if (nameLower.includes('yogur') && !queryLower.includes('yogur')) score -= 100;
-
-                    // Brand match check: does the query contain the brand name?
+                    // Brand match bonus
                     const brandMatch = !hasNoBrand && queryWords.some(word => brandLower.includes(word));
                     if (brandMatch) score += 80;
+
+                    // Category Logic (New)
+                    const categoryMatch = queryWords.some(word => p.categories?.some(c => c.toLowerCase().includes(word)));
+                    if (categoryMatch) score += 70;
+
+                    // Quantity Logic (New)
+                    // If query contains "500g" and product has "500", bonus
+                    const qtyMatch = queryWords.some(word => /\d+/.test(word) && (p.name.includes(word) || (p.quantity && p.quantity.includes(word))));
+                    if (qtyMatch) score += 50;
+
+                    // Specific Penalties
+                    if (nameLower.includes('yogur') && !queryLower.includes('yogur')) score -= 100;
+                    // Example: "Pane" is too generic without brand
+                    if (nameLower === 'pane' && hasNoBrand) score -= 30;
 
                     return { product: p, score, brandMatch };
                 });
@@ -79,13 +119,18 @@ export async function POST(request: NextRequest) {
                 const sortedResults = scoredProducts.sort((a, b) => b.score - a.score);
                 const best = sortedResults[0];
 
-                // Selective Trigger: Barcode OR (Brand Match AND complex query) OR (OFF_ONLY mode and any good match)
-                const isOffOnly = userSettings?.analysisMode === 'off_only';
-                const shouldTrigger = isBarcode || (best.brandMatch && queryWords.length >= 1) || (isOffOnly && best.score > 20);
+                // Advanced Logic: Hybrid Thresholds
+                // Score > 150 -> OFF Only (High Confidence)
+                // Score 80-150 -> Hybrid (OFF Context)
+                // Score < 80 -> AI Only
 
-                if (shouldTrigger) {
-                    usedOFF = true;
-                    if (isOffOnly) {
+                const isOffOnly = userSettings?.analysisMode === 'off_only';
+                const highConfidence = best.score > 150;
+                const mediumConfidence = best.score >= 80;
+
+                if (isOffOnly || highConfidence) {
+                    if (best.score > 50) { // Safety floor
+                        usedOFF = true;
                         const result = best.product;
                         const totalCarbs = result.carbs100g;
                         return NextResponse.json({
@@ -102,16 +147,22 @@ export async function POST(request: NextRequest) {
                             total_protein: result.protein100g,
                             suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
                             calculation_formula: `${totalCarbs}g carbs / ${carbRatio} ratio = ${Number((totalCarbs / carbRatio).toFixed(1))}U`,
-                            sources: ["Open Food Facts"],
+                            sources: ["Open Food Facts (High Confidence)"],
                             split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
-                            reasoning: [isBarcode ? "Matched via Barcode." : "Matched via Database Search."],
+                            reasoning: [`Matched via Database Search (Score: ${best.score}).`],
+                            confidence_level: "high",
                             warnings: ["Nutritional data is per 100g from Open Food Facts."]
                         });
                     }
+                }
 
+                if (mediumConfidence) {
                     // Hybrid mode context
-                    offContext = "\n\nDATABASE CONTEXT (Open Food Facts):\n" +
-                        products.slice(0, 3).map(p => `- ${p.name} (${p.brand || ''}): Carbs: ${p.carbs100g}g, Fat: ${p.fat100g}g, Protein: ${p.protein100g}g per 100g`).join('\n');
+                    offContext = "\n\nDATABASE CONTEXT (Open Food Facts - Verified Matches):\n" +
+                        sortedResults.filter(r => r.score >= 80).slice(0, 3).map(r => {
+                            const p = r.product;
+                            return `- ${p.name} (${p.brand || ''}): Carbs: ${p.carbs100g}g, Fat: ${p.fat100g}g, Protein: ${p.protein100g}g per 100g`;
+                        }).join('\n');
                 }
             }
 
@@ -135,7 +186,7 @@ export async function POST(request: NextRequest) {
 
         STRATEGY (Follow strictly for images):
         1. IDENTIFY: List visible ingredients.
-        2. VOLUMETRICS: Estimate physical size/volume relative to standard tableware (e.g. "cup size", "fist size").
+        2. VOLUMETRICS: Estimate physical size/volume relative to standard tableware (e.g. "dinner plate is ~25cm", "fork is ~18cm").
         3. DENSITY: Convert volume to weight (g) using standard density factors.
         4. MACROS: Calculate values based on estimated weight.
 
@@ -190,7 +241,8 @@ export async function POST(request: NextRequest) {
         const payload = {
             model: 'sonar', // Using faster sonar model for lower latency
             messages: messages,
-            temperature: 0.2
+            temperature: 0.2,
+            max_tokens: 800 // Limit verbosity for speed
         };
 
         const response = await fetch('https://api.perplexity.ai/chat/completions', {
