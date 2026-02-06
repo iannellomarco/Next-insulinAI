@@ -236,6 +236,7 @@ export async function POST(request: NextRequest) {
         10. Set 'confidence_level' to "high", "medium", or "low" based on data source (High for OCR/Search, Medium for clear estimation, Low for ambiguous).
         11. If precise data is missing, set 'missing_info' to a helpful question string.
         12. Only return error if absolutely certain input is not food-related.
+        13. FRIENDLY_DESCRIPTION RULE: Keep it EXTREMELY CONCISE (Max 3-5 words). Just the product name (e.g. "Gocciole Biscuits"). DO NOT include packaging details, weight info, or nutritional summaries in the title. Put those in 'reasoning'.
         ${offContext}
 
         }`;
