@@ -230,7 +230,7 @@ export async function POST(request: NextRequest) {
             messages.push({
                 role: "user",
                 content: [
-                    { type: "text", text: "Analyze this food." },
+                    { type: "text", text: text && text.trim().length > 0 ? text : "Analyze this food." },
                     { type: "image_url", image_url: { url: image } }
                 ]
             });
