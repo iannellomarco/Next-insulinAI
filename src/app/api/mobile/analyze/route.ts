@@ -238,21 +238,6 @@ export async function POST(request: NextRequest) {
         12. Only return error if absolutely certain input is not food-related.
         ${offContext}
 
-        OUTPUT (valid JSON only, no markdown):
-        {
-          "reasoning": ["STEP 1: Identify items...", "STEP 2: Search/Verify...", "STEP 3: Check Context...", "STEP 4: Calculate..."],
-          "friendly_description":"Short title",
-          "confidence_level": "high|medium|low",
-          "missing_info": "Optional question for user if data is vague (e.g. 'What is the brand?') or null",
-          "food_items":[{"name":"Food name","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
-          "total_carbs":0,
-          "total_fat":0,
-          "total_protein":0,
-          "suggested_insulin":0,
-          "calculation_formula": "Exact math string",
-          "sources": ["Source 1", "Source 2"],
-          "split_bolus_recommendation":{"recommended":false,"split_percentage":"","duration":"","reason":""},
-          "warnings":[]
         }`;
 
         // 3. Construct Messages
@@ -277,10 +262,61 @@ export async function POST(request: NextRequest) {
 
         // 4. Call Perplexity
         const payload = {
-            model: 'sonar', // Using faster sonar model for lower latency
+            model: 'sonar-pro', // Using sonar-pro for better instruction following and schema support
             messages: messages,
             temperature: 0.2,
-            max_tokens: 800 // Limit verbosity for speed
+            max_tokens: 1000,
+            response_format: {
+                type: 'json_schema',
+                json_schema: {
+                    schema: {
+                        type: 'object',
+                        properties: {
+                            reasoning: { type: 'array', items: { type: 'string' } },
+                            friendly_description: { type: 'string' },
+                            confidence_level: { type: 'string', enum: ['high', 'medium', 'low'] },
+                            missing_info: { type: ['string', 'null'] },
+                            food_items: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        name: { type: 'string' },
+                                        carbs: { type: 'number' },
+                                        fat: { type: 'number' },
+                                        protein: { type: 'number' },
+                                        approx_weight: { type: ['string', 'null'] }
+                                    },
+                                    required: ['name', 'carbs', 'fat', 'protein']
+                                }
+                            },
+                            total_carbs: { type: 'number' },
+                            total_fat: { type: 'number' },
+                            total_protein: { type: 'number' },
+                            suggested_insulin: { type: 'number' },
+                            calculation_formula: { type: 'string' },
+                            sources: { type: 'array', items: { type: 'string' } },
+                            split_bolus_recommendation: {
+                                type: 'object',
+                                properties: {
+                                    recommended: { type: 'boolean' },
+                                    split_percentage: { type: 'string' },
+                                    duration: { type: 'string' },
+                                    reason: { type: 'string' }
+                                },
+                                required: ['recommended']
+                            },
+                            warnings: { type: 'array', items: { type: 'string' } }
+                        },
+                        required: [
+                            'reasoning', 'friendly_description', 'confidence_level',
+                            'food_items', 'total_carbs', 'total_fat', 'total_protein',
+                            'suggested_insulin', 'calculation_formula', 'sources',
+                            'split_bolus_recommendation'
+                        ]
+                    }
+                }
+            }
         };
 
         const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -302,19 +338,27 @@ export async function POST(request: NextRequest) {
         const content = data.choices?.[0]?.message?.content;
 
         // 5. Parse JSON
-        // Robust parsing logic from web
-        const jsonString = content.replace(/```json\n?|\n?```/g, '').trim();
-
-        // Try finding first { and last }
-        const firstBrace = jsonString.indexOf('{');
-        const lastBrace = jsonString.lastIndexOf('}');
-        let cleanJson = jsonString;
-        if (firstBrace !== -1 && lastBrace !== -1) {
-            cleanJson = jsonString.substring(firstBrace, lastBrace + 1);
-        }
-
+        // With json_schema, content is guaranteed to be valid JSON
         try {
-            const result = JSON.parse(cleanJson);
+            const result = JSON.parse(content);
+
+            // POST-PROCESSING SAFETY NET (Deterministic Enforcement)
+            // If the AI returns 0 insulin for recognized food but forgot to set 'missing_info', we force it here.
+            // This ensures the UI "Refinement Card" ALWAYS triggers.
+            if (result.suggested_insulin === 0 && result.food_items && result.food_items.length > 0 && !result.missing_info) {
+                const missingInfoQuestion = language === 'Italian'
+                    ? "Quantità mancante. Quanti pezzi o grammi hai mangiato?"
+                    : "Quantity missing. How many pieces or grams did you eat?";
+
+                result.missing_info = missingInfoQuestion;
+                result.warnings = [...(result.warnings || []), "Auto-generated missing info request"];
+
+                // Also wipe the calculation formula to avoid confusion
+                if (result.calculation_formula) {
+                    result.calculation_formula += " (Waiting for user input)";
+                }
+            }
+
             return NextResponse.json(result);
         } catch (e) {
             console.error('Failed to parse AI response:', content);
