@@ -224,9 +224,10 @@ export async function POST(request: NextRequest) {
                "calculation_formula": "Carbs known (7g/item) * Unknown Qty = 0U",
                ...
              }
-        4. LOGIC SAFETY NET:
-           - IF suggested_insulin is 0 AND food_items is not empty: YOU MUST POPULATE 'missing_info'.
-           - Do not leave missing_info null if the result is 0 because of missing quantity.
+        4. CRITICAL LOGIC ENFORCEMENT for USER INTERACTION:
+           - IF suggested_insulin is 0 due to missing quantity: YOU MUST POPULATE 'missing_info'.
+           - EXPLAINING IT IN 'calculation_formula' OR 'reasoning' IS NOT ENOUGH. The 'missing_info' field controls the UI popup.
+           - Rule: (suggested_insulin == 0 && food_items.length > 0) => missing_info != null.
         5. Calculate insulin using 1:${carbRatio} carb ratio.
         6. Flag split bolus if fat>20g AND protein>25g.
         7. Preserve user's specific food name but fix typos. Respond in ${language}.
