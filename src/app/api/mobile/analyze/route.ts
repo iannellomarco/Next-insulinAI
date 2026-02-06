@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
 
         OUTPUT (valid JSON only, no markdown):
         {
+          "reasoning": ["STEP 1: Identify items...", "STEP 2: Search/Verify...", "STEP 3: Calculate..."],
           "friendly_description":"Short title",
           "confidence_level": "high|medium|low",
           "food_items":[{"name":"Food name","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
@@ -217,7 +218,6 @@ export async function POST(request: NextRequest) {
           "calculation_formula": "Exact math string",
           "sources": ["Source 1", "Source 2"],
           "split_bolus_recommendation":{"recommended":false,"split_percentage":"","duration":"","reason":""},
-          "reasoning":["Step 1","Step 2"],
           "warnings":[]
         }`;
 
