@@ -184,21 +184,25 @@ export async function POST(request: NextRequest) {
 
         TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
 
-        STRATEGY (Follow strictly for images):
-        1. IDENTIFY: List visible ingredients.
-        2. VOLUMETRICS: Estimate physical size/volume relative to standard tableware (e.g. "dinner plate is ~25cm", "fork is ~18cm").
-        3. DENSITY: Convert volume to weight (g) using standard density factors.
-        4. MACROS: Calculate values based on estimated weight.
+        STRATEGY:
+        1. IDENTIFY & OCR: Identify food items, brands, and READ ALL VISIBLE TEXT (especially nutritional labels, packaging details, and weight specifications like "15g per biscuit").
+        2. SEARCH & VERIFY: If a brand or specific product name is found, perform a web search to find its official nutritional values (e.g., "Barilla Penne carbs per 100g") to verify assumptions.
+        3. PRIORITIZE DATA:
+           - GROUND TRUTH 1: Text read directly from a nutritional label or package in the image (OCR).
+           - GROUND TRUTH 2: Official data found via web search for a specific branded product.
+           - ESTIMATION: Use visual volumetric estimation relative to tableware ONLY if no labels or search data are available.
+        4. CALCULATE: Use Ground Truth values if available. If a label specifies weight per portion/unit, use that weight instead of visual eyeballing.
 
         RULES:
         1. ALWAYS assume the input is food unless it's clearly unrelated. Be VERY lenient.
-        2. Calculate insulin using 1:${carbRatio} carb ratio.
-        3. Flag split bolus if fat>20g AND protein>25g.
-        4. Preserve user's specific food name but fix typos. Respond in ${language}.
-        5. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
-        6. List nutritional data sources in 'sources' (e.g. "USDA", "General estimate").
-        7. Set 'confidence_level' to "high", "medium", or "low" based on image clarity and ambiguity.
-        8. Only return error if absolutely certain input is not food-related.
+        2. OCR and Search data MUST override visual volumetric estimation. Do not eyeball size if text/labels provide facts.
+        3. Calculate insulin using 1:${carbRatio} carb ratio.
+        4. Flag split bolus if fat>20g AND protein>25g.
+        5. Preserve user's specific food name but fix typos. Respond in ${language}.
+        6. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
+        7. List nutritional data sources in 'sources' (e.g. "OCR from image label", "Web Search for [Brand]", "USDA").
+        8. Set 'confidence_level' to "high", "medium", or "low" based on data source (High for OCR/Search, Medium for clear estimation, Low for ambiguous).
+        9. Only return error if absolutely certain input is not food-related.
         ${offContext}
 
         OUTPUT (valid JSON only, no markdown):
