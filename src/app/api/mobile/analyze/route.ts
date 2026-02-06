@@ -204,9 +204,14 @@ export async function POST(request: NextRequest) {
            - GROUND TRUTH 2: Official "per item" data found via web search for a specific branded product.
            - ESTIMATION: Use visual volumetric estimation relative to tableware ONLY if no labels or search data are available.
         4. MISSING INFO:
-           - If you are forced to make a rough guess because of missing details (brand, flavor, exact weight), you MUST populate the 'missing_info' field.
-           - Ask the user specifically for what is missing (e.g., "What specific brand is this?", "How much does this weigh?").
-        5. CALCULATE: Use Ground Truth values if available. If a label specifies weight per portion/unit, use that weight instead of visual eyeballing.
+           - If you are forced to make a rough guess because of missing details (brand, flavor), you MUST populate the 'missing_info' field.
+           - CRITICAL: If you have "per item" data (e.g. 1 biscuit = 7g) but DO NOT know the quantity/count (e.g. how many biscuits in the image), you MUST populate 'missing_info' with a question like "How many biscuits did you eat?".
+           - Ask the user specifically for what is missing.
+
+        5. CALCULATE: 
+           - Use Ground Truth values if available. 
+           - If a label specifies weight per portion/unit, use that weight instead of visual eyeballing.
+           - If 'missing_info' is populated, set suggested_insulin to 0 and explain why in 'calculation_formula'.
 
         RULES:
         1. ALWAYS assume the input is food unless it's clearly unrelated. Be VERY lenient.
