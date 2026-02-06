@@ -16,11 +16,11 @@ export async function POST(request: NextRequest) {
 
         // In strict mode check userId... (logic preserved)
 
-        const { text, image, userSettings, mealPeriod } = body; // image is base64 string
+        const { text, image, userSettings, mealPeriod, previous_analysis } = body; // image is base64 string
 
         // Validate inputs
-        if (!text && !image) {
-            return NextResponse.json({ error: 'Input required (text or image)' }, { status: 400 });
+        if (!text && !image && !previous_analysis) {
+            return NextResponse.json({ error: 'Input required (text, image, or previous_analysis)' }, { status: 400 });
         }
 
         const apiKey = process.env.PERPLEXITY_API_KEY;
@@ -179,19 +179,34 @@ export async function POST(request: NextRequest) {
 
         const type = image ? 'image' : 'text';
 
+        const previousContext = previous_analysis ?
+            `\nPREVIOUS ANALYSIS CONTEXT:
+            The user is Refining a previous analysis.
+            PREVIOUS RESULT: ${JSON.stringify(previous_analysis)}
+            USER FEEDBACK/UPDATE: "${text}"
+            
+            TASK ADJUSTMENT: Use the PREVIOUS RESULT as a starting point. Trust valid parts of it. Update only what needs changing based on USER FEEDBACK. If the user provides the missing info, remove the 'missing_info' flag.`
+            : "";
+
         const instructions = `You are a diabetes nutrition assistant.
         LANGUAGE: ${language}
 
         TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
+        ${previousContext}
 
         STRATEGY:
         1. IDENTIFY & OCR: Identify food items, brands, and READ ALL VISIBLE TEXT (especially nutritional labels, packaging details, and weight specifications like "15g per biscuit").
-        2. SEARCH & VERIFY: If a brand or specific product name is found, perform a web search to find its official nutritional values (e.g., "Barilla Penne carbs per 100g") to verify assumptions.
+        2. SEARCH & VERIFY: 
+           - If a brand or specific product name is found, perform a web search to find its official nutritional values (e.g., "Barilla Penne carbs per 100g").
+           - DO NOT just stop at '/100g' values. Actively search for and report 'per item', 'per portion', or 'per biscuit' values to be more precise.
         3. PRIORITIZE DATA:
            - GROUND TRUTH 1: Text read directly from a nutritional label or package in the image (OCR).
-           - GROUND TRUTH 2: Official data found via web search for a specific branded product.
+           - GROUND TRUTH 2: Official "per item" data found via web search for a specific branded product.
            - ESTIMATION: Use visual volumetric estimation relative to tableware ONLY if no labels or search data are available.
-        4. CALCULATE: Use Ground Truth values if available. If a label specifies weight per portion/unit, use that weight instead of visual eyeballing.
+        4. MISSING INFO:
+           - If you are forced to make a rough guess because of missing details (brand, flavor, exact weight), you MUST populate the 'missing_info' field.
+           - Ask the user specifically for what is missing (e.g., "What specific brand is this?", "How much does this weigh?").
+        5. CALCULATE: Use Ground Truth values if available. If a label specifies weight per portion/unit, use that weight instead of visual eyeballing.
 
         RULES:
         1. ALWAYS assume the input is food unless it's clearly unrelated. Be VERY lenient.
@@ -202,14 +217,16 @@ export async function POST(request: NextRequest) {
         6. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
         7. List nutritional data sources in 'sources' (e.g. "OCR from image label", "Web Search for [Brand]", "USDA").
         8. Set 'confidence_level' to "high", "medium", or "low" based on data source (High for OCR/Search, Medium for clear estimation, Low for ambiguous).
-        9. Only return error if absolutely certain input is not food-related.
+        9. If precise data is missing, set 'missing_info' to a helpful question string.
+        10. Only return error if absolutely certain input is not food-related.
         ${offContext}
 
         OUTPUT (valid JSON only, no markdown):
         {
-          "reasoning": ["STEP 1: Identify items...", "STEP 2: Search/Verify...", "STEP 3: Calculate..."],
+          "reasoning": ["STEP 1: Identify items...", "STEP 2: Search/Verify...", "STEP 3: Check Context...", "STEP 4: Calculate..."],
           "friendly_description":"Short title",
           "confidence_level": "high|medium|low",
+          "missing_info": "Optional question for user if data is vague (e.g. 'What is the brand?') or null",
           "food_items":[{"name":"Food name","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
           "total_carbs":0,
           "total_fat":0,
