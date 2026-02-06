@@ -224,14 +224,17 @@ export async function POST(request: NextRequest) {
                "calculation_formula": "Carbs known (7g/item) * Unknown Qty = 0U",
                ...
              }
-        4. Calculate insulin using 1:${carbRatio} carb ratio.
-        5. Flag split bolus if fat>20g AND protein>25g.
-        5. Preserve user's specific food name but fix typos. Respond in ${language}.
-        6. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
-        7. List nutritional data sources in 'sources' (e.g. "OCR from image label", "Web Search for [Brand]", "USDA").
-        8. Set 'confidence_level' to "high", "medium", or "low" based on data source (High for OCR/Search, Medium for clear estimation, Low for ambiguous).
-        9. If precise data is missing, set 'missing_info' to a helpful question string.
-        10. Only return error if absolutely certain input is not food-related.
+        4. LOGIC SAFETY NET:
+           - IF suggested_insulin is 0 AND food_items is not empty: YOU MUST POPULATE 'missing_info'.
+           - Do not leave missing_info null if the result is 0 because of missing quantity.
+        5. Calculate insulin using 1:${carbRatio} carb ratio.
+        6. Flag split bolus if fat>20g AND protein>25g.
+        7. Preserve user's specific food name but fix typos. Respond in ${language}.
+        8. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
+        9. List nutritional data sources in 'sources' (e.g. "OCR from image label", "Web Search for [Brand]", "USDA").
+        10. Set 'confidence_level' to "high", "medium", or "low" based on data source (High for OCR/Search, Medium for clear estimation, Low for ambiguous).
+        11. If precise data is missing, set 'missing_info' to a helpful question string.
+        12. Only return error if absolutely certain input is not food-related.
         ${offContext}
 
         OUTPUT (valid JSON only, no markdown):
