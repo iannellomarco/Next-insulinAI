@@ -216,8 +216,16 @@ export async function POST(request: NextRequest) {
         RULES:
         1. ALWAYS assume the input is food unless it's clearly unrelated. Be VERY lenient.
         2. OCR and Search data MUST override visual volumetric estimation. Do not eyeball size if text/labels provide facts.
-        3. Calculate insulin using 1:${carbRatio} carb ratio.
-        4. Flag split bolus if fat>20g AND protein>25g.
+        3. EXTRACT QUANTITY FROM USER IF UNKNOWN:
+           - Example JSON for "1 biscuit = 7g" but unknown count:
+             {
+               "missing_info": "I found Gocciole (7g carbs each), but how many did you eat?",
+               "suggested_insulin": 0,
+               "calculation_formula": "Carbs known (7g/item) * Unknown Qty = 0U",
+               ...
+             }
+        4. Calculate insulin using 1:${carbRatio} carb ratio.
+        5. Flag split bolus if fat>20g AND protein>25g.
         5. Preserve user's specific food name but fix typos. Respond in ${language}.
         6. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
         7. List nutritional data sources in 'sources' (e.g. "OCR from image label", "Web Search for [Brand]", "USDA").
