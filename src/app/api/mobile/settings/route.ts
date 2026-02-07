@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { userSettings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
+import { encryptField, decryptField } from '@/lib/crypto';
 
 // GET: Fetch user settings
 export async function GET() {
@@ -21,6 +22,9 @@ export async function GET() {
         const row = result[0];
         const defaultCarbRatios = { breakfast: 8, lunch: 10, dinner: 12 };
 
+        // Decrypt password before sending to client
+        const decryptedPassword = row.librePassword ? decryptField(row.librePassword) : '';
+
         return NextResponse.json({
             carbRatio: row.carbRatio || 10,
             carbRatios: row.carbRatios || defaultCarbRatios,
@@ -31,7 +35,7 @@ export async function GET() {
             lowThreshold: row.lowThreshold || 70,
             smartHistory: row.smartHistory ?? true,
             libreUsername: row.libreUsername || '',
-            librePassword: row.librePassword || '',
+            librePassword: decryptedPassword,
             language: row.language || 'en',
             analysisMode: row.analysisMode || 'pplx_only',
             aiProvider: row.aiProvider || 'perplexity',
@@ -52,6 +56,9 @@ export async function POST(request: NextRequest) {
     try {
         const settings = await request.json();
 
+        // Encrypt password before storing
+        const encryptedPassword = settings.librePassword ? encryptField(settings.librePassword) : '';
+
         await db.insert(userSettings).values({
             userId,
             carbRatio: settings.carbRatio,
@@ -63,7 +70,7 @@ export async function POST(request: NextRequest) {
             lowThreshold: settings.lowThreshold,
             smartHistory: settings.smartHistory,
             libreUsername: settings.libreUsername,
-            librePassword: settings.librePassword,
+            librePassword: encryptedPassword,
             language: settings.language,
             analysisMode: settings.analysisMode,
             aiProvider: settings.aiProvider,
@@ -79,7 +86,7 @@ export async function POST(request: NextRequest) {
                 lowThreshold: settings.lowThreshold,
                 smartHistory: settings.smartHistory,
                 libreUsername: settings.libreUsername,
-                librePassword: settings.librePassword,
+                librePassword: encryptedPassword,
                 language: settings.language,
                 analysisMode: settings.analysisMode,
                 aiProvider: settings.aiProvider,
