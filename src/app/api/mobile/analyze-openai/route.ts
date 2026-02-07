@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Call OpenAI
+        // Call OpenAI with structured outputs
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -108,10 +108,65 @@ export async function POST(request: NextRequest) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-5-mini', // Fast and capable, good for food analysis
+                model: 'gpt-5-mini',
                 messages: messages,
-                max_completion_tokens: 1000,
-                response_format: { type: 'json_object' }
+                max_completion_tokens: 2000,
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'food_analysis',
+                        strict: true,
+                        schema: {
+                            type: 'object',
+                            properties: {
+                                reasoning: { type: 'array', items: { type: 'string' } },
+                                friendly_description: { type: 'string' },
+                                confidence_level: { type: 'string', enum: ['high', 'medium', 'low'] },
+                                missing_info: { type: ['string', 'null'] },
+                                food_items: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            name: { type: 'string' },
+                                            carbs: { type: 'number' },
+                                            fat: { type: 'number' },
+                                            protein: { type: 'number' },
+                                            approx_weight: { type: ['string', 'null'] }
+                                        },
+                                        required: ['name', 'carbs', 'fat', 'protein'],
+                                        additionalProperties: false
+                                    }
+                                },
+                                total_carbs: { type: 'number' },
+                                total_fat: { type: 'number' },
+                                total_protein: { type: 'number' },
+                                suggested_insulin: { type: 'number' },
+                                calculation_formula: { type: 'string' },
+                                sources: { type: 'array', items: { type: 'string' } },
+                                split_bolus_recommendation: {
+                                    type: 'object',
+                                    properties: {
+                                        recommended: { type: 'boolean' },
+                                        split_percentage: { type: 'string' },
+                                        duration: { type: 'string' },
+                                        reason: { type: 'string' }
+                                    },
+                                    required: ['recommended', 'split_percentage', 'duration', 'reason'],
+                                    additionalProperties: false
+                                },
+                                warnings: { type: 'array', items: { type: 'string' } }
+                            },
+                            required: [
+                                'reasoning', 'friendly_description', 'confidence_level',
+                                'food_items', 'total_carbs', 'total_fat', 'total_protein',
+                                'suggested_insulin', 'calculation_formula', 'sources',
+                                'split_bolus_recommendation', 'warnings'
+                            ],
+                            additionalProperties: false
+                        }
+                    }
+                }
             })
         });
 
