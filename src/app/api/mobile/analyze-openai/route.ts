@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
                 model: 'gpt-5-mini', // Fast and capable, good for food analysis
                 messages: messages,
                 temperature: 0.2,
-                max_tokens: 1000,
+                max_completion_tokens: 1000,
                 response_format: { type: 'json_object' }
             })
         });
