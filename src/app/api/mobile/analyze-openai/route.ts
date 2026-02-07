@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-4o-mini',
+                model: 'gpt-5-mini',
                 messages: messages,
                 max_completion_tokens: 2000,
                 response_format: {
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
                                             protein: { type: 'number' },
                                             approx_weight: { type: ['string', 'null'] }
                                         },
-                                        required: ['name', 'carbs', 'fat', 'protein'],
+                                        required: ['name', 'carbs', 'fat', 'protein', 'approx_weight'],
                                         additionalProperties: false
                                     }
                                 },
