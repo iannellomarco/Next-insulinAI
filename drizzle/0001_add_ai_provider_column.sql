@@ -1,0 +1,2 @@
+ALTER TABLE "user_settings" ADD COLUMN "analysis_mode" text DEFAULT 'pplx_only' NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_settings" ADD COLUMN "ai_provider" text DEFAULT 'perplexity' NOT NULL;

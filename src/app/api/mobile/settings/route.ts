@@ -34,6 +34,7 @@ export async function GET() {
             librePassword: row.librePassword || '',
             language: row.language || 'en',
             analysisMode: row.analysisMode || 'pplx_only',
+            aiProvider: row.aiProvider || 'perplexity',
         });
     } catch (error) {
         console.error('Failed to fetch settings:', error);
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
             librePassword: settings.librePassword,
             language: settings.language,
             analysisMode: settings.analysisMode,
+            aiProvider: settings.aiProvider,
         }).onConflictDoUpdate({
             target: userSettings.userId,
             set: {
@@ -80,6 +82,7 @@ export async function POST(request: NextRequest) {
                 librePassword: settings.librePassword,
                 language: settings.language,
                 analysisMode: settings.analysisMode,
+                aiProvider: settings.aiProvider,
                 updatedAt: new Date()
             }
         });

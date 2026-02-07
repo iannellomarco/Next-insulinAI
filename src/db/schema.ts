@@ -25,6 +25,7 @@ export const userSettings = pgTable('user_settings', {
     librePassword: text('libre_password'),
     language: text('language').default('en').notNull(),
     analysisMode: text('analysis_mode').default('pplx_only').notNull(),
+    aiProvider: text('ai_provider').default('perplexity').notNull(), // 'perplexity' or 'openai'
     mealRemindersEnabled: boolean('meal_reminders_enabled').default(false),
     reminderTimes: jsonb('reminder_times'), // { breakfast: number, lunch: number, dinner: number }
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

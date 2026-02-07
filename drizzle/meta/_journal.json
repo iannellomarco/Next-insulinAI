@@ -8,6 +8,13 @@
       "when": 1770224273077,
       "tag": "0000_magical_rafael_vega",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770453567539,
+      "tag": "0001_add_ai_provider_column",
+      "breakpoints": true
     }
   ]
 }
