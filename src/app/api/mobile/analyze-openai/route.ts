@@ -1,9 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
-
 export const runtime = 'edge';
-
 /**
  * OpenAI-powered food analysis endpoint
  * Uses GPT-4o-mini for fast, cost-effective analysis
@@ -13,23 +11,21 @@ export const runtime = 'edge';
 export async function POST(request: NextRequest) {
     const authPromise = auth();
     const bodyPromise = request.json();
-
     try {
         const [{ userId }, body] = await Promise.all([authPromise, bodyPromise]);
-
+        // Check authentication
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
         const { text, image, userSettings, mealPeriod, previous_analysis } = body;
-
         if (!text && !image && !previous_analysis) {
             return NextResponse.json({ error: 'Input required (text, image, or previous_analysis)' }, { status: 400 });
         }
-
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) {
             return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
         }
-
         const language = userSettings?.language === 'it' ? 'Italian' : 'English';
-
         let carbRatio = userSettings?.carbRatio || 10;
         if (userSettings?.useMealSpecificRatios && userSettings?.carbRatios) {
             if (mealPeriod && ['breakfast', 'lunch', 'dinner'].includes(mealPeriod)) {
@@ -38,9 +34,7 @@ export async function POST(request: NextRequest) {
                 carbRatio = getCarbRatioForCurrentMeal(userSettings);
             }
         }
-
         const type = image ? 'image' : 'text';
-
         const previousContext = previous_analysis ?
             `\nPREVIOUS ANALYSIS CONTEXT:
             The user is Refining a previous analysis.
@@ -49,13 +43,10 @@ export async function POST(request: NextRequest) {
             
             TASK ADJUSTMENT: Use the PREVIOUS RESULT as a starting point. Trust valid parts of it. Update only what needs changing based on USER FEEDBACK. If the user provides the missing info, remove the 'missing_info' flag.`
             : "";
-
         const instructions = `You are a diabetes nutrition assistant.
         LANGUAGE: ${language}
-
         TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
         ${previousContext}
-
         RULES:
         1. Identify food items, estimate carbs, fat, protein.
         2. Calculate insulin using 1:${carbRatio} carb ratio.
@@ -63,7 +54,6 @@ export async function POST(request: NextRequest) {
         4. Set confidence_level to "high", "medium", or "low".
         5. FRIENDLY_DESCRIPTION: Max 3-5 words, just the product name.
         6. Respond in ${language}.
-
         RESPOND IN THIS EXACT JSON FORMAT:
         {
             "reasoning": ["step 1", "step 2"],
@@ -80,11 +70,9 @@ export async function POST(request: NextRequest) {
             "split_bolus_recommendation": {"recommended": false, "split_percentage": "", "duration": "", "reason": ""},
             "warnings": []
         }`;
-
         const messages: any[] = [
             { role: "system", content: instructions }
         ];
-
         if (type === 'image' && image) {
             messages.push({
                 role: "user",
@@ -99,7 +87,6 @@ export async function POST(request: NextRequest) {
                 content: `Food: ${text}`
             });
         }
-
         // Call OpenAI with structured outputs
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -108,7 +95,7 @@ export async function POST(request: NextRequest) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-5-mini',
+                model: 'gpt-4o-mini',
                 messages: messages,
                 max_completion_tokens: 2000,
                 response_format: {
@@ -122,7 +109,10 @@ export async function POST(request: NextRequest) {
                                 reasoning: { type: 'array', items: { type: 'string' } },
                                 friendly_description: { type: 'string' },
                                 confidence_level: { type: 'string', enum: ['high', 'medium', 'low'] },
-                                missing_info: { type: ['string', 'null'] },
+                                missing_info: {
+                                    type: ['string', 'null'],
+                                    description: 'Question to ask user if quantity is unknown, or null if all info is available'
+                                },
                                 food_items: {
                                     type: 'array',
                                     items: {
@@ -169,34 +159,41 @@ export async function POST(request: NextRequest) {
                 }
             })
         });
-
         if (!response.ok) {
             const errorText = await response.text();
             console.error('OpenAI API Error:', errorText);
-            return NextResponse.json({ error: 'OpenAI Analysis failed' }, { status: 500 });
+            return NextResponse.json({ error: 'OpenAI Analysis failed', details: errorText }, { status: 500 });
         }
-
         const data = await response.json();
+
+        // Handle OpenAI response - content is already JSON when using json_schema
+        let result;
         const content = data.choices?.[0]?.message?.content;
 
-        try {
-            const result = JSON.parse(content);
-
-            // Safety net: ensure missing_info is set if insulin is 0 with recognized food
-            if (result.suggested_insulin === 0 && result.food_items?.length > 0 && !result.missing_info) {
-                result.missing_info = language === 'Italian'
-                    ? "Quantità mancante. Quanti pezzi o grammi hai mangiato?"
-                    : "Quantity missing. How many pieces or grams did you eat?";
+        if (typeof content === 'string') {
+            try {
+                result = JSON.parse(content);
+            } catch (e) {
+                console.error('Failed to parse OpenAI response:', content);
+                return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 });
             }
-
-            return NextResponse.json(result);
-        } catch (e) {
-            console.error('Failed to parse OpenAI response:', content);
-            return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 });
+        } else if (typeof content === 'object' && content !== null) {
+            // Sometimes OpenAI returns the object directly
+            result = content;
+        } else {
+            console.error('Unexpected OpenAI response format:', data);
+            return NextResponse.json({ error: 'Unexpected AI response format' }, { status: 500 });
         }
-
+        // Safety net: ensure missing_info is set if insulin is 0 with recognized food
+        if (result.suggested_insulin === 0 && result.food_items?.length > 0 && !result.missing_info) {
+            result.missing_info = language === 'Italian'
+                ? "Quantità mancante. Quanti pezzi o grammi hai mangiato?"
+                : "Quantity missing. How many pieces or grams did you eat?";
+            result.warnings = [...(result.warnings || []), "Auto-generated missing info request"];
+        }
+        return NextResponse.json(result);
     } catch (error) {
         console.error('OpenAI Analysis error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error', details: String(error) }, { status: 500 });
     }
 }
