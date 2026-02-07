@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
                                 warnings: { type: 'array', items: { type: 'string' } }
                             },
                             required: [
-                                'reasoning', 'friendly_description', 'confidence_level',
+                                'reasoning', 'friendly_description', 'confidence_level', 'missing_info',
                                 'food_items', 'total_carbs', 'total_fat', 'total_protein',
                                 'suggested_insulin', 'calculation_formula', 'sources',
                                 'split_bolus_recommendation', 'warnings'
