@@ -104,38 +104,30 @@ export async function POST(req: NextRequest) {
                 `${item.name}: ${item.carbs}g carbs, ${item.fat}g fat, ${item.protein}g protein per ${item.approx_weight || '100g'}`
             ).join('; ');
 
-            const followUpPrompt = `Calculate insulin for: ${productName}
-Nutrition per 100g: C=${firstItem.carbs}g F=${firstItem.fat}g P=${firstItem.protein}g
-User consumed: "${text}"
-Ratio: 1:${carbRatio}`;
+            const followUpPrompt = `TASK: Calculate nutritional values and insulin dose.
+
+INPUT:
+- Product: ${productName}
+- Nutrition per 100g: Carbs=${firstItem.carbs}g, Fat=${firstItem.fat}g, Protein=${firstItem.protein}g
+- User consumed: "${text}"
+- Insulin ratio: 1:${carbRatio}
+
+OUTPUT: Return ONLY this JSON structure, nothing else before or after:
+{"total_carbs":0,"total_fat":0,"total_protein":0,"suggested_insulin":0,"calculation_formula":""}
+
+Fill in the numbers based on user's quantity. Round to 1 decimal.`;
 
             try {
                 const response = await client.responses.create({
                     model: 'openai/gpt-5-mini',
                     input: followUpPrompt,
-                    max_output_tokens: 200,
+                    max_output_tokens: 150,
                     tools: [],
-                    response_format: {
-                        type: 'json_schema',
-                        json_schema: {
-                            schema: {
-                                type: 'object',
-                                properties: {
-                                    total_carbs: { type: 'number' },
-                                    total_fat: { type: 'number' },
-                                    total_protein: { type: 'number' },
-                                    suggested_insulin: { type: 'number' },
-                                    calculation_formula: { type: 'string' }
-                                },
-                                required: ['total_carbs', 'total_fat', 'total_protein', 'suggested_insulin', 'calculation_formula']
-                            }
-                        }
-                    }
                 } as any);
 
                 console.log('[Follow-up] AI response:', response.output_text);
 
-                const structured = JSON.parse(response.output_text ?? '{}');
+                const structured = extractJSON(response.output_text ?? '');
 
                 return NextResponse.json({
                     friendly_description: `${productName} (${text})`,
