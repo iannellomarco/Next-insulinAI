@@ -11,6 +11,9 @@ importers:
       '@clerk/nextjs':
         specifier: ^6.37.1
         version: 6.37.1(next@16.1.6(@babel/core@7.28.6)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@perplexity-ai/perplexity_ai':
+        specifier: ^0.23.0
+        version: 0.23.0
       '@supabase/ssr':
         specifier: ^0.8.0
         version: 0.8.0(@supabase/supabase-js@2.93.3)
@@ -797,6 +800,9 @@ packages:
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
+
+  '@perplexity-ai/perplexity_ai@0.23.0':
+    resolution: {integrity: sha512-NmOgDW1rKNYvQ9/TYqIwG0Qhca8/PokJNTTcyl2fTofGtB/YKYUR9eMbndic+LBDzgj08dLKMb3zVzD8+OADKg==}
 
   '@reduxjs/toolkit@2.11.2':
     resolution: {integrity: sha512-Kd6kAHTA6/nUpp8mySPqj3en3dm0tdMIgbttnQ1xFMVpufoj+ADi8pXLBsd4xzTRHQa7t/Jv8W5UnCuW4kuWMQ==}
@@ -3285,6 +3291,8 @@ snapshots:
       fastq: 1.20.1
 
   '@nolyfill/is-core-module@1.0.39': {}
+
+  '@perplexity-ai/perplexity_ai@0.23.0': {}
 
   '@reduxjs/toolkit@2.11.2(react-redux@9.2.0(@types/react@19.2.10)(react@19.2.3)(redux@5.0.1))(react@19.2.3)':
     dependencies:
