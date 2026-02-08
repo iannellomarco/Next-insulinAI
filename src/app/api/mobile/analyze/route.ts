@@ -42,7 +42,7 @@ Query: ${query}`;
             max_output_tokens: 512,
         });
 
-        const structured = extractJSON(response.output_text);
+        const structured = extractJSON(response.output_text ?? '');
 
         return NextResponse.json({
             ok: true,
