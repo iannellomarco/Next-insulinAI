@@ -1,4 +1,4 @@
-// route.ts - Perplexity SDK with iOS-compatible output
+// route.ts - Perplexity SDK with text + image support
 import Perplexity from '@perplexity-ai/perplexity_ai';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -36,10 +36,8 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        const query = text || 'Analyze food from image';
-
-        // Prompt engineered for iOS-compatible structured output
-        const prompt = `You are a diabetes nutrition assistant. Language: ${language}
+        // Build prompt for iOS-compatible structured output
+        const systemPrompt = `You are a diabetes nutrition assistant. Language: ${language}
 
 Return ONLY valid JSON. No prose. No markdown.
 
@@ -65,13 +63,40 @@ Rules:
 - If quantity unknown, set suggested_insulin=0 and populate missing_info
 - calculation_formula example: "25g carbs / 10 ratio = 2.5U"
 - Use web search for accurate nutritional data
-- Respond in ${language}
+- If analyzing an image, identify visible foods and read any nutrition labels
+- Respond in ${language}`;
 
-Query: ${query}`;
+        // Build input in the correct format for Perplexity SDK
+        // Must use role/content structure with input_text and input_image types
+        const userContent: any[] = [
+            { type: 'input_text', text: systemPrompt }
+        ];
+
+        if (image) {
+            // Add image input
+            userContent.push({
+                type: 'input_image',
+                image_url: image // base64 data URI from iOS
+            });
+            // Add user query
+            if (text && text.trim().length > 0) {
+                userContent.push({ type: 'input_text', text: `User note: ${text}` });
+            } else {
+                userContent.push({ type: 'input_text', text: 'Analyze the food in this image.' });
+            }
+        } else {
+            // Text only
+            userContent.push({ type: 'input_text', text: `Query: ${text}` });
+        }
 
         const response = await client.responses.create({
             preset: 'fast-search',
-            input: prompt,
+            input: [
+                {
+                    role: 'user',
+                    content: userContent
+                }
+            ],
             max_output_tokens: 1024,
         });
 
@@ -79,7 +104,7 @@ Query: ${query}`;
 
         // Ensure all required fields exist with defaults
         const result = {
-            friendly_description: structured.friendly_description || query,
+            friendly_description: structured.friendly_description || (text || 'Food analysis'),
             food_items: structured.food_items || [],
             total_carbs: structured.total_carbs || 0,
             total_fat: structured.total_fat || 0,
