@@ -377,7 +377,6 @@ Respond with ONLY valid JSON (no markdown, no explanations outside JSON):
                 }
             ] as any,
             max_output_tokens: 2048,
-            temperature: 0.1,
         });
 
         // Log risposta per debug
