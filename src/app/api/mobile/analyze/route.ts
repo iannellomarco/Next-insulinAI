@@ -5,6 +5,101 @@ import { searchOFF } from '@/lib/off-service';
 
 export const runtime = 'edge'; // Enable Vercel Edge Runtime for 0ms cold starts
 
+// Lightweight refinement calculator (ZERO Perplexity calls!)
+function handleLightweightRefinement(text: string, carbRatio: number, language: string): any | null {
+    if (!text.startsWith('__LIGHTWEIGHT_REFINEMENT__:')) {
+        return null;
+    }
+
+    try {
+        const jsonStr = text.replace('__LIGHTWEIGHT_REFINEMENT__:', '');
+        const params = JSON.parse(jsonStr);
+
+        const { refinement_type, value, item_name, nutrition_per_100g, package_weight_hint } = params;
+
+        const carbsPer100g = nutrition_per_100g?.carbs || 0;
+        const fatPer100g = nutrition_per_100g?.fat || 0;
+        const proteinPer100g = nutrition_per_100g?.protein || 0;
+
+        if (carbsPer100g === 0) return null;
+
+        let totalCarbs: number;
+        let totalFat: number;
+        let totalProtein: number;
+        let calculationFormula: string;
+        let reasoning: string[];
+
+        if (refinement_type === 'grams') {
+            // User provided exact grams
+            const scaleFactor = value / 100;
+            totalCarbs = carbsPer100g * scaleFactor;
+            totalFat = fatPer100g * scaleFactor;
+            totalProtein = proteinPer100g * scaleFactor;
+
+            calculationFormula = `${totalCarbs.toFixed(1)}g carbs / ${carbRatio} ratio = ${(totalCarbs / carbRatio).toFixed(1)}U`;
+            reasoning = [
+                language === 'Italian'
+                    ? `Peso specificato: ${value}g di ${item_name}`
+                    : `Weight specified: ${value}g of ${item_name}`
+            ];
+        } else {
+            // User provided quantity (pieces) - need to estimate
+            // Extract package weight or default to 500g
+            const packageMatch = package_weight_hint?.match(/(\d+)\s*g/);
+            const packageWeight = packageMatch ? parseInt(packageMatch[1]) : 500;
+
+            // Estimate items per package (typical assumption: 20-25 items per 500g package)
+            const estimatedItemWeight = packageWeight / 25; // ~20g per item
+            const totalWeight = value * estimatedItemWeight;
+            const scaleFactor = totalWeight / 100;
+
+            totalCarbs = carbsPer100g * scaleFactor;
+            totalFat = fatPer100g * scaleFactor;
+            totalProtein = proteinPer100g * scaleFactor;
+
+            calculationFormula = `${totalCarbs.toFixed(1)}g carbs (${value} items × ~${estimatedItemWeight.toFixed(0)}g) / ${carbRatio} ratio = ${(totalCarbs / carbRatio).toFixed(1)}U`;
+            reasoning = [
+                language === 'Italian'
+                    ? `Quantità: ${value} pezzi stimati (~${totalWeight.toFixed(0)}g totali)`
+                    : `Quantity: ${value} items estimated (~${totalWeight.toFixed(0)}g total)`
+            ];
+        }
+
+        const suggestedInsulin = Number((totalCarbs / carbRatio).toFixed(1));
+
+        return {
+            friendly_description: item_name,
+            food_items: [{
+                name: item_name,
+                carbs: Number(totalCarbs.toFixed(1)),
+                fat: Number(totalFat.toFixed(1)),
+                protein: Number(totalProtein.toFixed(1)),
+                approx_weight: refinement_type === 'grams' ? `${value}g` : `${value} pezzi`
+            }],
+            total_carbs: Number(totalCarbs.toFixed(1)),
+            total_fat: Number(totalFat.toFixed(1)),
+            total_protein: Number(totalProtein.toFixed(1)),
+            suggested_insulin: suggestedInsulin,
+            calculation_formula: calculationFormula,
+            sources: ["Calculated locally from user input"],
+            split_bolus_recommendation: {
+                recommended: false,
+                split_percentage: "",
+                duration: "",
+                reason: ""
+            },
+            reasoning: reasoning,
+            confidence_level: refinement_type === 'grams' ? "high" : "medium",
+            warnings: refinement_type === 'quantity'
+                ? ["Estimation based on typical package size. Use grams for more precision."]
+                : undefined
+        };
+    } catch (e) {
+        console.error('Lightweight refinement error:', e);
+        return null;
+    }
+}
+
 export async function POST(request: NextRequest) {
     // 1. Parallelize Auth & Body Parsing for Speed
     // Start both promises immediately
@@ -37,6 +132,15 @@ export async function POST(request: NextRequest) {
                 carbRatio = userSettings.carbRatios[mealPeriod as MealPeriod];
             } else {
                 carbRatio = getCarbRatioForCurrentMeal(userSettings);
+            }
+        }
+
+        // LIGHTWEIGHT REFINEMENT CHECK (Zero Perplexity calls!)
+        if (text && typeof text === 'string' && text.startsWith('__LIGHTWEIGHT_REFINEMENT__:')) {
+            const lightweightResult = handleLightweightRefinement(text, carbRatio, language);
+            if (lightweightResult) {
+                console.log('[Lightweight Refinement] Calculated without Perplexity');
+                return NextResponse.json(lightweightResult);
             }
         }
 
@@ -93,7 +197,7 @@ export async function POST(request: NextRequest) {
 
                     // Brand Logic
                     const hasNoBrand = !p.brand || brandLower === 'unknown' || brandLower === 'generic';
-                    if (hasNoBrand) score += 40; // Penalty for unknown brands implicitly removed by not adding bonus? No, keeping as baseline
+                    if (hasNoBrand) score += 40;
 
                     // Brand match bonus
                     const brandMatch = !hasNoBrand && queryWords.some(word => brandLower.includes(word));
@@ -104,13 +208,11 @@ export async function POST(request: NextRequest) {
                     if (categoryMatch) score += 70;
 
                     // Quantity Logic (New)
-                    // If query contains "500g" and product has "500", bonus
                     const qtyMatch = queryWords.some(word => /\d+/.test(word) && (p.name.includes(word) || (p.quantity && p.quantity.includes(word))));
                     if (qtyMatch) score += 50;
 
                     // Specific Penalties
                     if (nameLower.includes('yogur') && !queryLower.includes('yogur')) score -= 100;
-                    // Example: "Pane" is too generic without brand
                     if (nameLower === 'pane' && hasNoBrand) score -= 30;
 
                     return { product: p, score, brandMatch };
@@ -120,16 +222,12 @@ export async function POST(request: NextRequest) {
                 const best = sortedResults[0];
 
                 // Advanced Logic: Hybrid Thresholds
-                // Score > 150 -> OFF Only (High Confidence)
-                // Score 80-150 -> Hybrid (OFF Context)
-                // Score < 80 -> AI Only
-
                 const isOffOnly = userSettings?.analysisMode === 'off_only';
                 const highConfidence = best.score > 150;
                 const mediumConfidence = best.score >= 80;
 
                 if (isOffOnly || highConfidence) {
-                    if (best.score > 50) { // Safety floor
+                    if (best.score > 50) {
                         usedOFF = true;
                         const result = best.product;
                         const totalCarbs = result.carbs100g;
@@ -157,7 +255,6 @@ export async function POST(request: NextRequest) {
                 }
 
                 if (mediumConfidence) {
-                    // Hybrid mode context
                     offContext = "\n\nDATABASE CONTEXT (Open Food Facts - Verified Matches):\n" +
                         sortedResults.filter(r => r.score >= 80).slice(0, 3).map(r => {
                             const p = r.product;
@@ -166,7 +263,6 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // If we are in off_only and nothing was triggered above, we MUST NOT fall back to AI
             if (userSettings?.analysisMode === 'off_only') {
                 return NextResponse.json({
                     error: language === 'Italian' ? 'Alimento non trovato nel database.' : 'Food not found in database.',
@@ -176,17 +272,20 @@ export async function POST(request: NextRequest) {
         }
 
         // Fallback to AI if OFF not triggered or in hybrid/pplx_only
-
         const type = image ? 'image' : 'text';
 
+        // SHRUNK previous analysis for refinement (saves ~500 tokens!)
         const previousContext = previous_analysis ?
             `\nPREVIOUS ANALYSIS CONTEXT:
-            The user is Refining a previous analysis.
-            PREVIOUS RESULT: ${JSON.stringify(previous_analysis)}
-            USER FEEDBACK/UPDATE: "${text}"
+            Refining previous result.
+            FOOD: ${previous_analysis.friendly_description}
+            NUTRITION per 100g: C=${previous_analysis.food_items?.[0]?.carbs || 0}g F=${previous_analysis.food_items?.[0]?.fat || 0}g P=${previous_analysis.food_items?.[0]?.protein || 0}g
+            MISSING: ${previous_analysis.missing_info || 'None'}
             
-            TASK ADJUSTMENT: Use the PREVIOUS RESULT as a starting point. Trust valid parts of it. Update only what needs changing based on USER FEEDBACK. If the user provides the missing info, remove the 'missing_info' flag.`
-            : "";
+            USER INPUT: "${text}"
+            TASK: Update ONLY quantity based on user input. Remove missing_info if resolved.`
+            : ""
+            ;
 
         const instructions = `You are a diabetes nutrition assistant.
         LANGUAGE: ${language}
@@ -241,7 +340,6 @@ export async function POST(request: NextRequest) {
 
         }`;
 
-        // 3. Construct Messages
         const messages: any[] = [
             { role: "system", content: instructions }
         ];
@@ -261,9 +359,8 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // 4. Call Perplexity
         const payload = {
-            model: 'sonar-pro', // Using sonar-pro for better instruction following and schema support
+            model: 'sonar-pro',
             messages: messages,
             temperature: 0.2,
             max_tokens: 1000,
@@ -338,14 +435,9 @@ export async function POST(request: NextRequest) {
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content;
 
-        // 5. Parse JSON
-        // With json_schema, content is guaranteed to be valid JSON
         try {
             const result = JSON.parse(content);
 
-            // POST-PROCESSING SAFETY NET (Deterministic Enforcement)
-            // If the AI returns 0 insulin for recognized food but forgot to set 'missing_info', we force it here.
-            // This ensures the UI "Refinement Card" ALWAYS triggers.
             if (result.suggested_insulin === 0 && result.food_items && result.food_items.length > 0 && !result.missing_info) {
                 const missingInfoQuestion = language === 'Italian'
                     ? "Quantità mancante. Quanti pezzi o grammi hai mangiato?"
@@ -354,7 +446,6 @@ export async function POST(request: NextRequest) {
                 result.missing_info = missingInfoQuestion;
                 result.warnings = [...(result.warnings || []), "Auto-generated missing info request"];
 
-                // Also wipe the calculation formula to avoid confusion
                 if (result.calculation_formula) {
                     result.calculation_formula += " (Waiting for user input)";
                 }
