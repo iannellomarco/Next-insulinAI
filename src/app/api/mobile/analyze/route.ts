@@ -93,58 +93,52 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // INSTANT REFINEMENT: Backend calculation, NO AI call!
+        // AI REFINEMENT: Fast model call WITHOUT web search
         if (previous_analysis && text) {
             const productName = previous_analysis.friendly_description || 'Product';
             const foodItems = previous_analysis.food_items || [];
-            const firstItem = foodItems[0] || { carbs: 0, fat: 0, protein: 0, approx_weight: '100g' };
 
-            // Parse user's quantity
-            const { multiplier, description } = parseQuantity(
-                text,
-                firstItem.carbs,
-                firstItem.approx_weight || '100g'
-            );
+            // Build compact context
+            const compactContext = foodItems.map((item: any) =>
+                `${item.name}: ${item.carbs}g carbs, ${item.fat}g fat, ${item.protein}g protein per ${item.approx_weight || '100g'}`
+            ).join('; ');
 
-            // Calculate final values
-            const totalCarbs = Math.round(firstItem.carbs * multiplier * 10) / 10;
-            const totalFat = Math.round(firstItem.fat * multiplier * 10) / 10;
-            const totalProtein = Math.round(firstItem.protein * multiplier * 10) / 10;
-            const suggestedInsulin = Math.round((totalCarbs / carbRatio) * 10) / 10;
+            const followUpPrompt = `You are a math calculator. NO web search needed. Just calculate.
 
-            // Build updated food items with actual quantity
-            const updatedFoodItems = foodItems.map((item: any) => ({
-                ...item,
-                carbs: Math.round(item.carbs * multiplier * 10) / 10,
-                fat: Math.round(item.fat * multiplier * 10) / 10,
-                protein: Math.round(item.protein * multiplier * 10) / 10,
-                approx_weight: description
-            }));
+Product: ${productName}
+Nutrition (per 100g unless stated): ${compactContext}
+User consumed: "${text}"
+Insulin ratio: 1:${carbRatio}
+
+Calculate the final amounts based on user's quantity and return JSON only:
+{"friendly_description":"${productName} (quantity)","food_items":[{"name":"...","carbs":N,"fat":N,"protein":N,"approx_weight":"user quantity"}],"total_carbs":N,"total_fat":N,"total_protein":N,"suggested_insulin":N,"split_bolus_recommendation":{"recommended":false,"split_percentage":"","duration":"","reason":""},"reasoning":["step by step calculation"],"calculation_formula":"Xg carbs / ${carbRatio} = Yu","sources":[],"confidence_level":"high","missing_info":null}
+
+Be precise. Round to 1 decimal. Language: ${language}`;
+
+            // Use model directly WITHOUT preset to disable web search
+            const response = await client.responses.create({
+                model: 'openai/gpt-4o-mini',  // Fast model, no search
+                input: followUpPrompt,
+                max_output_tokens: 400,
+                tools: [],  // Explicitly disable all tools including web_search
+            });
+
+            const structured = extractJSON(response.output_text ?? '');
 
             return NextResponse.json({
-                friendly_description: `${productName} (${description})`,
-                food_items: updatedFoodItems,
-                total_carbs: totalCarbs,
-                total_fat: totalFat,
-                total_protein: totalProtein,
-                suggested_insulin: suggestedInsulin,
-                split_bolus_recommendation: {
-                    recommended: totalFat > 20,
-                    split_percentage: totalFat > 20 ? "60/40" : "",
-                    duration: totalFat > 20 ? "2-3 hours" : "",
-                    reason: totalFat > 20 ? (language === 'Italian' ? "Alto contenuto di grassi" : "High fat content") : ""
-                },
-                reasoning: [
-                    language === 'Italian'
-                        ? `Quantità: ${description} → ${totalCarbs}g carbs`
-                        : `Quantity: ${description} → ${totalCarbs}g carbs`,
-                    `${totalCarbs}g ÷ ${carbRatio} = ${suggestedInsulin}U`
-                ],
-                calculation_formula: `${totalCarbs}g carbs ÷ 1:${carbRatio} ratio = ${suggestedInsulin}U`,
+                friendly_description: structured.friendly_description || productName,
+                food_items: structured.food_items || foodItems,
+                total_carbs: structured.total_carbs || 0,
+                total_fat: structured.total_fat || 0,
+                total_protein: structured.total_protein || 0,
+                suggested_insulin: structured.suggested_insulin || 0,
+                split_bolus_recommendation: structured.split_bolus_recommendation || { recommended: false, split_percentage: "", duration: "", reason: "" },
+                reasoning: structured.reasoning || [],
+                calculation_formula: structured.calculation_formula || "",
                 sources: previous_analysis.sources || [],
                 confidence_level: "high",
                 missing_info: null,
-                warnings: totalFat > 15 ? [language === 'Italian' ? "Contenuto grassi elevato" : "High fat content"] : []
+                warnings: structured.warnings || []
             });
         }
 
