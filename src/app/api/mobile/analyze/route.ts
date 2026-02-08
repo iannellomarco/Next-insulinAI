@@ -66,8 +66,7 @@ Rules:
 - If analyzing an image, identify visible foods and read any nutrition labels
 - Respond in ${language}`;
 
-        // Build input in the correct format for Perplexity SDK
-        // Must use role/content structure with input_text and input_image types
+        // Build content array with correct InputContentPart format
         const userContent: any[] = [
             { type: 'input_text', text: systemPrompt }
         ];
@@ -89,10 +88,12 @@ Rules:
             userContent.push({ type: 'input_text', text: `Query: ${text}` });
         }
 
+        // Correct format per OpenAPI spec: InputItem requires type: 'message'
         const response = await client.responses.create({
             preset: 'fast-search',
             input: [
                 {
+                    type: 'message',  // Required discriminator field
                     role: 'user',
                     content: userContent
                 }
