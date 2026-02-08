@@ -1,4 +1,4 @@
-// route.ts - Perplexity SDK with text + image support
+// route.ts - Perplexity SDK with text + image support + lightweight follow-up
 import Perplexity from '@perplexity-ai/perplexity_ai';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -36,14 +36,57 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Build prompt for iOS-compatible structured output
+        // LIGHTWEIGHT FOLLOW-UP: if previous_analysis exists, use minimal tokens
+        if (previous_analysis && text) {
+            // Extract only essential info: product name + nutrients
+            const productName = previous_analysis.friendly_description || 'Product';
+            const foodItems = previous_analysis.food_items || [];
+
+            // Build compact context (NO sources, NO reasoning, NO formula)
+            const compactContext = foodItems.map((item: any) =>
+                `${item.name}: ${item.carbs}g carbs, ${item.fat}g fat, ${item.protein}g protein per ${item.approx_weight || 'serving'}`
+            ).join('; ');
+
+            const followUpPrompt = `Product: ${productName}
+Nutrition: ${compactContext}
+User says: ${text}
+Ratio: 1:${carbRatio}
+
+Calculate final insulin based on user's quantity. Return JSON only:
+{"friendly_description":"...","food_items":[{name,carbs,fat,protein,approx_weight}],"total_carbs":N,"total_fat":N,"total_protein":N,"suggested_insulin":N,"split_bolus_recommendation":{"recommended":bool},"reasoning":["..."],"calculation_formula":"...","sources":[],"confidence_level":"high","missing_info":null}`;
+
+            const response = await client.responses.create({
+                preset: 'fast-search',
+                input: followUpPrompt,  // Simple string input for follow-up
+                max_output_tokens: 512,  // Smaller output for refinement
+            });
+
+            const structured = extractJSON(response.output_text ?? '');
+            return NextResponse.json({
+                friendly_description: structured.friendly_description || productName,
+                food_items: structured.food_items || foodItems,
+                total_carbs: structured.total_carbs || 0,
+                total_fat: structured.total_fat || 0,
+                total_protein: structured.total_protein || 0,
+                suggested_insulin: structured.suggested_insulin || 0,
+                split_bolus_recommendation: structured.split_bolus_recommendation || { recommended: false },
+                reasoning: structured.reasoning || [],
+                calculation_formula: structured.calculation_formula || "",
+                sources: previous_analysis.sources || [],  // Reuse original sources
+                confidence_level: structured.confidence_level || "high",
+                missing_info: null,
+                warnings: structured.warnings || []
+            });
+        }
+
+        // INITIAL ANALYSIS: Full prompt for new analysis
         const systemPrompt = `You are a diabetes nutrition assistant. Language: ${language}
 
 Return ONLY valid JSON. No prose. No markdown.
 
-Schema (MUST match exactly):
+Schema:
 {
-  "friendly_description": "short food name (3-5 words)",
+  "friendly_description": "short food name",
   "food_items": [{ "name": string, "carbs": number, "fat": number, "protein": number, "approx_weight": string }],
   "total_carbs": number,
   "total_fat": number,
@@ -61,45 +104,40 @@ Rules:
 - Insulin ratio: 1:${carbRatio}
 - suggested_insulin = total_carbs / ${carbRatio}
 - Use web search for accurate nutritional data
-- If analyzing an image, identify visible foods and read any nutrition labels
 - Respond in ${language}
 
 CRITICAL - Quantity handling:
-- If user shows a PRODUCT PACKAGE or NUTRITION LABEL without specifying how much they ate, you MUST:
+- If user shows a PRODUCT PACKAGE or NUTRITION LABEL without specifying quantity, you MUST:
   1. Set suggested_insulin = 0
-  2. Set missing_info to ask: "${language === 'Italian' ? 'Quanto ne hai mangiato? (es. tutta la confezione, mezza, 100g)' : 'How much did you eat? (e.g. whole package, half, 100g)'}"
-  3. In food_items, list the product with "per serving" nutrients from the label
-- Only calculate insulin if the user explicitly states a quantity (e.g. "50g", "2 pieces", "whole pack")
-- When in doubt about quantity, ALWAYS ask via missing_info`;
+  2. Set missing_info to: "${language === 'Italian' ? 'Quanto ne hai mangiato? (es. tutta la confezione, mezza, 100g)' : 'How much did you eat? (e.g. whole package, half, 100g)'}"
+  3. List product with "per serving" nutrients from label
+- Only calculate insulin if quantity is explicit
+- When in doubt, ALWAYS ask via missing_info`;
 
-        // Build content array with correct InputContentPart format
+        // Build content array
         const userContent: any[] = [
             { type: 'input_text', text: systemPrompt }
         ];
 
         if (image) {
-            // Add image input
             userContent.push({
                 type: 'input_image',
-                image_url: image // base64 data URI from iOS
+                image_url: image
             });
-            // Add user query
             if (text && text.trim().length > 0) {
                 userContent.push({ type: 'input_text', text: `User note: ${text}` });
             } else {
                 userContent.push({ type: 'input_text', text: 'Analyze the food in this image.' });
             }
         } else {
-            // Text only
             userContent.push({ type: 'input_text', text: `Query: ${text}` });
         }
 
-        // Correct format per OpenAPI spec: InputItem requires type: 'message'
         const response = await client.responses.create({
             preset: 'fast-search',
             input: [
                 {
-                    type: 'message',  // Required discriminator field
+                    type: 'message',
                     role: 'user',
                     content: userContent
                 }
@@ -109,7 +147,6 @@ CRITICAL - Quantity handling:
 
         const structured = extractJSON(response.output_text ?? '');
 
-        // Ensure all required fields exist with defaults
         const result = {
             friendly_description: structured.friendly_description || (text || 'Food analysis'),
             food_items: structured.food_items || [],
