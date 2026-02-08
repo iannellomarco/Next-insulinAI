@@ -1,10 +1,12 @@
-// route.ts
+// route.ts - Perplexity SDK with iOS-compatible output
 import Perplexity from '@perplexity-ai/perplexity_ai';
+import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
 
 const client = new Perplexity({ apiKey: process.env.PERPLEXITY_API_KEY });
 
-// Utility: strict JSON extractor (no hallucinated prose)
+// Extract JSON from model output
 function extractJSON(text: string) {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('No JSON found in model output');
@@ -13,47 +15,98 @@ function extractJSON(text: string) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { query } = await req.json();
+        const authPromise = auth();
+        const bodyPromise = req.json();
+        const [{ userId }, body] = await Promise.all([authPromise, bodyPromise]);
 
-        // Prompt engineered to FORCE a single-shot structured answer
-        const prompt = `You are a nutrition analysis engine.
+        const { text, image, userSettings, mealPeriod, previous_analysis } = body;
+
+        if (!text && !image && !previous_analysis) {
+            return NextResponse.json({ error: 'Input required' }, { status: 400 });
+        }
+
+        const language = userSettings?.language === 'it' ? 'Italian' : 'English';
+
+        let carbRatio = userSettings?.carbRatio || 10;
+        if (userSettings?.useMealSpecificRatios && userSettings?.carbRatios) {
+            if (mealPeriod && ['breakfast', 'lunch', 'dinner'].includes(mealPeriod)) {
+                carbRatio = userSettings.carbRatios[mealPeriod as MealPeriod];
+            } else {
+                carbRatio = getCarbRatioForCurrentMeal(userSettings);
+            }
+        }
+
+        const query = text || 'Analyze food from image';
+
+        // Prompt engineered for iOS-compatible structured output
+        const prompt = `You are a diabetes nutrition assistant. Language: ${language}
+
 Return ONLY valid JSON. No prose. No markdown.
 
-Schema:
+Schema (MUST match exactly):
 {
-  "item": string,
-  "quantity": string,
-  "carbs_g": number,
-  "calories_kcal": number,
-  "confidence": number, // 0-100
-  "needs_clarification": boolean
+  "friendly_description": "short food name (3-5 words)",
+  "food_items": [{ "name": string, "carbs": number, "fat": number, "protein": number, "approx_weight": string }],
+  "total_carbs": number,
+  "total_fat": number,
+  "total_protein": number,
+  "suggested_insulin": number,
+  "split_bolus_recommendation": { "recommended": boolean, "split_percentage": "", "duration": "", "reason": "" },
+  "reasoning": [string],
+  "calculation_formula": string,
+  "sources": [string],
+  "confidence_level": "high" | "medium" | "low",
+  "missing_info": string | null
 }
 
 Rules:
-- If quantity is explicit, needs_clarification=false
-- Estimate using typical EU nutrition labels
-- Prefer speed over perfection
+- Insulin ratio: 1:${carbRatio}
+- suggested_insulin = total_carbs / ${carbRatio}
+- If quantity unknown, set suggested_insulin=0 and populate missing_info
+- calculation_formula example: "25g carbs / 10 ratio = 2.5U"
+- Use web search for accurate nutritional data
+- Respond in ${language}
 
 Query: ${query}`;
 
         const response = await client.responses.create({
-            preset: 'fast-search', // ⚡ fastest possible (1 step)
+            preset: 'fast-search',
             input: prompt,
-            max_output_tokens: 512,
+            max_output_tokens: 1024,
         });
 
         const structured = extractJSON(response.output_text ?? '');
 
-        return NextResponse.json({
-            ok: true,
-            data: structured,
-            meta: {
-                latency_profile: 'fast-search',
-            },
-        });
+        // Ensure all required fields exist with defaults
+        const result = {
+            friendly_description: structured.friendly_description || query,
+            food_items: structured.food_items || [],
+            total_carbs: structured.total_carbs || 0,
+            total_fat: structured.total_fat || 0,
+            total_protein: structured.total_protein || 0,
+            suggested_insulin: structured.suggested_insulin || 0,
+            split_bolus_recommendation: structured.split_bolus_recommendation || { recommended: false, split_percentage: "", duration: "", reason: "" },
+            reasoning: structured.reasoning || [],
+            calculation_formula: structured.calculation_formula || "",
+            sources: structured.sources || [],
+            confidence_level: structured.confidence_level || "medium",
+            missing_info: structured.missing_info || null,
+            warnings: structured.warnings || []
+        };
+
+        // Auto-add missing_info if insulin is 0 but food items exist
+        if (result.suggested_insulin === 0 && result.food_items.length > 0 && !result.missing_info) {
+            result.missing_info = language === 'Italian'
+                ? "Quantità mancante. Quanti pezzi o grammi hai mangiato?"
+                : "Quantity missing. How many pieces or grams did you eat?";
+        }
+
+        return NextResponse.json(result);
+
     } catch (err: any) {
+        console.error('Analysis error:', err);
         return NextResponse.json(
-            { ok: false, error: err.message ?? 'Unknown error' },
+            { error: 'AI Analysis failed', details: err.message ?? 'Unknown error' },
             { status: 500 }
         );
     }
