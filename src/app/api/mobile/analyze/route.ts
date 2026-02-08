@@ -349,30 +349,19 @@ Respond with ONLY valid JSON (no markdown, no explanations outside JSON):
         });
 
         const response = await perplexityClient.responses.create({
-            model: 'sonar-reasoning',  // Best for detailed analysis
+            model: 'openai/gpt-5-mini',  // Vision-capable model per docs
             input: [
                 {
-                    type: 'message',
                     role: 'system',
                     content: systemPrompt
                 },
                 {
-                    type: 'message',
                     role: 'user',
                     content: image ? [
-                        {
-                            type: 'input_text',
-                            text: text?.trim() || 'Analyze the nutritional information from this food image in detail. Extract all visible data from nutrition labels.'
-                        },
-                        {
-                            type: 'input_image',
-                            image_url: image
-                        }
+                        { type: 'input_text', text: text?.trim() || 'Analyze the nutritional information from this food image in detail. Extract all visible data from nutrition labels.' },
+                        { type: 'input_image', image_url: image }
                     ] : [
-                        {
-                            type: 'input_text',
-                            text: `Analyze this food: ${text}`
-                        }
+                        { type: 'input_text', text: `Analyze this food: ${text}` }
                     ]
                 }
             ] as any,
