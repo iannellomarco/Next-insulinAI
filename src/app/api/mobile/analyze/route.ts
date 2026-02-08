@@ -104,15 +104,10 @@ export async function POST(req: NextRequest) {
                 `${item.name}: ${item.carbs}g carbs, ${item.fat}g fat, ${item.protein}g protein per ${item.approx_weight || '100g'}`
             ).join('; ');
 
-            const followUpPrompt = `Calculate insulin from quantity. Return ONLY JSON, no explanation.
-
-Product: ${productName}
+            const followUpPrompt = `Calculate insulin for: ${productName}
 Nutrition per 100g: C=${firstItem.carbs}g F=${firstItem.fat}g P=${firstItem.protein}g
-User quantity: "${text}"
-Ratio: 1:${carbRatio}
-
-JSON format:
-{"total_carbs":N,"total_fat":N,"total_protein":N,"suggested_insulin":N,"calculation_formula":"Xg/ratio=Yu"}`;
+User consumed: "${text}"
+Ratio: 1:${carbRatio}`;
 
             try {
                 const response = await client.responses.create({
@@ -120,11 +115,27 @@ JSON format:
                     input: followUpPrompt,
                     max_output_tokens: 200,
                     tools: [],
-                });
+                    response_format: {
+                        type: 'json_schema',
+                        json_schema: {
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    total_carbs: { type: 'number' },
+                                    total_fat: { type: 'number' },
+                                    total_protein: { type: 'number' },
+                                    suggested_insulin: { type: 'number' },
+                                    calculation_formula: { type: 'string' }
+                                },
+                                required: ['total_carbs', 'total_fat', 'total_protein', 'suggested_insulin', 'calculation_formula']
+                            }
+                        }
+                    }
+                } as any);
 
                 console.log('[Follow-up] AI response:', response.output_text);
 
-                const structured = extractJSON(response.output_text ?? '');
+                const structured = JSON.parse(response.output_text ?? '{}');
 
                 return NextResponse.json({
                     friendly_description: `${productName} (${text})`,
