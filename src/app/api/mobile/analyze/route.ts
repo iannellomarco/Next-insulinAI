@@ -108,14 +108,14 @@ export async function POST(req: NextRequest) {
 
 INPUT:
 - Product: ${productName}
-- Nutrition per 100g: Carbs=${firstItem.carbs}g, Fat=${firstItem.fat}g, Protein=${firstItem.protein}g
+- Nutrition: Carbs=${firstItem.carbs}g, Fat=${firstItem.fat}g, Protein=${firstItem.protein}g per ${firstItem.approx_weight || '100g'}
 - User consumed: "${text}"
 - Insulin ratio: 1:${carbRatio}
 
-OUTPUT: Return ONLY this JSON structure, nothing else before or after:
+OUTPUT: Return ONLY this JSON, nothing else:
 {"total_carbs":0,"total_fat":0,"total_protein":0,"suggested_insulin":0,"calculation_formula":""}
 
-Fill in the numbers based on user's quantity. Round to 1 decimal.`;
+Calculate based on user's quantity relative to the portion size. Round to 1 decimal.`;
 
             try {
                 const response = await client.responses.create({
