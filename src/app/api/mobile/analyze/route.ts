@@ -97,49 +97,88 @@ export async function POST(req: NextRequest) {
         if (previous_analysis && text) {
             const productName = previous_analysis.friendly_description || 'Product';
             const foodItems = previous_analysis.food_items || [];
+            const firstItem = foodItems[0] || { carbs: 0, fat: 0, protein: 0, approx_weight: '100g' };
 
             // Build compact context
             const compactContext = foodItems.map((item: any) =>
                 `${item.name}: ${item.carbs}g carbs, ${item.fat}g fat, ${item.protein}g protein per ${item.approx_weight || '100g'}`
             ).join('; ');
 
-            const followUpPrompt = `You are a math calculator. NO web search needed. Just calculate.
+            const followUpPrompt = `Calculate insulin from quantity. Return ONLY JSON, no explanation.
 
 Product: ${productName}
-Nutrition (per 100g unless stated): ${compactContext}
-User consumed: "${text}"
-Insulin ratio: 1:${carbRatio}
+Nutrition per 100g: C=${firstItem.carbs}g F=${firstItem.fat}g P=${firstItem.protein}g
+User quantity: "${text}"
+Ratio: 1:${carbRatio}
 
-Calculate the final amounts based on user's quantity and return JSON only:
-{"friendly_description":"${productName} (quantity)","food_items":[{"name":"...","carbs":N,"fat":N,"protein":N,"approx_weight":"user quantity"}],"total_carbs":N,"total_fat":N,"total_protein":N,"suggested_insulin":N,"split_bolus_recommendation":{"recommended":false,"split_percentage":"","duration":"","reason":""},"reasoning":["step by step calculation"],"calculation_formula":"Xg carbs / ${carbRatio} = Yu","sources":[],"confidence_level":"high","missing_info":null}
+JSON format:
+{"total_carbs":N,"total_fat":N,"total_protein":N,"suggested_insulin":N,"calculation_formula":"Xg/ratio=Yu"}`;
 
-Be precise. Round to 1 decimal. Language: ${language}`;
+            try {
+                const response = await client.responses.create({
+                    model: 'openai/gpt-5-mini',
+                    input: followUpPrompt,
+                    max_output_tokens: 200,
+                    tools: [],
+                });
 
-            // Use model directly WITHOUT preset to disable web search
-            const response = await client.responses.create({
-                model: 'openai/gpt-5-mini',  // Fast model, no search
-                input: followUpPrompt,
-                max_output_tokens: 400,
-                tools: [],  // Explicitly disable all tools including web_search
-            });
+                console.log('[Follow-up] AI response:', response.output_text);
 
-            const structured = extractJSON(response.output_text ?? '');
+                const structured = extractJSON(response.output_text ?? '');
 
-            return NextResponse.json({
-                friendly_description: structured.friendly_description || productName,
-                food_items: structured.food_items || foodItems,
-                total_carbs: structured.total_carbs || 0,
-                total_fat: structured.total_fat || 0,
-                total_protein: structured.total_protein || 0,
-                suggested_insulin: structured.suggested_insulin || 0,
-                split_bolus_recommendation: structured.split_bolus_recommendation || { recommended: false, split_percentage: "", duration: "", reason: "" },
-                reasoning: structured.reasoning || [],
-                calculation_formula: structured.calculation_formula || "",
-                sources: previous_analysis.sources || [],
-                confidence_level: "high",
-                missing_info: null,
-                warnings: structured.warnings || []
-            });
+                return NextResponse.json({
+                    friendly_description: `${productName} (${text})`,
+                    food_items: foodItems.map((item: any) => ({
+                        ...item,
+                        carbs: structured.total_carbs || item.carbs,
+                        fat: structured.total_fat || item.fat,
+                        protein: structured.total_protein || item.protein,
+                        approx_weight: text
+                    })),
+                    total_carbs: structured.total_carbs || 0,
+                    total_fat: structured.total_fat || 0,
+                    total_protein: structured.total_protein || 0,
+                    suggested_insulin: structured.suggested_insulin || 0,
+                    split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
+                    reasoning: [structured.calculation_formula || `${structured.total_carbs}g / ${carbRatio} = ${structured.suggested_insulin}U`],
+                    calculation_formula: structured.calculation_formula || "",
+                    sources: previous_analysis.sources || [],
+                    confidence_level: "high",
+                    missing_info: null,
+                    warnings: []
+                });
+            } catch (aiError: any) {
+                console.error('[Follow-up] AI error, falling back to local calc:', aiError.message);
+
+                // LOCAL FALLBACK: Parse quantity and calculate
+                const { multiplier, description } = parseQuantity(text, firstItem.carbs, firstItem.approx_weight || '100g');
+                const totalCarbs = Math.round(firstItem.carbs * multiplier * 10) / 10;
+                const totalFat = Math.round(firstItem.fat * multiplier * 10) / 10;
+                const totalProtein = Math.round(firstItem.protein * multiplier * 10) / 10;
+                const suggestedInsulin = Math.round((totalCarbs / carbRatio) * 10) / 10;
+
+                return NextResponse.json({
+                    friendly_description: `${productName} (${description})`,
+                    food_items: foodItems.map((item: any) => ({
+                        ...item,
+                        carbs: Math.round(item.carbs * multiplier * 10) / 10,
+                        fat: Math.round(item.fat * multiplier * 10) / 10,
+                        protein: Math.round(item.protein * multiplier * 10) / 10,
+                        approx_weight: description
+                    })),
+                    total_carbs: totalCarbs,
+                    total_fat: totalFat,
+                    total_protein: totalProtein,
+                    suggested_insulin: suggestedInsulin,
+                    split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
+                    reasoning: [`${language === 'Italian' ? 'Calcolo locale' : 'Local calculation'}: ${totalCarbs}g / ${carbRatio} = ${suggestedInsulin}U`],
+                    calculation_formula: `${totalCarbs}g / ${carbRatio} = ${suggestedInsulin}U`,
+                    sources: previous_analysis.sources || [],
+                    confidence_level: "high",
+                    missing_info: null,
+                    warnings: []
+                });
+            }
         }
 
         // INITIAL ANALYSIS: Full AI call with web search
