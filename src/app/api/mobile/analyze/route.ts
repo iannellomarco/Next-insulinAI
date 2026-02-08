@@ -349,7 +349,7 @@ Respond with ONLY valid JSON (no markdown, no explanations outside JSON):
         });
 
         const response = await perplexityClient.responses.create({
-            model: 'sonar-pro',
+            model: 'sonar-reasoning',  // Best for detailed analysis
             input: [
                 {
                     type: 'message',
