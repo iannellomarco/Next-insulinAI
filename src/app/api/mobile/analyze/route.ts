@@ -117,7 +117,7 @@ Be precise. Round to 1 decimal. Language: ${language}`;
 
             // Use model directly WITHOUT preset to disable web search
             const response = await client.responses.create({
-                model: 'openai/gpt-4o-mini',  // Fast model, no search
+                model: 'openai/gpt-5-mini',  // Fast model, no search
                 input: followUpPrompt,
                 max_output_tokens: 400,
                 tools: [],  // Explicitly disable all tools including web_search
