@@ -307,7 +307,11 @@ CRITICAL RULES:
 
 2. Only calculate insulin if quantity is explicit and clear
 
-3. Search for accurate nutritional data from reliable sources (USDA, official databases)
+3. For nutritional data, PRIORITIZE sources in this order:
+   a) Official manufacturer/brand website (most accurate)
+   b) Product packaging visible in image
+   c) USDA, OpenFoodFacts, or official databases
+   d) General nutritional estimates (least preferred)
 
 4. Include citations/sources for all nutritional information
 
