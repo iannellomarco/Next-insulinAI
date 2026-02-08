@@ -96,7 +96,7 @@ Rules:
                     role: 'user',
                     content: userContent
                 }
-            ],
+            ] as any,
             max_output_tokens: 1024,
         });
 
