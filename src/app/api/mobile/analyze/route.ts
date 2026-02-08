@@ -1,10 +1,12 @@
-// route.ts - Perplexity SDK with instant backend refinement (NO AI for follow-up)
+// route.ts - Perplexity for initial analysis (web search), OpenAI for follow-up (structured output)
 import Perplexity from '@perplexity-ai/perplexity_ai';
+import OpenAI from 'openai';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
 
-const client = new Perplexity({ apiKey: process.env.PERPLEXITY_API_KEY });
+const perplexityClient = new Perplexity({ apiKey: process.env.PERPLEXITY_API_KEY });
+const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Extract JSON from model output
 function extractJSON(text: string) {
@@ -118,16 +120,35 @@ OUTPUT: Return ONLY this JSON, nothing else:
 Calculate based on user's quantity relative to the portion size. Round to 1 decimal.`;
 
             try {
-                const response = await client.responses.create({
-                    model: 'openai/gpt-5-mini',
-                    input: followUpPrompt,
-                    max_output_tokens: 150,
-                    tools: [],
-                } as any);
+                // Use OpenAI directly for structured output (guaranteed JSON)
+                const response = await openaiClient.chat.completions.create({
+                    model: 'gpt-4o-mini',
+                    messages: [{ role: 'user', content: followUpPrompt }],
+                    max_tokens: 150,
+                    response_format: {
+                        type: 'json_schema',
+                        json_schema: {
+                            name: 'nutrition_calculation',
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    total_carbs: { type: 'number' },
+                                    total_fat: { type: 'number' },
+                                    total_protein: { type: 'number' },
+                                    suggested_insulin: { type: 'number' },
+                                    calculation_formula: { type: 'string' }
+                                },
+                                required: ['total_carbs', 'total_fat', 'total_protein', 'suggested_insulin', 'calculation_formula'],
+                                additionalProperties: false
+                            },
+                            strict: true
+                        }
+                    }
+                });
 
-                console.log('[Follow-up] AI response:', response.output_text);
+                console.log('[Follow-up] OpenAI response:', response.choices[0]?.message?.content);
 
-                const structured = extractJSON(response.output_text ?? '');
+                const structured = JSON.parse(response.choices[0]?.message?.content ?? '{}');
 
                 return NextResponse.json({
                     friendly_description: `${productName} (${text})`,
@@ -237,7 +258,7 @@ CRITICAL - Quantity handling:
             userContent.push({ type: 'input_text', text: `Query: ${text}` });
         }
 
-        const response = await client.responses.create({
+        const response = await perplexityClient.responses.create({
             preset: 'fast-search',
             input: [
                 {
