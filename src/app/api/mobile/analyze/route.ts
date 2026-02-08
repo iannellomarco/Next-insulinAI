@@ -1,149 +1,129 @@
-// route.ts - Optimized with Perplexity (initial) + OpenAI (follow-up)
-import Perplexity from '@perplexity-ai/perplexity_ai';
-import OpenAI from 'openai';
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
+import { searchOFF } from '@/lib/off-service';
 
-const perplexityClient = new Perplexity({
-    apiKey: process.env.PERPLEXITY_API_KEY
-});
+export const runtime = 'edge'; // Enable Vercel Edge Runtime for 0ms cold starts
 
-const openaiClient = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
-
-// Improved JSON extraction with validation
-function extractAndValidateJSON(text: string) {
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) ||
-        text.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-        throw new Error('No JSON found in model output');
+// Lightweight refinement calculator (ZERO Perplexity calls!)
+function handleLightweightRefinement(text: string, carbRatio: number, language: string): any | null {
+    if (!text.startsWith('__LIGHTWEIGHT_REFINEMENT__:')) {
+        return null;
     }
 
     try {
-        const jsonStr = jsonMatch[1] || jsonMatch[0];
-        const parsed = JSON.parse(jsonStr);
+        const jsonStr = text.replace('__LIGHTWEIGHT_REFINEMENT__:', '');
+        const params = JSON.parse(jsonStr);
 
-        if (!parsed.friendly_description) {
-            parsed.friendly_description = 'Food analysis';
-        }
-        if (!Array.isArray(parsed.food_items)) {
-            parsed.food_items = [];
-        }
+        const { refinement_type, value, item_name, nutrition_per_100g, package_weight_hint } = params;
 
-        return parsed;
-    } catch (e: any) {
-        console.error('JSON parse error:', e.message);
-        throw new Error(`Failed to parse JSON: ${e.message}`);
-    }
-}
+        const carbsPer100g = nutrition_per_100g?.carbs || 0;
+        const fatPer100g = nutrition_per_100g?.fat || 0;
+        const proteinPer100g = nutrition_per_100g?.protein || 0;
 
-// Enhanced quantity parser with better regex
-function parseQuantity(
-    userInput: string,
-    perServingCarbs: number,
-    approxWeight: string
-): { multiplier: number; description: string } {
-    const input = userInput.toLowerCase().trim();
+        if (carbsPer100g === 0) return null;
 
-    if (/\b(tutta?|intera?|whole|entire|full|tutto)\b/i.test(input)) {
-        const packageMatch = approxWeight.match(/(\d+(?:\.\d+)?)\s*g/i);
-        if (packageMatch) {
-            const totalG = parseFloat(packageMatch[1]);
-            return { multiplier: totalG / 100, description: `${totalG}g (whole package)` };
-        }
-        return { multiplier: 1, description: 'whole package' };
-    }
+        let totalCarbs: number;
+        let totalFat: number;
+        let totalProtein: number;
+        let calculationFormula: string;
+        let reasoning: string[];
 
-    if (/\b(metà|mezza|half|mezzo)\b/i.test(input)) {
-        return { multiplier: 0.5, description: 'half' };
-    }
+        if (refinement_type === 'grams') {
+            // User provided exact grams
+            const scaleFactor = value / 100;
+            totalCarbs = carbsPer100g * scaleFactor;
+            totalFat = fatPer100g * scaleFactor;
+            totalProtein = proteinPer100g * scaleFactor;
 
-    if (/\b(quarto|quarter|¼)\b/i.test(input)) {
-        return { multiplier: 0.25, description: 'quarter' };
-    }
-
-    const gramsMatch = input.match(/(\d+(?:\.\d+)?)\s*(?:g|gr|grams?)\b/i);
-    if (gramsMatch) {
-        const grams = parseFloat(gramsMatch[1]);
-        return { multiplier: grams / 100, description: `${grams}g` };
-    }
-
-    const piecesMatch = input.match(/(\d+)\s*(?:pezz[io]|pieces?|biscott[io]|items?|units?|porzioni?)/i);
-    if (piecesMatch) {
-        const pieces = parseInt(piecesMatch[1]);
-        const perPieceMatch = approxWeight.match(/(\d+(?:\.\d+)?)\s*g\s*(?:per|each|pezzo|piece)/i);
-        if (perPieceMatch) {
-            const perPieceG = parseFloat(perPieceMatch[1]);
-            const totalG = pieces * perPieceG;
-            return { multiplier: totalG / 100, description: `${pieces} piece${pieces > 1 ? 's' : ''} (${totalG}g)` };
-        }
-        return { multiplier: pieces, description: `${pieces} piece${pieces > 1 ? 's' : ''}` };
-    }
-
-    const justNumber = input.match(/^(\d+(?:\.\d+)?)$/);
-    if (justNumber) {
-        const num = parseFloat(justNumber[1]);
-        if (num > 10) {
-            return { multiplier: num / 100, description: `${num}g` };
+            calculationFormula = `${totalCarbs.toFixed(1)}g carbs / ${carbRatio} ratio = ${(totalCarbs / carbRatio).toFixed(1)}U`;
+            reasoning = [
+                language === 'Italian'
+                    ? `Peso specificato: ${value}g di ${item_name}`
+                    : `Weight specified: ${value}g of ${item_name}`
+            ];
         } else {
-            return { multiplier: num, description: `${num} piece${num > 1 ? 's' : ''}` };
+            // User provided quantity (pieces) - need to estimate
+            // Extract package weight or default to 500g
+            const packageMatch = package_weight_hint?.match(/(\d+)\s*g/);
+            const packageWeight = packageMatch ? parseInt(packageMatch[1]) : 500;
+
+            // Estimate items per package (typical assumption: 20-25 items per 500g package)
+            const estimatedItemWeight = packageWeight / 25; // ~20g per item
+            const totalWeight = value * estimatedItemWeight;
+            const scaleFactor = totalWeight / 100;
+
+            totalCarbs = carbsPer100g * scaleFactor;
+            totalFat = fatPer100g * scaleFactor;
+            totalProtein = proteinPer100g * scaleFactor;
+
+            calculationFormula = `${totalCarbs.toFixed(1)}g carbs (${value} items × ~${estimatedItemWeight.toFixed(0)}g) / ${carbRatio} ratio = ${(totalCarbs / carbRatio).toFixed(1)}U`;
+            reasoning = [
+                language === 'Italian'
+                    ? `Quantità: ${value} pezzi stimati (~${totalWeight.toFixed(0)}g totali)`
+                    : `Quantity: ${value} items estimated (~${totalWeight.toFixed(0)}g total)`
+            ];
         }
-    }
 
-    return { multiplier: 1, description: '1 serving' };
-}
+        const suggestedInsulin = Number((totalCarbs / carbRatio).toFixed(1));
 
-// Validazione formato immagine base64
-function validateImageFormat(imageData: string): { valid: boolean; error?: string } {
-    if (!imageData) return { valid: false, error: 'No image data' };
-
-    const dataUriPattern = /^data:image\/(jpeg|jpg|png|webp);base64,/;
-    if (!dataUriPattern.test(imageData)) {
         return {
-            valid: false,
-            error: 'Invalid image format. Expected data:image/jpeg;base64,... or similar'
+            friendly_description: item_name,
+            food_items: [{
+                name: item_name,
+                carbs: Number(totalCarbs.toFixed(1)),
+                fat: Number(totalFat.toFixed(1)),
+                protein: Number(totalProtein.toFixed(1)),
+                approx_weight: refinement_type === 'grams' ? `${value}g` : `${value} pezzi`
+            }],
+            total_carbs: Number(totalCarbs.toFixed(1)),
+            total_fat: Number(totalFat.toFixed(1)),
+            total_protein: Number(totalProtein.toFixed(1)),
+            suggested_insulin: suggestedInsulin,
+            calculation_formula: calculationFormula,
+            sources: ["Calculated locally from user input"],
+            split_bolus_recommendation: {
+                recommended: false,
+                split_percentage: "",
+                duration: "",
+                reason: ""
+            },
+            reasoning: reasoning,
+            confidence_level: refinement_type === 'grams' ? "high" : "medium",
+            warnings: refinement_type === 'quantity'
+                ? ["Estimation based on typical package size. Use grams for more precision."]
+                : undefined
         };
+    } catch (e) {
+        console.error('Lightweight refinement error:', e);
+        return null;
     }
-
-    const base64Data = imageData.split(',')[1];
-    if (!base64Data || base64Data.length < 100) {
-        return { valid: false, error: 'Image data too short or empty' };
-    }
-
-    if (base64Data.length > 7000000) {
-        return { valid: false, error: 'Image too large. Max 5MB.' };
-    }
-
-    return { valid: true };
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
+    // 1. Parallelize Auth & Body Parsing for Speed
+    // Start both promises immediately
+    const authPromise = auth();
+    const bodyPromise = request.json();
+
     try {
-        const authPromise = auth();
-        const bodyPromise = req.json();
         const [{ userId }, body] = await Promise.all([authPromise, bodyPromise]);
 
-        const { text, image, userSettings, mealPeriod, previous_analysis } = body;
+        // In strict mode check userId... (logic preserved)
 
+        const { text, image, userSettings, mealPeriod, previous_analysis } = body; // image is base64 string
+
+        // Validate inputs
         if (!text && !image && !previous_analysis) {
-            return NextResponse.json({ error: 'Input required' }, { status: 400 });
+            return NextResponse.json({ error: 'Input required (text, image, or previous_analysis)' }, { status: 400 });
         }
 
-        // Validazione immagine se presente
-        if (image) {
-            const validation = validateImageFormat(image);
-            if (!validation.valid) {
-                console.error('[Validation] Image error:', validation.error);
-                return NextResponse.json(
-                    { error: 'Invalid image', details: validation.error },
-                    { status: 400 }
-                );
-            }
+        const apiKey = process.env.PERPLEXITY_API_KEY;
+        if (!apiKey) {
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
         }
 
+        // 2. Prepare Prompt (Copied from web AppLogic/AIService)
         const language = userSettings?.language === 'it' ? 'Italian' : 'English';
 
         let carbRatio = userSettings?.carbRatio || 10;
@@ -155,302 +135,330 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // ========================================
-        // FOLLOW-UP: Quantity refinement with OpenAI
-        // ========================================
-        if (previous_analysis && text) {
-            const productName = previous_analysis.friendly_description || 'Product';
-            const foodItems = previous_analysis.food_items || [];
-            const firstItem = foodItems[0] || { carbs: 0, fat: 0, protein: 0, approx_weight: '100g' };
+        // LIGHTWEIGHT REFINEMENT CHECK (Zero Perplexity calls!)
+        if (text && typeof text === 'string' && text.startsWith('__LIGHTWEIGHT_REFINEMENT__:')) {
+            const lightweightResult = handleLightweightRefinement(text, carbRatio, language);
+            if (lightweightResult) {
+                console.log('[Lightweight Refinement] Calculated without Perplexity');
+                return NextResponse.json(lightweightResult);
+            }
+        }
 
-            const followUpPrompt = `You are a precise nutrition calculator.
+        let offContext = "";
+        let usedOFF = false;
+        const textToSearch = typeof text === 'string' ? text.trim() : "";
+        const isBarcode = /^\d{8,14}$/.test(textToSearch);
 
-CONTEXT:
-- Product: ${productName}
-- Base nutrition per ${firstItem.approx_weight || '100g'}:
-  * Carbs: ${firstItem.carbs}g
-  * Fat: ${firstItem.fat}g  
-  * Protein: ${firstItem.protein}g
-- User consumed: "${text}"
-- Insulin ratio: 1 unit per ${carbRatio}g carbs
-
-TASK:
-Calculate total nutritional values based on the quantity consumed.
-
-IMPORTANT RULES:
-1. Parse the quantity carefully (e.g., "whole package", "half", "100g", "3 pieces")
-2. Scale all nutrients proportionally
-3. Round to 1 decimal place
-4. Calculate insulin dose: total_carbs / ${carbRatio}
-5. Include clear calculation formula`;
-
-            try {
-                const response = await openaiClient.chat.completions.create({
-                    model: 'gpt-4o-mini',
-                    messages: [{ role: 'user', content: followUpPrompt }],
-                    max_tokens: 200,
-                    temperature: 0.1,
-                    response_format: {
-                        type: 'json_schema',
-                        json_schema: {
-                            name: 'nutrition_calculation',
-                            strict: true,
-                            schema: {
-                                type: 'object',
-                                properties: {
-                                    total_carbs: { type: 'number' },
-                                    total_fat: { type: 'number' },
-                                    total_protein: { type: 'number' },
-                                    suggested_insulin: { type: 'number' },
-                                    calculation_formula: { type: 'string' }
-                                },
-                                required: ['total_carbs', 'total_fat', 'total_protein', 'suggested_insulin', 'calculation_formula'],
-                                additionalProperties: false
-                            }
-                        }
-                    }
-                });
-
-                const structured = JSON.parse(response.choices[0]?.message?.content ?? '{}');
-
+        // Early Return for Barcode (Speed Optimization)
+        if (isBarcode && userSettings?.analysisMode !== 'pplx_only') {
+            const products = await searchOFF(textToSearch);
+            if (products.length > 0) {
+                const result = products[0];
+                const totalCarbs = result.carbs100g;
                 return NextResponse.json({
-                    friendly_description: `${productName} (${text})`,
-                    food_items: foodItems.map((item: any) => ({
-                        ...item,
-                        carbs: structured.total_carbs || item.carbs,
-                        fat: structured.total_fat || item.fat,
-                        protein: structured.total_protein || item.protein,
-                        approx_weight: text
-                    })),
-                    total_carbs: structured.total_carbs || 0,
-                    total_fat: structured.total_fat || 0,
-                    total_protein: structured.total_protein || 0,
-                    suggested_insulin: structured.suggested_insulin || 0,
-                    split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
-                    reasoning: [structured.calculation_formula],
-                    calculation_formula: structured.calculation_formula || "",
-                    sources: previous_analysis.sources || [],
-                    confidence_level: "high",
-                    missing_info: null,
-                    warnings: []
-                });
-
-            } catch (aiError: any) {
-                console.error('[Follow-up] OpenAI error:', aiError.message);
-
-                const { multiplier, description } = parseQuantity(text, firstItem.carbs, firstItem.approx_weight || '100g');
-                const totalCarbs = Math.round(firstItem.carbs * multiplier * 10) / 10;
-                const totalFat = Math.round(firstItem.fat * multiplier * 10) / 10;
-                const totalProtein = Math.round(firstItem.protein * multiplier * 10) / 10;
-                const suggestedInsulin = Math.round((totalCarbs / carbRatio) * 10) / 10;
-
-                return NextResponse.json({
-                    friendly_description: `${productName} (${description})`,
-                    food_items: foodItems.map((item: any) => ({
-                        ...item,
-                        carbs: Math.round(item.carbs * multiplier * 10) / 10,
-                        fat: Math.round(item.fat * multiplier * 10) / 10,
-                        protein: Math.round(item.protein * multiplier * 10) / 10,
-                        approx_weight: description
-                    })),
+                    friendly_description: result.name,
+                    food_items: [{
+                        name: result.name,
+                        carbs: result.carbs100g,
+                        fat: result.fat100g,
+                        protein: result.protein100g,
+                        approx_weight: "100g"
+                    }],
                     total_carbs: totalCarbs,
-                    total_fat: totalFat,
-                    total_protein: totalProtein,
-                    suggested_insulin: suggestedInsulin,
+                    total_fat: result.fat100g,
+                    total_protein: result.protein100g,
+                    suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
+                    calculation_formula: `${totalCarbs}g carbs / ${carbRatio} ratio = ${Number((totalCarbs / carbRatio).toFixed(1))}U`,
+                    sources: ["Open Food Facts (Barcode)"],
                     split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
-                    reasoning: [`${language === 'Italian' ? 'Calcolo locale' : 'Local calculation'}: ${totalCarbs}g ÷ ${carbRatio} = ${suggestedInsulin}U`],
-                    calculation_formula: `${totalCarbs}g ÷ ${carbRatio} = ${suggestedInsulin}U`,
-                    sources: previous_analysis.sources || [],
+                    reasoning: ["Direct Barcode Match."],
                     confidence_level: "high",
-                    missing_info: null,
-                    warnings: []
+                    warnings: ["Nutritional data is per 100g."]
                 });
             }
         }
 
-        // ========================================
-        // INITIAL ANALYSIS: Perplexity con Vision corretta
-        // ========================================
-        const systemPrompt = `You are a precise diabetes nutrition assistant specialized in analyzing food images and extracting nutritional data.
+        if (userSettings?.analysisMode !== 'pplx_only' && textToSearch.length > 0) {
+            const products = await searchOFF(textToSearch);
+            if (products.length > 0) {
+                const queryLower = textToSearch.toLowerCase();
+                const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
 
-Language: ${language}
-User's Insulin Ratio: 1 unit per ${carbRatio}g carbs
+                // Scoring and selection logic
+                const scoredProducts = products.map(p => {
+                    let score = 0;
+                    const nameLower = p.name.toLowerCase();
+                    const brandLower = (p.brand || "").toLowerCase();
 
-=== IMAGE ANALYSIS INSTRUCTIONS ===
-When analyzing a food image:
-1. CAREFULLY examine the photo for:
-   - Nutrition facts label (Nutrition Facts, Valori Nutrizionali, Informazioni Nutrizionali)
-   - Product name and brand
-   - Serving size (porzione, serving size)
-   - Values per 100g AND per serving
-   - Ingredients list
-   - Any barcodes or QR codes
+                    // String Similarity Scoring
+                    if (nameLower === queryLower) score += 100;
+                    else if (nameLower.startsWith(queryLower)) score += 50;
+                    else if (nameLower.includes(queryLower)) score += 20;
 
-2. If nutrition label is VISIBLE:
-   - Extract EXACT numeric values
-   - Report carbohydrates, fat, protein per 100g
-   - Note the serving size in grams
-   - Use the actual values from the label, never estimate
+                    // Brand Logic
+                    const hasNoBrand = !p.brand || brandLower === 'unknown' || brandLower === 'generic';
+                    if (hasNoBrand) score += 40;
 
-3. If NO nutrition label is visible:
-   - Identify the food item precisely
-   - Use reliable nutritional databases
-   - Mark confidence_level as "medium" or "low"
+                    // Brand match bonus
+                    const brandMatch = !hasNoBrand && queryWords.some(word => brandLower.includes(word));
+                    if (brandMatch) score += 80;
 
-=== INSULIN CALCULATION RULES ===
-1. If user shows product WITHOUT specifying quantity eaten:
-   - Set suggested_insulin = 0
-   - Set missing_info = "${language === 'Italian' ? 'Quanto ne hai mangiato? (es. tutta la confezione, metà, 100g, 3 pezzi)' : 'How much did you eat? (e.g. whole package, half, 100g, 3 pieces)'}"
-   - Provide nutrition per 100g or per serving
+                    // Category Logic (New)
+                    const categoryMatch = queryWords.some(word => p.categories?.some(c => c.toLowerCase().includes(word)));
+                    if (categoryMatch) score += 70;
 
-2. Only calculate insulin if quantity is EXPLICIT and CLEAR
+                    // Quantity Logic (New)
+                    const qtyMatch = queryWords.some(word => /\d+/.test(word) && (p.name.includes(word) || (p.quantity && p.quantity.includes(word))));
+                    if (qtyMatch) score += 50;
 
-=== DATA SOURCES PRIORITY ===
-1. Values visible in the image (highest priority)
-2. Official manufacturer website
-3. USDA FoodData Central, OpenFoodFacts
-4. General nutritional estimates (lowest priority)
+                    // Specific Penalties
+                    if (nameLower.includes('yogur') && !queryLower.includes('yogur')) score -= 100;
+                    if (nameLower === 'pane' && hasNoBrand) score -= 30;
 
-=== RESPONSE FORMAT ===
-Respond with ONLY valid JSON (no markdown, no explanations outside JSON):
+                    return { product: p, score, brandMatch };
+                });
 
-{
-  "friendly_description": "short descriptive food name",
-  "food_items": [{
-    "name": "specific food name",
-    "carbs": 0.0,
-    "fat": 0.0,
-    "protein": 0.0,
-    "approx_weight": "100g or serving size"
-  }],
-  "total_carbs": 0.0,
-  "total_fat": 0.0,
-  "total_protein": 0.0,
-  "suggested_insulin": 0.0,
-  "split_bolus_recommendation": {
-    "recommended": false,
-    "split_percentage": "",
-    "duration": "",
-    "reason": ""
-  },
-  "reasoning": ["step-by-step calculation explanation"],
-  "calculation_formula": "formula used",
-  "sources": ["source1", "source2"],
-  "confidence_level": "high|medium|low",
-  "missing_info": null or "quantity question"
-}`;
+                const sortedResults = scoredProducts.sort((a, b) => b.score - a.score);
+                const best = sortedResults[0];
 
-        // Log per debug
-        console.log('[Perplexity] Request:', {
-            hasImage: !!image,
-            imageDataLength: image?.length || 0,
-            text: text?.substring(0, 100),
-            timestamp: new Date().toISOString()
-        });
+                // Advanced Logic: Hybrid Thresholds
+                const isOffOnly = userSettings?.analysisMode === 'off_only';
+                const highConfidence = best.score > 150;
+                const mediumConfidence = best.score >= 80;
 
-        const response = await perplexityClient.responses.create({
-            model: 'openai/gpt-5-mini',  // Vision-capable model per docs
-            input: [
-                {
-                    role: 'system',
-                    content: systemPrompt
-                },
-                {
-                    role: 'user',
-                    content: image ? [
-                        { type: 'input_text', text: text?.trim() || 'Analyze the nutritional information from this food image in detail. Extract all visible data from nutrition labels.' },
-                        { type: 'input_image', image_url: image }
-                    ] : [
-                        { type: 'input_text', text: `Analyze this food: ${text}` }
-                    ]
+                if (isOffOnly || highConfidence) {
+                    if (best.score > 50) {
+                        usedOFF = true;
+                        const result = best.product;
+                        const totalCarbs = result.carbs100g;
+                        return NextResponse.json({
+                            friendly_description: result.name,
+                            food_items: [{
+                                name: result.name,
+                                carbs: result.carbs100g,
+                                fat: result.fat100g,
+                                protein: result.protein100g,
+                                approx_weight: "100g"
+                            }],
+                            total_carbs: totalCarbs,
+                            total_fat: result.fat100g,
+                            total_protein: result.protein100g,
+                            suggested_insulin: Number((totalCarbs / carbRatio).toFixed(1)),
+                            calculation_formula: `${totalCarbs}g carbs / ${carbRatio} ratio = ${Number((totalCarbs / carbRatio).toFixed(1))}U`,
+                            sources: ["Open Food Facts (High Confidence)"],
+                            split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" },
+                            reasoning: [`Matched via Database Search (Score: ${best.score}).`],
+                            confidence_level: "high",
+                            warnings: ["Nutritional data is per 100g from Open Food Facts."]
+                        });
+                    }
                 }
-            ] as any,
-            max_output_tokens: 2048,
-        });
 
-        // Log risposta per debug
-        console.log('[Perplexity] Response:', {
-            outputLength: response.output_text?.length,
-            hasCitations: !!(response as any).citations,
-            citationsCount: (response as any).citations?.length || 0
-        });
+                if (mediumConfidence) {
+                    offContext = "\n\nDATABASE CONTEXT (Open Food Facts - Verified Matches):\n" +
+                        sortedResults.filter(r => r.score >= 80).slice(0, 3).map(r => {
+                            const p = r.product;
+                            return `- ${p.name} (${p.brand || ''}): Carbs: ${p.carbs100g}g, Fat: ${p.fat100g}g, Protein: ${p.protein100g}g per 100g`;
+                        }).join('\n');
+                }
+            }
 
-        const content = response.output_text || '{}';
-        console.log('[Perplexity] Raw output:', content.substring(0, 500));
-
-        let structured;
-        try {
-            structured = extractAndValidateJSON(content);
-        } catch (parseError: any) {
-            console.error('[Perplexity] JSON parse error:', parseError.message);
-            console.error('[Perplexity] Raw content:', content);
-            throw new Error(`Failed to parse Perplexity response: ${parseError.message}`);
+            if (userSettings?.analysisMode === 'off_only') {
+                return NextResponse.json({
+                    error: language === 'Italian' ? 'Alimento non trovato nel database.' : 'Food not found in database.',
+                    details: 'No database match found for: ' + textToSearch
+                }, { status: 404 });
+            }
         }
 
-        const citations = (response as any).citations || [];
-        console.log('[Perplexity] Citations:', citations);
+        // Fallback to AI if OFF not triggered or in hybrid/pplx_only
+        const type = image ? 'image' : 'text';
 
-        const result = {
-            friendly_description: structured.friendly_description || (text || 'Food analysis'),
-            food_items: structured.food_items || [],
-            total_carbs: Number(structured.total_carbs) || 0,
-            total_fat: Number(structured.total_fat) || 0,
-            total_protein: Number(structured.total_protein) || 0,
-            suggested_insulin: Number(structured.suggested_insulin) || 0,
-            split_bolus_recommendation: structured.split_bolus_recommendation || {
-                recommended: false,
-                split_percentage: "",
-                duration: "",
-                reason: ""
-            },
-            reasoning: Array.isArray(structured.reasoning) ? structured.reasoning : [],
-            calculation_formula: structured.calculation_formula || "",
-            sources: citations.length > 0
-                ? citations.map((c: any) => c.url || c)
-                : (Array.isArray(structured.sources) ? structured.sources : []),
-            confidence_level: structured.confidence_level || "medium",
-            missing_info: structured.missing_info || null,
-            warnings: Array.isArray(structured.warnings) ? structured.warnings : []
+        // SHRUNK previous analysis for refinement (saves ~500 tokens!)
+        const previousContext = previous_analysis ?
+            `\nPREVIOUS ANALYSIS CONTEXT:
+            Refining previous result.
+            FOOD: ${previous_analysis.friendly_description}
+            NUTRITION per 100g: C=${previous_analysis.food_items?.[0]?.carbs || 0}g F=${previous_analysis.food_items?.[0]?.fat || 0}g P=${previous_analysis.food_items?.[0]?.protein || 0}g
+            MISSING: ${previous_analysis.missing_info || 'None'}
+            
+            USER INPUT: "${text}"
+            TASK: Update ONLY quantity based on user input. Remove missing_info if resolved.`
+            : ""
+            ;
+
+        const instructions = `You are a diabetes nutrition assistant.
+        LANGUAGE: ${language}
+
+        TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
+        ${previousContext}
+
+        STRATEGY:
+        1. IDENTIFY & OCR: Identify food items, brands, and READ ALL VISIBLE TEXT (especially nutritional labels, packaging details, and weight specifications like "15g per biscuit").
+        2. SEARCH & VERIFY: 
+           - If a brand or specific product name is found, perform a web search to find its official nutritional values (e.g., "Barilla Penne carbs per 100g").
+           - DO NOT just stop at '/100g' values. Actively search for and report 'per item', 'per portion', or 'per biscuit' values to be more precise.
+        3. PRIORITIZE DATA:
+           - GROUND TRUTH 1: Text read directly from a nutritional label or package in the image (OCR).
+           - GROUND TRUTH 2: Official "per item" data found via web search for a specific branded product.
+           - ESTIMATION: Use visual volumetric estimation relative to tableware ONLY if no labels or search data are available.
+        4. MISSING INFO:
+           - If you are forced to make a rough guess because of missing details (brand, flavor), you MUST populate the 'missing_info' field.
+           - CRITICAL: If you have "per item" data (e.g. 1 biscuit = 7g) but DO NOT know the quantity/count (e.g. how many biscuits in the image), you MUST populate 'missing_info' with a question like "How many biscuits did you eat?".
+           - Ask the user specifically for what is missing.
+
+        5. CALCULATE: 
+           - Use Ground Truth values if available. 
+           - If a label specifies weight per portion/unit, use that weight instead of visual eyeballing.
+           - If 'missing_info' is populated, set suggested_insulin to 0 and explain why in 'calculation_formula'.
+
+        RULES:
+        1. ALWAYS assume the input is food unless it's clearly unrelated. Be VERY lenient.
+        2. OCR and Search data MUST override visual volumetric estimation. Do not eyeball size if text/labels provide facts.
+        3. EXTRACT QUANTITY FROM USER IF UNKNOWN:
+           - Example JSON for "1 biscuit = 7g" but unknown count:
+             {
+               "missing_info": "I found Gocciole (7g carbs each), but how many did you eat?",
+               "suggested_insulin": 0,
+               "calculation_formula": "Carbs known (7g/item) * Unknown Qty = 0U",
+               ...
+             }
+        4. CRITICAL LOGIC ENFORCEMENT for USER INTERACTION:
+           - IF suggested_insulin is 0 due to missing quantity: YOU MUST POPULATE 'missing_info'.
+           - EXPLAINING IT IN 'calculation_formula' OR 'reasoning' IS NOT ENOUGH. The 'missing_info' field controls the UI popup.
+           - Rule: (suggested_insulin == 0 && food_items.length > 0) => missing_info != null.
+        5. Calculate insulin using 1:${carbRatio} carb ratio.
+        6. Flag split bolus if fat>20g AND protein>25g.
+        7. Preserve user's specific food name but fix typos. Respond in ${language}.
+        8. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
+        9. List nutritional data sources in 'sources' (e.g. "OCR from image label", "Web Search for [Brand]", "USDA").
+        10. Set 'confidence_level' to "high", "medium", or "low" based on data source (High for OCR/Search, Medium for clear estimation, Low for ambiguous).
+        11. If precise data is missing, set 'missing_info' to a helpful question string.
+        12. Only return error if absolutely certain input is not food-related.
+        13. FRIENDLY_DESCRIPTION RULE: Keep it EXTREMELY CONCISE (Max 3-5 words). Just the product name (e.g. "Gocciole Biscuits"). DO NOT include packaging details, weight info, or nutritional summaries in the title. Put those in 'reasoning'.
+        ${offContext}
+
+        }`;
+
+        const messages: any[] = [
+            { role: "system", content: instructions }
+        ];
+
+        if (type === 'image' && image) {
+            messages.push({
+                role: "user",
+                content: [
+                    { type: "text", text: text && text.trim().length > 0 ? text : "Analyze this food." },
+                    { type: "image_url", image_url: { url: image } }
+                ]
+            });
+        } else {
+            messages.push({
+                role: "user",
+                content: `Food: ${text}`
+            });
+        }
+
+        const payload = {
+            model: 'sonar-pro',
+            messages: messages,
+            temperature: 0.2,
+            max_tokens: 1000,
+            response_format: {
+                type: 'json_schema',
+                json_schema: {
+                    schema: {
+                        type: 'object',
+                        properties: {
+                            reasoning: { type: 'array', items: { type: 'string' } },
+                            friendly_description: { type: 'string' },
+                            confidence_level: { type: 'string', enum: ['high', 'medium', 'low'] },
+                            missing_info: { type: ['string', 'null'] },
+                            food_items: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        name: { type: 'string' },
+                                        carbs: { type: 'number' },
+                                        fat: { type: 'number' },
+                                        protein: { type: 'number' },
+                                        approx_weight: { type: ['string', 'null'] }
+                                    },
+                                    required: ['name', 'carbs', 'fat', 'protein']
+                                }
+                            },
+                            total_carbs: { type: 'number' },
+                            total_fat: { type: 'number' },
+                            total_protein: { type: 'number' },
+                            suggested_insulin: { type: 'number' },
+                            calculation_formula: { type: 'string' },
+                            sources: { type: 'array', items: { type: 'string' } },
+                            split_bolus_recommendation: {
+                                type: 'object',
+                                properties: {
+                                    recommended: { type: 'boolean' },
+                                    split_percentage: { type: 'string' },
+                                    duration: { type: 'string' },
+                                    reason: { type: 'string' }
+                                },
+                                required: ['recommended']
+                            },
+                            warnings: { type: 'array', items: { type: 'string' } }
+                        },
+                        required: [
+                            'reasoning', 'friendly_description', 'confidence_level',
+                            'food_items', 'total_carbs', 'total_fat', 'total_protein',
+                            'suggested_insulin', 'calculation_formula', 'sources',
+                            'split_bolus_recommendation'
+                        ]
+                    }
+                }
+            }
         };
 
-        if (result.suggested_insulin === 0 && result.food_items.length > 0 && !result.missing_info) {
-            result.missing_info = language === 'Italian'
-                ? "Quantità mancante. Quanti grammi o pezzi hai mangiato?"
-                : "Quantity missing. How many grams or pieces did you eat?";
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Perplexity API Error:', errorText);
+            return NextResponse.json({ error: 'AI Analysis failed' }, { status: 500 });
         }
 
-        return NextResponse.json(result);
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
 
-    } catch (err: any) {
-        console.error('[Analysis] Error:', err);
+        try {
+            const result = JSON.parse(content);
 
-        if (err.status === 400) {
-            return NextResponse.json(
-                { error: 'Invalid request', details: err.message },
-                { status: 400 }
-            );
+            if (result.suggested_insulin === 0 && result.food_items && result.food_items.length > 0 && !result.missing_info) {
+                const missingInfoQuestion = language === 'Italian'
+                    ? "Quantità mancante. Quanti pezzi o grammi hai mangiato?"
+                    : "Quantity missing. How many pieces or grams did you eat?";
+
+                result.missing_info = missingInfoQuestion;
+                result.warnings = [...(result.warnings || []), "Auto-generated missing info request"];
+
+                if (result.calculation_formula) {
+                    result.calculation_formula += " (Waiting for user input)";
+                }
+            }
+
+            return NextResponse.json(result);
+        } catch (e) {
+            console.error('Failed to parse AI response:', content);
+            return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 });
         }
 
-        if (err.status === 429) {
-            return NextResponse.json(
-                { error: 'Rate limit exceeded. Please try again.' },
-                { status: 429 }
-            );
-        }
-
-        return NextResponse.json(
-            { error: 'Analysis failed', details: err.message ?? 'Unknown error' },
-            { status: 500 }
-        );
+    } catch (error) {
+        console.error('Analysis error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-}
-
-// GET endpoint per test
-export async function GET(req: NextRequest) {
-    return NextResponse.json({
-        status: 'ok',
-        perplexityConfigured: !!process.env.PERPLEXITY_API_KEY,
-        openaiConfigured: !!process.env.OPENAI_API_KEY,
-        timestamp: new Date().toISOString()
-    });
 }
