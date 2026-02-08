@@ -60,11 +60,17 @@ Schema (MUST match exactly):
 Rules:
 - Insulin ratio: 1:${carbRatio}
 - suggested_insulin = total_carbs / ${carbRatio}
-- If quantity unknown, set suggested_insulin=0 and populate missing_info
-- calculation_formula example: "25g carbs / 10 ratio = 2.5U"
 - Use web search for accurate nutritional data
 - If analyzing an image, identify visible foods and read any nutrition labels
-- Respond in ${language}`;
+- Respond in ${language}
+
+CRITICAL - Quantity handling:
+- If user shows a PRODUCT PACKAGE or NUTRITION LABEL without specifying how much they ate, you MUST:
+  1. Set suggested_insulin = 0
+  2. Set missing_info to ask: "${language === 'Italian' ? 'Quanto ne hai mangiato? (es. tutta la confezione, mezza, 100g)' : 'How much did you eat? (e.g. whole package, half, 100g)'}"
+  3. In food_items, list the product with "per serving" nutrients from the label
+- Only calculate insulin if the user explicitly states a quantity (e.g. "50g", "2 pieces", "whole pack")
+- When in doubt about quantity, ALWAYS ask via missing_info`;
 
         // Build content array with correct InputContentPart format
         const userContent: any[] = [
