@@ -638,6 +638,24 @@ export async function refineQuantity(
     provider: 'openai' | 'perplexity' = 'openai'
 ): Promise<AnalysisResult> {
     
+    // Sanitize quantityText - extract just the user's input if it contains formatting
+    let sanitizedQuantity = quantityText;
+    
+    // If the text contains [REFINEMENT] marker, extract just the relevant part
+    if (quantityText.includes('[REFINEMENT]') || quantityText.includes('User says:')) {
+        const match = quantityText.match(/User says:\s*"([^"]+)"/i);
+        if (match) {
+            sanitizedQuantity = match[1];
+        } else {
+            // Take last line or just first few words
+            const lines = quantityText.split('\n').filter(l => l.trim());
+            sanitizedQuantity = lines[lines.length - 1] || quantityText.substring(0, 50);
+        }
+    }
+    
+    // Limit length to avoid token issues
+    sanitizedQuantity = sanitizedQuantity.substring(0, 100).trim();
+    
     const language = settings.language === 'it' ? 'Italian' : 'English';
     const carbRatio = settings.useMealSpecificRatios && settings.carbRatios
         ? settings.carbRatios[getCurrentMealPeriod()]
@@ -645,88 +663,46 @@ export async function refineQuantity(
 
     const baseItem = previousAnalysis.food_items[0];
     
-    // Detailed prompt with reasoning steps and examples
-    const prompt = `You are a precise nutrition calculator. Calculate nutritional values based on quantity consumed.
+    // Compact prompt - avoid token limits
+    const prompt = `Calculate nutrition for: "${sanitizedQuantity}"
 
-LANGUAGE: ${language}
-INSULIN RATIO: 1 unit per ${carbRatio}g carbs
+Product: ${previousAnalysis.friendly_description}
+Base per 100g: Carbs=${baseItem?.carbs}g Fat=${baseItem?.fat}g Protein=${baseItem?.protein}g
+Ref weight: ${baseItem?.approx_weight || '100g'}
+Insulin ratio: 1:${carbRatio}
 
-=== BASE PRODUCT DATA (from previous analysis) ===
-- Product: ${previousAnalysis.friendly_description}
-- Carbs per 100g: ${baseItem?.carbs || 'unknown'}g
-- Fat per 100g: ${baseItem?.fat || 'unknown'}g  
-- Protein per 100g: ${baseItem?.protein || 'unknown'}g
-- Reference weight: ${baseItem?.approx_weight || '100g'}
-- Package info from image: ${previousAnalysis.calculation_formula || 'N/A'}
+Examples:
+- "380g" with 14g/100g → (14÷100)×380=53.2g carbs
+- "whole package" 380g → same as above
+- "half" of 380g → (14÷100)×190=26.6g
 
-=== USER QUANTITY INPUT ===
-"${quantityText}"
+Rules:
+1. Parse quantity (g, pieces, whole, half, etc.)
+2. Scale ALL nutrients proportionally
+3. Calculate insulin: total_carbs÷${carbRatio}
+4. Show formula: "Xg carbs/100g × Y = Zg ÷ ${carbRatio} = W.U"
+5. Set missing_info=null
 
-=== CALCULATION EXAMPLES ===
+Language: ${language}`;
 
-Example 1 - Weight in grams:
-- Base: 14g carbs per 100g
-- Input: "380g" 
-- Calculation: (14g ÷ 100) × 380 = 53.2g carbs
-- Formula: "14g carbs/100g × 3.8 (380g) = 53.2g carbs ÷ ${carbRatio} = X.XU"
-
-Example 2 - Pieces:
-- Base: 7g carbs per biscuit (from label)
-- Input: "3 biscuits"
-- Calculation: 7g × 3 = 21g carbs
-- Formula: "7g carbs/biscuit × 3 = 21g carbs ÷ ${carbRatio} = X.XU"
-
-Example 3 - Whole package:
-- Base: 14g carbs per 100g, package is 380g
-- Input: "tutta la confezione" / "whole package"
-- Calculation: (14g ÷ 100) × 380 = 53.2g carbs
-- Formula: "14g carbs/100g × 380g (whole package) = 53.2g ÷ ${carbRatio} = X.XU"
-
-Example 4 - Fraction:
-- Base: 45g carbs per portion
-- Input: "metà" / "half"
-- Calculation: 45g × 0.5 = 22.5g carbs
-- Formula: "45g carbs × 0.5 (half) = 22.5g ÷ ${carbRatio} = X.XU"
-
-=== YOUR TASK ===
-1. INTERPRET the user's quantity text carefully
-   - "380gr", "380g", "380 grammi" = 380 grams
-   - "tutto", "intera", "whole", "entire" = use total package weight if known
-   - "metà", "half" = 50% of reference amount
-   - "3 pezzi", "3 pieces" = multiply by per-piece values if available
-
-2. CALCULATE using this formula:
-   total_carbs = (carbs_per_100g ÷ 100) × grams_consumed
-   OR
-   total_carbs = carbs_per_piece × number_of_pieces
-
-3. SCALE all nutrients proportionally (carbs, fat, protein)
-
-4. CALCULATE insulin: total_carbs ÷ ${carbRatio}
-
-5. FORMAT the response with:
-   - friendly_description: original name + quantity (e.g., "Pesce Gratinato (380g)")
-   - calculation_formula: Show the EXACT math (e.g., "14g carbs/100g × 3.8 = 53.2g ÷ 10 = 5.3U")
-   - missing_info: null (we have the quantity now)
-
-Respond with valid JSON following the schema.`;
+    // Use json_object for OpenAI compatibility (works with gpt-5-mini)
+    const responseFormat = provider === 'openai' 
+        ? { type: 'json_object' as const }
+        : { type: 'json_schema' as const, json_schema: ANALYSIS_JSON_SCHEMA };
 
     const payload = {
         model: provider === 'openai' ? MODELS.openai.primary : MODELS.perplexity.primary,
         messages: [
             { role: 'system', content: prompt },
-            { role: 'user', content: 'Calculate nutrition for this quantity with detailed reasoning.' }
+            { role: 'user', content: 'Calculate and return JSON.' }
         ],
         temperature: 0.1,
-        response_format: {
-            type: 'json_schema',
-            json_schema: ANALYSIS_JSON_SCHEMA
-        }
+        response_format: responseFormat
     };
 
     const apiUrl = provider === 'openai' ? OPENAI_API_URL : PERPLEXITY_API_URL;
     
-    console.log(`[RefineQuantity] Using ${provider} for quantity: "${quantityText}"`);
+    console.log(`[RefineQuantity] Using ${provider} for: "${sanitizedQuantity}" (original: "${quantityText.substring(0, 50)}...")`);
     const startTime = Date.now();
     
     const response = await fetch(apiUrl, {
@@ -739,11 +715,18 @@ Respond with valid JSON following the schema.`;
     });
 
     if (!response.ok) {
-        throw new Error(`${provider} API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`[RefineQuantity] ${provider} error ${response.status}:`, errorText);
+        throw new Error(`${provider} API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+        throw new Error('Empty response from AI');
+    }
+    
     const parsed = typeof content === 'string' ? JSON.parse(content) : content;
     
     const duration = Date.now() - startTime;
