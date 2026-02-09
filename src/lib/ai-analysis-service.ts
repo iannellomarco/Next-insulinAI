@@ -482,6 +482,11 @@ async function callOpenAI(
 // ============================================================================
 
 function validateAndFixResult(raw: any, settings: Settings): AnalysisResult {
+    // Get current carb ratio for validation
+    const carbRatio = settings.useMealSpecificRatios && settings.carbRatios
+        ? settings.carbRatios[getCurrentMealPeriod()]
+        : settings.carbRatio;
+    
     // Ensure all required fields exist with defaults
     const fixed = {
         friendly_description: raw.friendly_description || 'Unknown food',
@@ -529,10 +534,15 @@ function validateAndFixResult(raw: any, settings: Settings): AnalysisResult {
 
     // Calculate insulin if missing but carbs are present
     if (fixed.suggested_insulin === 0 && fixed.total_carbs > 0 && !fixed.missing_info) {
-        const carbRatio = settings.useMealSpecificRatios && settings.carbRatios
-            ? settings.carbRatios[getCurrentMealPeriod()]
-            : settings.carbRatio;
         fixed.suggested_insulin = Math.round((fixed.total_carbs / carbRatio) * 10) / 10;
+        fixed.calculation_formula = `${fixed.total_carbs}g carbs ÷ ${carbRatio} = ${fixed.suggested_insulin}U`;
+    }
+    
+    // Validate: if insulin doesn't match formula, log warning but trust AI's calculation
+    const expectedInsulin = Math.round((fixed.total_carbs / carbRatio) * 10) / 10;
+    if (Math.abs(fixed.suggested_insulin - expectedInsulin) > 0.5) {
+        console.warn(`[Validation] Insulin mismatch: AI=${fixed.suggested_insulin}, expected=${expectedInsulin} (ratio=${carbRatio})`);
+        // Trust the AI's calculation but ensure formula matches
         fixed.calculation_formula = `${fixed.total_carbs}g carbs ÷ ${carbRatio} = ${fixed.suggested_insulin}U`;
     }
 
@@ -663,57 +673,95 @@ export async function refineQuantity(
 
     const baseItem = previousAnalysis.food_items[0];
     
-    // Try to extract total package weight from previous analysis
+    // Try to extract package info from previous analysis
     let totalPackageWeight = '';
-    const searchText = `${previousAnalysis.calculation_formula} ${previousAnalysis.sources?.join(' ') || ''} ${baseItem?.approx_weight || ''}`;
+    let piecesInPackage = '';
+    let weightPerPiece = '';
+    
+    const searchText = `${previousAnalysis.calculation_formula} ${previousAnalysis.sources?.join(' ') || ''} ${baseItem?.approx_weight || ''} ${previousAnalysis.friendly_description}`;
+    
+    // Find total package weight
     const weightMatch = searchText.match(/(\d+(?:\.\d+)?)\s*g\b(?!\s*per|\/100)/i) || 
                         searchText.match(/confezione.*?\s(\d+)\s*g/i) ||
                         searchText.match(/package.*?\s(\d+)\s*g/i);
     if (weightMatch) {
-        totalPackageWeight = weightMatch[1] + 'g';
+        totalPackageWeight = weightMatch[1];
+    }
+    
+    // Find number of pieces in package
+    const piecesMatch = searchText.match(/(\d+)\s*(?:pezz|pieces|biscotti|nuggets)/i) ||
+                        searchText.match(/(\d+)\s*per\s*confezione/i) ||
+                        searchText.match(/confezione.*?\s(\d+)\s*pezz/i);
+    if (piecesMatch) {
+        piecesInPackage = piecesMatch[1];
+    }
+    
+    // Calculate weight per piece if we have both
+    if (totalPackageWeight && piecesInPackage) {
+        const weightPerPieceCalc = parseFloat(totalPackageWeight) / parseInt(piecesInPackage);
+        weightPerPiece = weightPerPieceCalc.toFixed(1);
+    }
+    
+    // Build product info section
+    let productInfo = `Base per 100g: Carbs=${baseItem?.carbs}g Fat=${baseItem?.fat}g Protein=${baseItem?.protein}g`;
+    if (weightPerPiece) {
+        productInfo += `\nWeight per piece: ${weightPerPiece}g (calculated: ${totalPackageWeight}g ÷ ${piecesInPackage} pieces)`;
+    } else if (totalPackageWeight) {
+        productInfo += `\nTotal package weight: ${totalPackageWeight}g`;
     }
     
     // Compact prompt - avoid token limits
     const prompt = `Calculate nutrition for: "${sanitizedQuantity}"
 
 Product: ${previousAnalysis.friendly_description}
-Base per 100g: Carbs=${baseItem?.carbs}g Fat=${baseItem?.fat}g Protein=${baseItem?.protein}g
-${totalPackageWeight ? `Total package weight: ${totalPackageWeight}` : 'Reference: 100g'}
+${productInfo}
 Insulin ratio: 1:${carbRatio}
 
-Examples:
-- "380g" with 14g/100g → (14÷100)×380=53.2g carbs
-- "whole package" with 380g total → (14÷100)×380=53.2g carbs  ← USE TOTAL WEIGHT
-- "half" of 380g → (14÷100)×190=26.6g
+EXAMPLES:
 
-Rules:
-1. Parse quantity (grams, pieces, whole, half, etc.)
-2. If user says "whole package"/"tutta la confezione" → use TOTAL PACKAGE WEIGHT
-3. Scale ALL nutrients proportionally
-4. Calculate insulin: total_carbs÷${carbRatio}
-5. Show formula: "Xg carbs/100g × Y = Zg ÷ ${carbRatio} = W.U"
-6. Set missing_info=null
+Example A - Weight in grams:
+- Base: 14g carbs per 100g
+- Input: "380g" → (14÷100)×380 = 53.2g carbs
+- Formula: "14g/100g × 3.8 = 53.2g ÷ ${carbRatio} = X.XU"
+
+Example B - Pieces (when weight per piece is known):
+- Base: 7.3g carbs per 100g, each piece = 23g
+- Input: "3 pieces" → 3×23g = 69g total → (7.3÷100)×69 = 5.0g carbs
+- Formula: "7.3g/100g × 0.69 (69g) = 5.0g ÷ ${carbRatio} = X.XU"
+
+Example C - Whole package:
+- Base: 14g carbs per 100g, package = 380g
+- Input: "whole package" → (14÷100)×380 = 53.2g carbs
+- Formula: "14g/100g × 3.8 = 53.2g ÷ ${carbRatio} = X.XU"
+
+RULES:
+1. Convert pieces to grams FIRST (pieces × weight per piece = total grams)
+2. Then calculate: (carbs_per_100g ÷ 100) × total_grams = total_carbs
+3. Show formula with BOTH steps: "Xg/100g × Y.Y (ZZZg) = WWWg ÷ ${carbRatio} = V.VU"
+4. Set missing_info=null
 
 Language: ${language}`;
 
-    // Build prompt with JSON example for OpenAI
+    // Build prompt with JSON example for OpenAI - use ACTUAL carb ratio
+    const exampleCarbs = 53.2;
+    const exampleInsulin = Math.round((exampleCarbs / carbRatio) * 10) / 10;
     const jsonExample = {
         friendly_description: `Product name (${sanitizedQuantity})`,
         food_items: [{
             name: "Product name",
-            carbs: 53.2,
+            carbs: exampleCarbs,
             fat: 24.0,
             protein: 30.0,
             approx_weight: "380g"
         }],
-        total_carbs: 53.2,
+        total_carbs: exampleCarbs,
         total_fat: 24.0,
         total_protein: 30.0,
-        suggested_insulin: 5.3,
-        calculation_formula: "14g/100g × 3.8 = 53.2g ÷ 10 = 5.3U",
+        suggested_insulin: exampleInsulin,
+        calculation_formula: `14g/100g × 3.8 = ${exampleCarbs}g ÷ ${carbRatio} = ${exampleInsulin}U`,
         missing_info: null,
         confidence_level: "high",
-        reasoning: ["Parsed quantity: 380g", "Calculated: (14÷100)×380=53.2g carbs"],
+        reasoning: ["Parsed quantity: 380g", `Calculated: ${exampleCarbs}g carbs ÷ ${carbRatio} = ${exampleInsulin}U`],
         sources: ["Original analysis"],
         warnings: [],
         split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" }
@@ -724,7 +772,7 @@ Language: ${language}`;
 === REQUIRED JSON OUTPUT FORMAT ===
 ${JSON.stringify(jsonExample, null, 2)}
 
-IMPORTANT: Return ONLY the JSON object above with calculated values. No extra text.`;
+CRITICAL: Use carb ratio ${carbRatio} consistently in both calculation_formula AND suggested_insulin.`;
 
     const payload: any = {
         model: provider === 'openai' ? MODELS.openai.primary : MODELS.perplexity.primary,
@@ -785,11 +833,40 @@ IMPORTANT: Return ONLY the JSON object above with calculated values. No extra te
         if (baseItem) {
             let multiplier = 1;
             let description = sanitizedQuantity;
+            let totalGrams = 100; // default
             
             // Try to extract grams from quantity text
             const gramsMatch = sanitizedQuantity.match(/(\d+(?:\.\d+)?)\s*(?:g|gr|grammi|grams)/i);
             if (gramsMatch) {
-                multiplier = parseFloat(gramsMatch[1]) / 100;
+                totalGrams = parseFloat(gramsMatch[1]);
+                multiplier = totalGrams / 100;
+            }
+            // Check for pieces: "3 pieces", "5 pezzi", etc.
+            else if (/\b(\d+)\s*(?:pezz|pieces|nuggets|biscotti|item)/i.test(sanitizedQuantity)) {
+                const piecesMatch = sanitizedQuantity.match(/(\d+)\s*(?:pezz|pieces|nuggets|biscotti|item)/i);
+                if (piecesMatch) {
+                    const numPieces = parseInt(piecesMatch[1]);
+                    
+                    // Calculate weight per piece from package info
+                    const searchText = `${previousAnalysis.calculation_formula} ${previousAnalysis.sources?.join(' ') || ''} ${previousAnalysis.friendly_description}`;
+                    const totalWeightMatch = searchText.match(/(\d+(?:\.\d+)?)\s*g\b(?!\s*per|\/100)/i);
+                    const piecesInPackMatch = searchText.match(/(\d+)\s*(?:pezz|pieces)/i) || 
+                                               searchText.match(/confezione.*?\s(\d+)\s*pezz/i);
+                    
+                    if (totalWeightMatch && piecesInPackMatch) {
+                        const totalWeight = parseFloat(totalWeightMatch[1]);
+                        const packPieces = parseInt(piecesInPackMatch[1]);
+                        const gramsPerPiece = totalWeight / packPieces;
+                        totalGrams = numPieces * gramsPerPiece;
+                        multiplier = totalGrams / 100;
+                        description = `${numPieces} pieces (${totalGrams.toFixed(1)}g)`;
+                    } else {
+                        // Can't calculate, use estimate
+                        totalGrams = numPieces * 30; // assume 30g per piece
+                        multiplier = totalGrams / 100;
+                        description = `${numPieces} pieces (~${totalGrams}g estimated)`;
+                    }
+                }
             }
             // Check for "whole package" / "tutta la confezione"
             else if (/\b(whole|entire|tutta|tutto|intera|intero)\b/i.test(sanitizedQuantity)) {
@@ -797,7 +874,7 @@ IMPORTANT: Return ONLY the JSON object above with calculated values. No extra te
                 const searchText = `${previousAnalysis.calculation_formula} ${previousAnalysis.sources?.join(' ') || ''}`;
                 const packageWeightMatch = searchText.match(/(\d+(?:\.\d+)?)\s*g\b(?!\s*per|\/100)/i);
                 if (packageWeightMatch) {
-                    const totalGrams = parseFloat(packageWeightMatch[1]);
+                    totalGrams = parseFloat(packageWeightMatch[1]);
                     multiplier = totalGrams / 100;
                     description = `${totalGrams}g (whole package)`;
                 }
@@ -807,8 +884,9 @@ IMPORTANT: Return ONLY the JSON object above with calculated values. No extra te
                 const searchText = `${previousAnalysis.calculation_formula} ${previousAnalysis.sources?.join(' ') || ''}`;
                 const packageWeightMatch = searchText.match(/(\d+(?:\.\d+)?)\s*g\b(?!\s*per|\/100)/i);
                 if (packageWeightMatch) {
-                    multiplier = (parseFloat(packageWeightMatch[1]) / 100) / 2;
-                    description = `half (${parseFloat(packageWeightMatch[1]) / 2}g)`;
+                    totalGrams = parseFloat(packageWeightMatch[1]) / 2;
+                    multiplier = totalGrams / 100;
+                    description = `half (${totalGrams}g)`;
                 } else {
                     multiplier = 0.5;
                     description = 'half';
@@ -833,10 +911,10 @@ IMPORTANT: Return ONLY the JSON object above with calculated values. No extra te
                 total_fat: totalFat,
                 total_protein: totalProtein,
                 suggested_insulin: insulin,
-                calculation_formula: `${baseItem.carbs}g/100g × ${multiplier.toFixed(2)} = ${totalCarbs}g ÷ ${carbRatio} = ${insulin}U`,
+                calculation_formula: `${baseItem.carbs}g/100g × ${multiplier.toFixed(2)} (${totalGrams.toFixed(1)}g) = ${totalCarbs}g ÷ ${carbRatio} = ${insulin}U`,
                 missing_info: null,
                 confidence_level: 'high',
-                reasoning: ['Fallback calculation', `${baseItem.carbs}g × ${multiplier} = ${totalCarbs}g`],
+                reasoning: ['Fallback calculation', `${baseItem.carbs}g/100g × ${totalGrams.toFixed(1)}g = ${totalCarbs}g`],
                 sources: ['Fallback: original analysis × quantity'],
                 warnings: ['AI returned empty, used fallback calculation'],
                 split_bolus_recommendation: { recommended: false, split_percentage: '', duration: '', reason: '' }
