@@ -773,13 +773,21 @@ Language: ${language}`;
     const baseFat = baseItem?.fat || 5;
     const baseProtein = baseItem?.protein || 8;
     
-    // Example scenario: user eats 1 piece or 100g
+    // Example 1: Default (100g or 1 piece)
     const exampleWeight = weightPerPiece ? parseFloat(weightPerPiece) : 100;
     const exampleMultiplier = exampleWeight / 100;
     const exampleCarbs = Math.round(baseCarbs * exampleMultiplier * 10) / 10;
     const exampleFat = Math.round(baseFat * exampleMultiplier * 10) / 10;
     const exampleProtein = Math.round(baseProtein * exampleMultiplier * 10) / 10;
     const exampleInsulin = Math.round((exampleCarbs / carbRatio) * 10) / 10;
+    
+    // Example 2: WHOLE PACKAGE (crucial!)
+    const packageWeight = totalPackageWeight ? parseFloat(totalPackageWeight) : 360;
+    const packageMultiplier = packageWeight / 100;
+    const packageCarbs = Math.round(baseCarbs * packageMultiplier * 10) / 10;
+    const packageFat = Math.round(baseFat * packageMultiplier * 10) / 10;
+    const packageProtein = Math.round(baseProtein * packageMultiplier * 10) / 10;
+    const packageInsulin = Math.round((packageCarbs / carbRatio) * 10) / 10;
     
     const jsonExample = {
         friendly_description: `${previousAnalysis.friendly_description} (${weightPerPiece ? '1 piece' : '100g'})`,
@@ -802,6 +810,29 @@ Language: ${language}`;
         warnings: [],
         split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" }
     };
+    
+    // Whole package example (shown separately)
+    const wholePackageExample = totalPackageWeight ? {
+        friendly_description: `${previousAnalysis.friendly_description} (whole package)`,
+        food_items: [{
+            name: baseItem?.name || "Product",
+            carbs: packageCarbs,
+            fat: packageFat,
+            protein: packageProtein,
+            approx_weight: `${packageWeight}g (whole package)`
+        }],
+        total_carbs: packageCarbs,
+        total_fat: packageFat,
+        total_protein: packageProtein,
+        suggested_insulin: packageInsulin,
+        calculation_formula: `${baseCarbs}g/100g × ${packageMultiplier.toFixed(2)} (${packageWeight}g) = ${packageCarbs}g ÷ ${carbRatio} = ${packageInsulin}U`,
+        missing_info: null,
+        confidence_level: "high",
+        reasoning: [`Whole package: ${packageWeight}g`, `${baseCarbs}g/100g × ${packageMultiplier.toFixed(2)} = ${packageCarbs}g`],
+        sources: ["Original analysis"],
+        warnings: [],
+        split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" }
+    } : null;
 
     const fullPrompt = `${prompt}
 
@@ -817,8 +848,14 @@ INSULIN RATIO: 1:${carbRatio}
 
 USER REQUEST: "${sanitizedQuantity}"
 
-=== EXAMPLE (for reference, calculated with real product values) ===
+=== EXAMPLE 1: Standard serving (${weightPerPiece ? '1 piece' : '100g'}) ===
 ${JSON.stringify(jsonExample, null, 2)}
+${wholePackageExample ? `
+=== EXAMPLE 2: WHOLE PACKAGE (CRITICAL!) ===
+${JSON.stringify(wholePackageExample, null, 2)}
+
+NOTE: When user says "full package", "whole package", "tutta la confezione", etc.
+USE TOTAL PACKAGE WEIGHT ${totalPackageWeight}g, NOT 100g!` : ''}
 
 === YOUR TASK ===
 Calculate for "${sanitizedQuantity}":
