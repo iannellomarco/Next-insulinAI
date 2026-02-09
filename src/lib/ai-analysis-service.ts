@@ -557,10 +557,9 @@ function generateQuantityInfo(raw: any): any {
     // Search in ALL text fields from the analysis
     const searchTexts: string[] = [];
     
-    // From food_items
+    // From food_items - approx_weight is most reliable for package info
     for (const item of (raw.food_items || [])) {
         if (item.approx_weight) searchTexts.push(item.approx_weight);
-        if (item.name) searchTexts.push(item.name);
     }
     
     // From other fields
@@ -568,51 +567,85 @@ function generateQuantityInfo(raw: any): any {
     if (raw.friendly_description) searchTexts.push(raw.friendly_description);
     if (raw.reasoning) searchTexts.push(...(Array.isArray(raw.reasoning) ? raw.reasoning : [raw.reasoning]));
     if (raw.sources) searchTexts.push(...(Array.isArray(raw.sources) ? raw.sources : [raw.sources]));
+    if (raw.missing_info) searchTexts.push(raw.missing_info);
     
     const allText = searchTexts.join(' ');
+    console.log('[generateQuantityInfo] Searching in text:', allText.substring(0, 200));
     
-    // Extract from ALL combined text (more reliable)
-    // Pattern: "360g" or "360 g" (3-4 digits + g, not followed by /100)
-    const packageWeightMatch = allText.match(/(\d{3,4})\s*g\b(?!\s*\/\s*100)/i);
-    if (packageWeightMatch) {
-        const weight = parseInt(packageWeightMatch[1]);
-        // Validate: package weight is typically 100g-5000g
-        if (weight >= 100 && weight <= 5000) {
-            totalPackageWeight = weight;
+    // Extract from ALL combined text
+    // PRIORITY 1: Pattern "package=360g" or "confezione da 360g" or "360g total"
+    const explicitPackageMatch = allText.match(/(?:package|confezione|totale|total)\s*[=:]?\s*(\d{3,4})\s*g/i) ||
+                                  allText.match(/(\d{3,4})\s*g\s*(?:total|package|confezione)/i);
+    if (explicitPackageMatch) {
+        totalPackageWeight = parseInt(explicitPackageMatch[1]);
+        console.log('[generateQuantityInfo] Found explicit package weight:', totalPackageWeight);
+    }
+    
+    // PRIORITY 2: Pattern in parentheses like "(360g/3 pieces)" or "(3 pieces, 360g)"
+    if (!totalPackageWeight) {
+        const parenMatch = allText.match(/\((\d{3,4})\s*g\s*\/\s*\d+\s*(?:pezzi|pieces)/i) ||
+                          allText.match(/\(\d+\s*(?:pezzi|pieces)\s*,?\s*(\d{3,4})\s*g/i) ||
+                          allText.match(/package[=:]\s*(\d+)\s*g/i);
+        if (parenMatch) {
+            totalPackageWeight = parseInt(parenMatch[1]);
+            console.log('[generateQuantityInfo] Found weight in parentheses:', totalPackageWeight);
         }
     }
     
-    // Pattern: "3 pezzi" or "3 pieces" or "3 per confezione"
-    const piecesMatch = allText.match(/(\d+)\s*(?:pezzi|pieces|pz)(?!\s*\/)/i) || 
-                        allText.match(/(\d+)\s*per\s*(?:confezione|package|pack)/i);
-    if (piecesMatch) {
-        pieces = parseInt(piecesMatch[1]);
-    }
-    
-    // Pattern: "Xg a pezzo" or "Xg per piece"
-    const perPieceMatch = allText.match(/(\d+)\s*g\s*(?:a|per)\s*(?:pezzo|piece)/i);
-    if (perPieceMatch) {
-        weightPerPiece = parseInt(perPieceMatch[1]);
-    }
-    
-    // Also check individual fields as fallback
-    for (const text of searchTexts) {
-        if (!text) continue;
-        
-        // Extract "360g" from individual fields
-        if (!totalPackageWeight) {
-            const wMatch = text.match(/(\d{3,4})\s*g/i);
-            if (wMatch) {
-                const w = parseInt(wMatch[1]);
-                if (w >= 100 && w <= 5000) totalPackageWeight = w;
+    // PRIORITY 3: "360g" alone - but be careful to skip "Xg per 100g" or "Xg/100g"
+    if (!totalPackageWeight) {
+        // Look for "360g" not followed by /100 or "per 100"
+        const weightMatches = allText.matchAll(/(\d{3,4})\s*g\b/gi);
+        for (const match of weightMatches) {
+            const pos = match.index || 0;
+            const after = allText.substring(pos + match[0].length, pos + match[0].length + 10).toLowerCase();
+            const before = allText.substring(Math.max(0, pos - 10), pos).toLowerCase();
+            
+            // Skip if it's "per 100g" or "/100g"
+            if (after.includes('/100') || after.includes('per 100') || before.includes('per')) {
+                continue;
+            }
+            
+            const weight = parseInt(match[1]);
+            // Package weight is typically 150g-5000g (not 100g which is standard per-100g)
+            if (weight >= 150 && weight <= 5000) {
+                totalPackageWeight = weight;
+                console.log('[generateQuantityInfo] Found standalone weight:', totalPackageWeight);
+                break;
             }
         }
-        
-        // Extract pieces
-        if (!pieces) {
-            const pMatch = text.match(/(\d+)\s*(?:pezzi?|pieces?)/i);
-            if (pMatch) pieces = parseInt(pMatch[1]);
+    }
+    
+    // Pattern: "3 pezzi" or "3 pieces" or "3 per confezione" - look in missing_info FIRST
+    // missing_info typically has the cleanest info: "(3 per 360g pack)"
+    const missingText = raw.missing_info || '';
+    console.log('[generateQuantityInfo] missing_info:', missingText);
+    
+    // Try patterns in missing_info first
+    const missingPiecesMatch = missingText.match(/(\d+)\s*(?:pezzi|pieces|pz)/i) ||
+                               missingText.match(/package[=:]?\s*\d+g\s*\/\s*(\d+)\s*(?:pezzi|pieces)/i) ||
+                               missingText.match(/(\d+)\s*per\s*(?:confezione|package|pack)/i);
+    if (missingPiecesMatch) {
+        pieces = parseInt(missingPiecesMatch[1]);
+        console.log('[generateQuantityInfo] Found pieces in missing_info:', pieces);
+    }
+    
+    // Fallback to other text
+    if (!pieces) {
+        const piecesMatch = allText.match(/(\d+)\s*(?:pezzi|pieces|pz)\b(?!\s*\/)/i) ||
+                            allText.match(/(\d+)\s*per\s*(?:confezione|package|pack)/i);
+        if (piecesMatch) {
+            pieces = parseInt(piecesMatch[1]);
+            console.log('[generateQuantityInfo] Found pieces in other text:', pieces);
         }
+    }
+    
+    // Pattern: "Xg a pezzo" or "Xg per piece" or "~Xg each"
+    const perPieceMatch = allText.match(/(\d+)\s*g\s*(?:a|per)\s*(?:pezzo|piece)/i) ||
+                          allText.match(/[~≈]?(\d+)\s*g\s*(?:each|cad|uno)/i);
+    if (perPieceMatch) {
+        weightPerPiece = parseInt(perPieceMatch[1]);
+        console.log('[generateQuantityInfo] Found weight per piece:', weightPerPiece);
     }
     
     // Calculate weight per piece if we have total and pieces count
@@ -649,16 +682,41 @@ function generateQuantityInfo(raw: any): any {
     }
     
     if (weightPerPiece) {
-        const pieceWord = totalPackageWeight && pieces ? `di ${pieces}` : '';
+        // Format: "1 pezzo di 3" or just "1 pezzo" if we don't know total
+        let pieceLabel = '';
+        if (pieces && pieces > 1) {
+            pieceLabel = ` di ${pieces}`;
+        }
         suggestedInputs.push(
-            { label: `1 pezzo ${pieceWord} (≈${Math.round(weightPerPiece)}g)`, value: '1', type: 'pieces' },
+            { label: `1 pezzo${pieceLabel} (≈${Math.round(weightPerPiece)}g)`, value: '1', type: 'pieces' }
+        );
+        
+        // 2 pieces always useful
+        suggestedInputs.push(
             { label: `2 pezzi (≈${Math.round(weightPerPiece * 2)}g)`, value: '2', type: 'pieces' }
         );
         
         // Add more piece options if package has many pieces
-        if (pieces && pieces >= 4) {
+        if (pieces && pieces >= 3) {
             suggestedInputs.push(
                 { label: `3 pezzi (≈${Math.round(weightPerPiece * 3)}g)`, value: '3', type: 'pieces' }
+            );
+        }
+        if (pieces && pieces >= 4) {
+            suggestedInputs.push(
+                { label: `4 pezzi (≈${Math.round(weightPerPiece * 4)}g)`, value: '4', type: 'pieces' }
+            );
+        }
+    } else if (pieces && pieces > 1 && totalPackageWeight) {
+        // We know pieces but not weight per piece - calculate it
+        const calculatedWeightPerPiece = Math.round(totalPackageWeight / pieces);
+        suggestedInputs.push(
+            { label: `1 pezzo di ${pieces} (≈${calculatedWeightPerPiece}g)`, value: '1', type: 'pieces' },
+            { label: `2 pezzi (≈${calculatedWeightPerPiece * 2}g)`, value: '2', type: 'pieces' }
+        );
+        if (pieces >= 3) {
+            suggestedInputs.push(
+                { label: `3 pezzi (≈${calculatedWeightPerPiece * 3}g)`, value: '3', type: 'pieces' }
             );
         }
     }
@@ -681,13 +739,16 @@ function generateQuantityInfo(raw: any): any {
         );
     }
     
-    return {
+    const result = {
         input_type: inputType,
         total_package_weight: totalPackageWeight,
         pieces: pieces,
         weight_per_piece: weightPerPiece,
         suggested_inputs: suggestedInputs.slice(0, 6)  // Max 6 buttons
     };
+    
+    console.log('[generateQuantityInfo] RESULT:', JSON.stringify(result, null, 2));
+    return result;
 }
 
 function validateAndFixResult(raw: any, settings: Settings): AnalysisResult {
