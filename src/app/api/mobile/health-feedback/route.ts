@@ -11,27 +11,20 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { 
-            insulin, 
-            carbs, 
-            protein, 
-            fat, 
-            entries, 
-            currentGlucose, 
-            language = 'en',
-            historyContext = []
-        } = body;
+        const { insulin, carbs, protein, fat, entries, currentGlucose, language = 'en' } = body;
 
-        const prompt = buildHealthPrompt({
-            insulin,
-            carbs,
-            protein,
-            fat,
-            entries,
-            currentGlucose,
-            language,
-            historyContext
-        });
+        const prompt = `Analyze this user's daily diabetes metrics and provide a brief health insight (max 2 sentences):
+
+Today's Data:
+- Insulin: ${insulin.toFixed(1)}U
+- Carbs: ${Math.round(carbs)}g
+- Protein: ${Math.round(protein)}g  
+- Fat: ${Math.round(fat)}g
+- Meals logged: ${entries}
+- Current glucose: ${currentGlucose > 0 ? `${Math.round(currentGlucose)} mg/dL` : 'Not available'}
+
+Provide encouraging, constructive feedback about nutrition balance and glucose management.
+Respond in ${language === 'it' ? 'Italian' : 'English'}.`;
 
         const response = await fetch(OPENAI_API_URL, {
             method: 'POST',
@@ -42,10 +35,7 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
-                    {
-                        role: 'system',
-                        content: `You are a supportive diabetes health assistant. Provide brief, encouraging health insights (max 2 sentences) based on user's daily nutrition and glucose data. Be specific about macronutrients and glucose trends. Respond in ${language === 'it' ? 'Italian' : 'English'}.`
-                    },
+                    { role: 'system', content: 'You are a supportive diabetes health assistant. Provide brief, encouraging health insights.' },
                     { role: 'user', content: prompt }
                 ],
                 max_tokens: 150,
@@ -54,76 +44,18 @@ export async function POST(req: NextRequest) {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[Health Feedback] OpenAI error:', errorText);
-            return NextResponse.json(
-                { error: 'AI service unavailable', fallback: getFallbackFeedback(language) },
-                { status: 200 }
-            );
+            return NextResponse.json({ feedback: getFallbackFeedback(language) });
         }
 
         const data = await response.json();
         const feedback = data.choices?.[0]?.message?.content || getFallbackFeedback(language);
 
-        return NextResponse.json({ 
-            feedback,
-            timestamp: Date.now(),
-            metrics: { insulin, carbs, protein, fat, entries, currentGlucose }
-        });
+        return NextResponse.json({ feedback, timestamp: Date.now() });
 
     } catch (error) {
         console.error('[Health Feedback] Error:', error);
-        return NextResponse.json(
-            { error: 'Internal error', fallback: getFallbackFeedback('en') },
-            { status: 500 }
-        );
+        return NextResponse.json({ feedback: getFallbackFeedback('en') });
     }
-}
-
-function buildHealthPrompt({
-    insulin,
-    carbs,
-    protein,
-    fat,
-    entries,
-    currentGlucose,
-    language,
-    historyContext
-}: {
-    insulin: number;
-    carbs: number;
-    protein: number;
-    fat: number;
-    entries: number;
-    currentGlucose?: number;
-    language: string;
-    historyContext: any[];
-}): string {
-    const glucoseText = currentGlucose 
-        ? `Current glucose: ${Math.round(currentGlucose)} mg/dL`
-        : 'No current glucose reading';
-
-    const historyText = historyContext.length > 0
-        ? `Recent glucose trend: ${historyContext.slice(-3).map((h: any) => Math.round(h.value)).join(' → ')} mg/dL`
-        : 'No recent glucose data';
-
-    return `Analyze this user's daily diabetes metrics and provide a brief health insight:
-
-Today's Data:
-- Insulin: ${insulin.toFixed(1)}U
-- Carbs: ${Math.round(carbs)}g
-- Protein: ${Math.round(protein)}g  
-- Fat: ${Math.round(fat)}g
-- Meals logged: ${entries}
-- ${glucoseText}
-- ${historyText}
-
-Provide encouraging, constructive feedback about:
-1. Nutrition balance (carb/protein/fat ratio)
-2. Insulin management effectiveness
-3. Glucose trends if available
-
-Keep it personal, supportive and actionable. Max 2 sentences.`;
 }
 
 function getFallbackFeedback(language: string): string {
