@@ -651,8 +651,16 @@ function generateQuantityInfo(raw: any): any {
     }
     
     // Calculate weight per piece if we have total and pieces count
-    if (totalPackageWeight && pieces && !weightPerPiece) {
-        weightPerPiece = Math.round(totalPackageWeight / pieces);
+    // PRIORITY: Math calculation is MORE reliable than regex extraction
+    if (totalPackageWeight && pieces && pieces > 0) {
+        const calculatedWeightPerPiece = Math.round(totalPackageWeight / pieces);
+        // Only use calculated value if it's reasonable (10-500g per piece)
+        if (calculatedWeightPerPiece >= 10 && calculatedWeightPerPiece <= 500) {
+            if (weightPerPiece && weightPerPiece !== calculatedWeightPerPiece) {
+                console.log(`[generateQuantityInfo] Overriding extracted weightPerPiece (${weightPerPiece}g) with calculated (${calculatedWeightPerPiece}g)`);
+            }
+            weightPerPiece = calculatedWeightPerPiece;
+        }
     }
     
     // Determine input type needed
