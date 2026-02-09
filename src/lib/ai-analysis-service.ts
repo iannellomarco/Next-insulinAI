@@ -640,11 +640,13 @@ function generateQuantityInfo(raw: any): any {
         }
     }
     
-    // Pattern: "Xg a pezzo" or "Xg per piece" or "~Xg each"
-    const perPieceMatch = allText.match(/(\d+)\s*g\s*(?:a|per)\s*(?:pezzo|piece)/i) ||
-                          allText.match(/[~≈]?(\d+)\s*g\s*(?:each|cad|uno)/i);
+    // Pattern: "Xg a pezzo" or "Xg per piece" or "~Xg each" or "each ~Xg"
+    const perPieceMatch = allText.match(/(\d+(?:\.\d+)?)\s*g\s*(?:a|per)\s*(?:pezzo|piece)/i) ||
+                          allText.match(/(?:each|cad)\s*[~≈]?\s*(\d+(?:\.\d+)?)\s*g/i) ||
+                          allText.match(/[~≈]\s*(\d+(?:\.\d+)?)\s*g\s*(?:each|a pezzo)/i) ||
+                          allText.match(/\(\s*[~≈]?\s*(\d+(?:\.\d+)?)\s*g/i);
     if (perPieceMatch) {
-        weightPerPiece = parseInt(perPieceMatch[1]);
+        weightPerPiece = parseFloat(perPieceMatch[1]);
         console.log('[generateQuantityInfo] Found weight per piece:', weightPerPiece);
     }
     
@@ -997,11 +999,22 @@ export async function refineQuantity(
     const baseProtein = baseItem?.protein || 0;
     
     // CRITICAL: Check if we have carbs PER PIECE in missing_info
-    // Pattern: "each ~9g, 5g carbs" or "~9g / 5g carbs"
+    // Pattern: "each ~9g, 5g carbs" or "~9g / 5g carbs" or "≈5g carbs" or "~ 5g carbs"
     const missingInfoText = previousAnalysis.missing_info || '';
-    const carbsPerPieceMatch = missingInfoText.match(/(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|carboidrati)/i) ||
-                                missingInfoText.match(/(\d+(?:\.\d+)?)\s*g\s*c/i);
+    console.log('[RefineQuantity] missing_info:', missingInfoText);
+    
+    // Look for carbs per piece - multiple patterns
+    let carbsPerPieceMatch = missingInfoText.match(/(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|carboidrati)/i);
+    if (!carbsPerPieceMatch) {
+        carbsPerPieceMatch = missingInfoText.match(/[~≈]\s*(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|c)/i);
+    }
+    if (!carbsPerPieceMatch) {
+        // Pattern: "5g carbs each" or "each ~5g carbs"
+        carbsPerPieceMatch = missingInfoText.match(/(?:each|a pezzo).*?(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|c)/i);
+    }
+    
     const carbsPerPiece = carbsPerPieceMatch ? parseFloat(carbsPerPieceMatch[1]) : null;
+    console.log('[RefineQuantity] carbsPerPiece extracted:', carbsPerPiece);
     
     console.log(`[RefineQuantity] baseCarbs=${baseCarbs}, carbsPerPiece=${carbsPerPiece}, missingInfo="${missingInfoText.substring(0, 100)}"`);
     
@@ -1196,9 +1209,10 @@ INSTRUCTIONS:
             
             // Check for carbs per piece from missing_info
             const fallbackMissingText = previousAnalysis.missing_info || '';
-            const fallbackCarbsPerPiece = fallbackMissingText.match(/(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|carboidrati)/i)?.[1] 
-                ? parseFloat(fallbackMissingText.match(/(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|carboidrati)/i)![1]) 
-                : null;
+            let fallbackCarbsMatch = fallbackMissingText.match(/(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|carboidrati)/i) ||
+                                     fallbackMissingText.match(/[~≈]\s*(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|c)/i) ||
+                                     fallbackMissingText.match(/(?:each|a pezzo).*?(\d+(?:\.\d+)?)\s*g\s*(?:carbs?|c)/i);
+            const fallbackCarbsPerPiece = fallbackCarbsMatch ? parseFloat(fallbackCarbsMatch[1]) : null;
             
             // Check for pieces in request
             const piecesMatch = sanitizedQuantity.match(/(\d+)\s*(?:pezz|pieces|biscotti|biscuit|item)/i);
