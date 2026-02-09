@@ -549,30 +549,69 @@ async function callOpenAI(
 // ============================================================================
 
 function generateQuantityInfo(raw: any): any {
-    // Extract package weight and pieces info from food_items
+    // Extract package weight and pieces info from ALL available sources
     let totalPackageWeight: number | undefined;
     let weightPerPiece: number | undefined;
     let pieces: number | undefined;
     
+    // Search in ALL text fields from the analysis
+    const searchTexts: string[] = [];
+    
+    // From food_items
     for (const item of (raw.food_items || [])) {
-        const weightStr = item.approx_weight || '';
+        if (item.approx_weight) searchTexts.push(item.approx_weight);
+        if (item.name) searchTexts.push(item.name);
+    }
+    
+    // From other fields
+    if (raw.calculation_formula) searchTexts.push(raw.calculation_formula);
+    if (raw.friendly_description) searchTexts.push(raw.friendly_description);
+    if (raw.reasoning) searchTexts.push(...(Array.isArray(raw.reasoning) ? raw.reasoning : [raw.reasoning]));
+    if (raw.sources) searchTexts.push(...(Array.isArray(raw.sources) ? raw.sources : [raw.sources]));
+    
+    const allText = searchTexts.join(' ');
+    
+    // Extract from ALL combined text (more reliable)
+    // Pattern: "360g" or "360 g" (3-4 digits + g, not followed by /100)
+    const packageWeightMatch = allText.match(/(\d{3,4})\s*g\b(?!\s*\/\s*100)/i);
+    if (packageWeightMatch) {
+        const weight = parseInt(packageWeightMatch[1]);
+        // Validate: package weight is typically 100g-5000g
+        if (weight >= 100 && weight <= 5000) {
+            totalPackageWeight = weight;
+        }
+    }
+    
+    // Pattern: "3 pezzi" or "3 pieces" or "3 per confezione"
+    const piecesMatch = allText.match(/(\d+)\s*(?:pezzi|pieces|pz)(?!\s*\/)/i) || 
+                        allText.match(/(\d+)\s*per\s*(?:confezione|package|pack)/i);
+    if (piecesMatch) {
+        pieces = parseInt(piecesMatch[1]);
+    }
+    
+    // Pattern: "Xg a pezzo" or "Xg per piece"
+    const perPieceMatch = allText.match(/(\d+)\s*g\s*(?:a|per)\s*(?:pezzo|piece)/i);
+    if (perPieceMatch) {
+        weightPerPiece = parseInt(perPieceMatch[1]);
+    }
+    
+    // Also check individual fields as fallback
+    for (const text of searchTexts) {
+        if (!text) continue;
         
-        // Extract "360g" pattern
-        const weightMatch = weightStr.match(/(\d{2,4})\s*g/i);
-        if (weightMatch && !totalPackageWeight) {
-            totalPackageWeight = parseInt(weightMatch[1]);
+        // Extract "360g" from individual fields
+        if (!totalPackageWeight) {
+            const wMatch = text.match(/(\d{3,4})\s*g/i);
+            if (wMatch) {
+                const w = parseInt(wMatch[1]);
+                if (w >= 100 && w <= 5000) totalPackageWeight = w;
+            }
         }
         
-        // Extract "3 pezzi" or "3 pieces" pattern
-        const piecesMatch = weightStr.match(/(\d+)\s*(?:pezzi?|pieces?)/i);
-        if (piecesMatch && !pieces) {
-            pieces = parseInt(piecesMatch[1]);
-        }
-        
-        // Extract "120g a pezzo" pattern
-        const perPieceMatch = weightStr.match(/(\d+)\s*g\s*(?:a|per)\s*(?:pezzo|piece)/i);
-        if (perPieceMatch && !weightPerPiece) {
-            weightPerPiece = parseInt(perPieceMatch[1]);
+        // Extract pieces
+        if (!pieces) {
+            const pMatch = text.match(/(\d+)\s*(?:pezzi?|pieces?)/i);
+            if (pMatch) pieces = parseInt(pMatch[1]);
         }
     }
     
@@ -594,34 +633,60 @@ function generateQuantityInfo(raw: any): any {
     // Generate suggested buttons
     const suggestedInputs: any[] = [];
     
+    // Product-specific suggestions (PRIORITY)
     if (totalPackageWeight) {
         suggestedInputs.push(
-            { label: '📦 Intera confezione', value: `${totalPackageWeight}g`, type: 'grams' },
-            { label: '½ Metà confezione', value: `${Math.round(totalPackageWeight / 2)}g`, type: 'grams' }
+            { label: `📦 Intera confezione (${totalPackageWeight}g)`, value: `${totalPackageWeight}g`, type: 'grams' },
+            { label: `½ Metà confezione (${Math.round(totalPackageWeight / 2)}g)`, value: `${Math.round(totalPackageWeight / 2)}g`, type: 'grams' }
         );
+        
+        // Add 1/3 and 2/3 for larger packages
+        if (totalPackageWeight >= 300) {
+            suggestedInputs.push(
+                { label: `⅓ Un terzo (${Math.round(totalPackageWeight / 3)}g)`, value: `${Math.round(totalPackageWeight / 3)}g`, type: 'grams' }
+            );
+        }
     }
     
     if (weightPerPiece) {
+        const pieceWord = totalPackageWeight && pieces ? `di ${pieces}` : '';
         suggestedInputs.push(
-            { label: `1 pezzo (≈${weightPerPiece}g)`, value: '1', type: 'pieces' },
-            { label: `2 pezzi (≈${weightPerPiece * 2}g)`, value: '2', type: 'pieces' }
+            { label: `1 pezzo ${pieceWord} (≈${Math.round(weightPerPiece)}g)`, value: '1', type: 'pieces' },
+            { label: `2 pezzi (≈${Math.round(weightPerPiece * 2)}g)`, value: '2', type: 'pieces' }
         );
+        
+        // Add more piece options if package has many pieces
+        if (pieces && pieces >= 4) {
+            suggestedInputs.push(
+                { label: `3 pezzi (≈${Math.round(weightPerPiece * 3)}g)`, value: '3', type: 'pieces' }
+            );
+        }
     }
     
-    // Add standard gram amounts
-    suggestedInputs.push(
-        { label: '50g', value: '50g', type: 'grams' },
-        { label: '100g', value: '100g', type: 'grams' },
-        { label: '150g', value: '150g', type: 'grams' },
-        { label: '200g', value: '200g', type: 'grams' }
-    );
+    // Only add generic amounts if no specific options exist OR for additional choices
+    const hasSpecificOptions = suggestedInputs.length >= 2;
+    if (!hasSpecificOptions) {
+        // No product info - use standard amounts
+        suggestedInputs.push(
+            { label: '50g (piccola porzione)', value: '50g', type: 'grams' },
+            { label: '100g (porzione standard)', value: '100g', type: 'grams' },
+            { label: '150g (porzione media)', value: '150g', type: 'grams' },
+            { label: '200g (porzione grande)', value: '200g', type: 'grams' }
+        );
+    } else {
+        // Add a few standard amounts as additional options
+        suggestedInputs.push(
+            { label: '100g', value: '100g', type: 'grams' },
+            { label: '200g', value: '200g', type: 'grams' }
+        );
+    }
     
     return {
         input_type: inputType,
         total_package_weight: totalPackageWeight,
         pieces: pieces,
         weight_per_piece: weightPerPiece,
-        suggested_inputs: suggestedInputs
+        suggested_inputs: suggestedInputs.slice(0, 6)  // Max 6 buttons
     };
 }
 
