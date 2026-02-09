@@ -768,35 +768,36 @@ RULES:
 
 Language: ${language}`;
 
-    // Build prompt with JSON example for OpenAI - use ACTUAL product values
-    // Calculate example with "100g" (base reference)
-    const baseCarbs = baseItem?.carbs || 14;
-    const baseFat = baseItem?.fat || 8;
-    const baseProtein = baseItem?.protein || 10;
-    const baseWeight = weightPerPiece || '100g';
+    // Build dynamic JSON example using REAL product values
+    const baseCarbs = baseItem?.carbs || 10;
+    const baseFat = baseItem?.fat || 5;
+    const baseProtein = baseItem?.protein || 8;
     
-    // Example calculation: if user eats base weight (100g or 1 piece)
-    const exampleMultiplier = baseWeight.includes('g') ? parseFloat(baseWeight) / 100 : 1;
-    const exampleTotalCarbs = Math.round(baseCarbs * exampleMultiplier * 10) / 10;
-    const exampleInsulin = Math.round((exampleTotalCarbs / carbRatio) * 10) / 10;
+    // Example scenario: user eats 1 piece or 100g
+    const exampleWeight = weightPerPiece ? parseFloat(weightPerPiece) : 100;
+    const exampleMultiplier = exampleWeight / 100;
+    const exampleCarbs = Math.round(baseCarbs * exampleMultiplier * 10) / 10;
+    const exampleFat = Math.round(baseFat * exampleMultiplier * 10) / 10;
+    const exampleProtein = Math.round(baseProtein * exampleMultiplier * 10) / 10;
+    const exampleInsulin = Math.round((exampleCarbs / carbRatio) * 10) / 10;
     
     const jsonExample = {
-        friendly_description: `${previousAnalysis.friendly_description} (${baseWeight})`,
+        friendly_description: `${previousAnalysis.friendly_description} (${weightPerPiece ? '1 piece' : '100g'})`,
         food_items: [{
             name: baseItem?.name || "Product",
-            carbs: exampleTotalCarbs,
-            fat: Math.round(baseFat * exampleMultiplier * 10) / 10,
-            protein: Math.round(baseProtein * exampleMultiplier * 10) / 10,
-            approx_weight: baseWeight
+            carbs: exampleCarbs,
+            fat: exampleFat,
+            protein: exampleProtein,
+            approx_weight: weightPerPiece ? `${weightPerPiece}g` : "100g"
         }],
-        total_carbs: exampleTotalCarbs,
-        total_fat: Math.round(baseFat * exampleMultiplier * 10) / 10,
-        total_protein: Math.round(baseProtein * exampleMultiplier * 10) / 10,
+        total_carbs: exampleCarbs,
+        total_fat: exampleFat,
+        total_protein: exampleProtein,
         suggested_insulin: exampleInsulin,
-        calculation_formula: `${baseCarbs}g/100g × ${exampleMultiplier.toFixed(2)} (${baseWeight}) = ${exampleTotalCarbs}g ÷ ${carbRatio} = ${exampleInsulin}U`,
+        calculation_formula: `${baseCarbs}g/100g × ${exampleMultiplier.toFixed(2)} (${exampleWeight}g) = ${exampleCarbs}g ÷ ${carbRatio} = ${exampleInsulin}U`,
         missing_info: null,
         confidence_level: "high",
-        reasoning: [`Base values: ${baseCarbs}g carbs, ${baseFat}g fat, ${baseProtein}g protein per 100g`, `Calculation: ${baseCarbs}g/100g × ${exampleMultiplier} = ${exampleTotalCarbs}g`],
+        reasoning: [`Example: ${weightPerPiece ? '1 piece' : '100g'} at ${exampleWeight}g`, `${baseCarbs}g/100g × ${exampleMultiplier.toFixed(2)} = ${exampleCarbs}g`],
         sources: ["Original analysis"],
         warnings: [],
         split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" }
@@ -804,24 +805,35 @@ Language: ${language}`;
 
     const fullPrompt = `${prompt}
 
-=== PRODUCT DATA (USE THESE VALUES) ===
-CARBS_PER_100G: ${baseCarbs}
-FAT_PER_100G: ${baseFat}
-PROTEIN_PER_100G: ${baseProtein}
-${weightPerPiece ? `WEIGHT_PER_PIECE: ${weightPerPiece}g` : ''}
-${totalPackageWeight ? `TOTAL_PACKAGE_WEIGHT: ${totalPackageWeight}g` : ''}
-${piecesInPackage ? `PIECES_IN_PACKAGE: ${piecesInPackage}` : ''}
-CARB_RATIO: 1:${carbRatio}
+=== PRODUCT DATA (USE THESE EXACT VALUES) ===
+BASE VALUES PER 100g:
+- Carbs: ${baseCarbs}g
+- Fat: ${baseFat}g
+- Protein: ${baseProtein}g
+${weightPerPiece ? `WEIGHT PER PIECE: ${weightPerPiece}g` : ''}
+${totalPackageWeight ? `TOTAL PACKAGE: ${totalPackageWeight}g` : ''}
+${piecesInPackage ? `PIECES IN PACKAGE: ${piecesInPackage}` : ''}
+INSULIN RATIO: 1:${carbRatio}
 
-=== REQUIRED JSON OUTPUT FORMAT ===
+USER REQUEST: "${sanitizedQuantity}"
+
+=== EXAMPLE (for reference, calculated with real product values) ===
 ${JSON.stringify(jsonExample, null, 2)}
 
-CRITICAL RULES:
-1. Use CARBS_PER_100G = ${baseCarbs} (NOT 25, NOT 14)
-2. User wants: "${sanitizedQuantity}"
-3. Calculate: (${baseCarbs} ÷ 100) × actual_grams = carbs
-4. Formula: "${baseCarbs}g/100g × X.XX (YYg) = ZZ.Zg ÷ ${carbRatio} = W.WU"
-5. CHECK: carbs should be ~${baseCarbs / 10}g for 100g eaten`;
+=== YOUR TASK ===
+Calculate for "${sanitizedQuantity}":
+1. Determine actual grams eaten
+   - If grams: use that number
+   - If pieces: pieces × ${weightPerPiece ? weightPerPiece + 'g per piece' : 'weight per piece'}
+   - If "whole package": ${totalPackageWeight || 'total package weight'}g
+   - If "half": ${totalPackageWeight ? parseFloat(totalPackageWeight)/2 + 'g' : 'half package'}
+2. Calculate multiplier: actual_grams ÷ 100
+3. Calculate: Carbs=${baseCarbs}×multiplier, Fat=${baseFat}×multiplier, Protein=${baseProtein}×multiplier
+4. Insulin: total_carbs ÷ ${carbRatio}
+5. Formula: "${baseCarbs}g/100g × X.XX (YYg) = ZZ.Zg ÷ ${carbRatio} = W.WU"
+
+CRITICAL: Use base values Carbs=${baseCarbs}g, Fat=${baseFat}g, Protein=${baseProtein}g per 100g
+DO NOT invent different base values.`;
 
     const payload: any = {
         model: provider === 'openai' ? MODELS.openai.primary : MODELS.perplexity.primary,
