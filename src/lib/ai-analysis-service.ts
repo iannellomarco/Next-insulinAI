@@ -425,19 +425,19 @@ async function callOpenAI(
     const systemPrompt = buildSystemPrompt(settings, isImage);
     const userMessage = buildUserMessage(text, image, isImage);
 
-    const payload = {
+    const payload: any = {
         model: attempt === 1 ? MODELS.openai.primary : MODELS.openai.fallback,
         messages: [
             { role: 'system', content: systemPrompt },
             userMessage
         ],
         max_completion_tokens: 2048,
-        temperature: 0.1,
         response_format: {
             type: 'json_schema',
             json_schema: ANALYSIS_JSON_SCHEMA
         }
     };
+    // gpt-5-mini doesn't support temperature parameter, only default (1)
 
     try {
         const response = await fetch(OPENAI_API_URL, {
@@ -690,15 +690,19 @@ Language: ${language}`;
         ? { type: 'json_object' as const }
         : { type: 'json_schema' as const, json_schema: ANALYSIS_JSON_SCHEMA };
 
-    const payload = {
+    const payload: any = {
         model: provider === 'openai' ? MODELS.openai.primary : MODELS.perplexity.primary,
         messages: [
             { role: 'system', content: prompt },
             { role: 'user', content: 'Calculate and return JSON.' }
         ],
-        temperature: 0.1,
         response_format: responseFormat
     };
+    
+    // Only add temperature for Perplexity (OpenAI gpt-5-mini doesn't support it)
+    if (provider === 'perplexity') {
+        payload.temperature = 0.1;
+    }
 
     const apiUrl = provider === 'openai' ? OPENAI_API_URL : PERPLEXITY_API_URL;
     
