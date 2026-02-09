@@ -233,6 +233,23 @@ ${examples}
 4. FRIENDLY_DESCRIPTION: MAX 3-4 words. Examples: "Gocciole Biscuits", "Pasta al pomodoro", "Apple"
 5. CALCULATION_FORMULA: Always show the math clearly
 6. SOURCES: List where data came from (OCR, USDA, estimation, etc.)
+${language === 'Italian' ? `
+=== LOCAL SUPERMARKET SOURCES ===
+${language === 'Italian' ? `For Italian products, search these official supermarket websites:
+- TIGROS: https://www.tigros.it ("Spesa online" → "Ingredienti e valori nutrizionali")
+- ESSELUNGA: https://www.esselunga.it ("Spesa Online" → "Valori nutrizionali")
+- CONAD: https://spesaonline.conad.it ("Valori nutrizionali" block)
+- COOP: https://www.easycoop.com ("Valori nutrizionali" table)
+- IPER: https://it.everli.com/it/spesa/iper
+
+Priority: Supermarket site > Manufacturer > USDA > Estimation` : `For US products, search these official supermarket websites:
+- WALMART: https://www.walmart.com/grocery (Pickup/Delivery) - "Nutrition Facts" under product photo
+- KROGER: https://www.kroger.com (Shop online) - "Nutrition Facts" section with detailed table
+- WHOLE FOODS: https://www.wholefoodsmarket.com (Delivery via Amazon) - FDA standard Nutrition Facts panel
+- TARGET: https://www.target.com/c/grocery (Same Day Delivery) - "Nutrition Facts" block, click "View Nutrition"
+- INSTACART: https://www.instacart.com (Walmart, Kroger, etc.) - "Nutrition Facts" image or text
+
+Priority: Supermarket site > Manufacturer > USDA > Estimation`}
 
 === WHEN TO SET missing_info ===
 - "Quanti pezzi/ne hai mangiato?" / "How many pieces did you eat?"
@@ -742,26 +759,35 @@ RULES:
 
 Language: ${language}`;
 
-    // Build prompt with JSON example for OpenAI - use ACTUAL carb ratio
-    const exampleCarbs = 53.2;
-    const exampleInsulin = Math.round((exampleCarbs / carbRatio) * 10) / 10;
+    // Build prompt with JSON example for OpenAI - use ACTUAL product values
+    // Calculate example with "100g" (base reference)
+    const baseCarbs = baseItem?.carbs || 14;
+    const baseFat = baseItem?.fat || 8;
+    const baseProtein = baseItem?.protein || 10;
+    const baseWeight = weightPerPiece || '100g';
+    
+    // Example calculation: if user eats base weight (100g or 1 piece)
+    const exampleMultiplier = baseWeight.includes('g') ? parseFloat(baseWeight) / 100 : 1;
+    const exampleTotalCarbs = Math.round(baseCarbs * exampleMultiplier * 10) / 10;
+    const exampleInsulin = Math.round((exampleTotalCarbs / carbRatio) * 10) / 10;
+    
     const jsonExample = {
-        friendly_description: `Product name (${sanitizedQuantity})`,
+        friendly_description: `${previousAnalysis.friendly_description} (${baseWeight})`,
         food_items: [{
-            name: "Product name",
-            carbs: exampleCarbs,
-            fat: 24.0,
-            protein: 30.0,
-            approx_weight: "380g"
+            name: baseItem?.name || "Product",
+            carbs: exampleTotalCarbs,
+            fat: Math.round(baseFat * exampleMultiplier * 10) / 10,
+            protein: Math.round(baseProtein * exampleMultiplier * 10) / 10,
+            approx_weight: baseWeight
         }],
-        total_carbs: exampleCarbs,
-        total_fat: 24.0,
-        total_protein: 30.0,
+        total_carbs: exampleTotalCarbs,
+        total_fat: Math.round(baseFat * exampleMultiplier * 10) / 10,
+        total_protein: Math.round(baseProtein * exampleMultiplier * 10) / 10,
         suggested_insulin: exampleInsulin,
-        calculation_formula: `14g/100g × 3.8 = ${exampleCarbs}g ÷ ${carbRatio} = ${exampleInsulin}U`,
+        calculation_formula: `${baseCarbs}g/100g × ${exampleMultiplier.toFixed(2)} (${baseWeight}) = ${exampleTotalCarbs}g ÷ ${carbRatio} = ${exampleInsulin}U`,
         missing_info: null,
         confidence_level: "high",
-        reasoning: ["Parsed quantity: 380g", `Calculated: ${exampleCarbs}g carbs ÷ ${carbRatio} = ${exampleInsulin}U`],
+        reasoning: [`Base values: ${baseCarbs}g carbs, ${baseFat}g fat, ${baseProtein}g protein per 100g`, `Calculation: ${baseCarbs}g/100g × ${exampleMultiplier} = ${exampleTotalCarbs}g`],
         sources: ["Original analysis"],
         warnings: [],
         split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" }
@@ -769,10 +795,24 @@ Language: ${language}`;
 
     const fullPrompt = `${prompt}
 
+=== PRODUCT DATA (USE THESE VALUES) ===
+CARBS_PER_100G: ${baseCarbs}
+FAT_PER_100G: ${baseFat}
+PROTEIN_PER_100G: ${baseProtein}
+${weightPerPiece ? `WEIGHT_PER_PIECE: ${weightPerPiece}g` : ''}
+${totalPackageWeight ? `TOTAL_PACKAGE_WEIGHT: ${totalPackageWeight}g` : ''}
+${piecesInPackage ? `PIECES_IN_PACKAGE: ${piecesInPackage}` : ''}
+CARB_RATIO: 1:${carbRatio}
+
 === REQUIRED JSON OUTPUT FORMAT ===
 ${JSON.stringify(jsonExample, null, 2)}
 
-CRITICAL: Use carb ratio ${carbRatio} consistently in both calculation_formula AND suggested_insulin.`;
+CRITICAL RULES:
+1. Use CARBS_PER_100G = ${baseCarbs} (NOT 25, NOT 14)
+2. User wants: "${sanitizedQuantity}"
+3. Calculate: (${baseCarbs} ÷ 100) × actual_grams = carbs
+4. Formula: "${baseCarbs}g/100g × X.XX (YYg) = ZZ.Zg ÷ ${carbRatio} = W.WU"
+5. CHECK: carbs should be ~${baseCarbs / 10}g for 100g eaten`;
 
     const payload: any = {
         model: provider === 'openai' ? MODELS.openai.primary : MODELS.perplexity.primary,
