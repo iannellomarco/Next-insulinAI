@@ -59,8 +59,8 @@ const MODELS = {
         fallback: 'sonar',
     },
     openai: {
-        primary: 'gpt-5-mini',
-        fallback: 'gpt-4o-mini',
+        primary: 'gpt-4o-mini',  // More reliable for structured outputs
+        fallback: 'gpt-4o',
     },
 };
 
@@ -432,12 +432,12 @@ async function callOpenAI(
             userMessage
         ],
         max_completion_tokens: 2048,
+        temperature: 0.1,
         response_format: {
             type: 'json_schema',
             json_schema: ANALYSIS_JSON_SCHEMA
         }
     };
-    // gpt-5-mini doesn't support temperature parameter, only default (1)
 
     try {
         const response = await fetch(OPENAI_API_URL, {
@@ -696,13 +696,9 @@ Language: ${language}`;
             { role: 'system', content: prompt },
             { role: 'user', content: 'Calculate and return JSON.' }
         ],
+        temperature: 0.1,
         response_format: responseFormat
     };
-    
-    // Only add temperature for Perplexity (OpenAI gpt-5-mini doesn't support it)
-    if (provider === 'perplexity') {
-        payload.temperature = 0.1;
-    }
 
     const apiUrl = provider === 'openai' ? OPENAI_API_URL : PERPLEXITY_API_URL;
     
@@ -731,7 +727,46 @@ Language: ${language}`;
         throw new Error('Empty response from AI');
     }
     
-    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    let parsed;
+    try {
+        parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    } catch (e) {
+        console.error('[RefineQuantity] JSON parse error:', content);
+        throw new Error('Invalid JSON from AI');
+    }
+    
+    // Fallback: if AI returned empty result, calculate manually
+    if (!parsed.food_items || parsed.food_items.length === 0) {
+        console.warn('[RefineQuantity] AI returned empty food_items, using fallback calculation');
+        const baseItem = previousAnalysis.food_items[0];
+        if (baseItem) {
+            // Try to extract grams from quantity text
+            const gramsMatch = sanitizedQuantity.match(/(\d+(?:\.\d+)?)\s*(?:g|gr|grammi|grams)/i);
+            const multiplier = gramsMatch ? parseFloat(gramsMatch[1]) / 100 : 1;
+            
+            parsed = {
+                friendly_description: `${previousAnalysis.friendly_description} (${sanitizedQuantity})`,
+                food_items: [{
+                    name: baseItem.name,
+                    carbs: Math.round(baseItem.carbs * multiplier * 10) / 10,
+                    fat: Math.round(baseItem.fat * multiplier * 10) / 10,
+                    protein: Math.round(baseItem.protein * multiplier * 10) / 10,
+                    approx_weight: sanitizedQuantity
+                }],
+                total_carbs: Math.round(baseItem.carbs * multiplier * 10) / 10,
+                total_fat: Math.round(baseItem.fat * multiplier * 10) / 10,
+                total_protein: Math.round(baseItem.protein * multiplier * 10) / 10,
+                suggested_insulin: Math.round((baseItem.carbs * multiplier / carbRatio) * 10) / 10,
+                calculation_formula: `${baseItem.carbs}g × ${multiplier} = ${Math.round(baseItem.carbs * multiplier * 10) / 10}g ÷ ${carbRatio} = ${Math.round((baseItem.carbs * multiplier / carbRatio) * 10) / 10}U`,
+                missing_info: null,
+                confidence_level: 'high',
+                reasoning: ['Fallback calculation', `Multiplied by ${multiplier}`],
+                sources: ['Fallback: original analysis × quantity'],
+                warnings: ['AI returned empty, used fallback calculation'],
+                split_bolus_recommendation: { recommended: false, split_percentage: '', duration: '', reason: '' }
+            };
+        }
+    }
     
     const duration = Date.now() - startTime;
     console.log(`[RefineQuantity] Completed in ${duration}ms`);
