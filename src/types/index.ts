@@ -4,7 +4,7 @@ export interface FoodItem {
     carbs: number;
     fat: number;
     protein: number;
-    approx_weight?: string;
+    approx_weight?: string | null;
 }
 
 export interface SplitBolusRecommendation {
@@ -24,6 +24,11 @@ export interface AnalysisResult {
     split_bolus_recommendation: SplitBolusRecommendation;
     reasoning: string | string[];
     warnings?: string[];
+    // New fields for enhanced analysis
+    calculation_formula?: string;
+    sources?: string[];
+    confidence_level?: 'high' | 'medium' | 'low';
+    missing_info?: string | null;
 }
 
 export interface HistoryItem extends AnalysisResult {
@@ -109,7 +114,7 @@ export function getCurrentMealPeriod(): MealPeriod {
 export function getCarbRatioForCurrentMeal(settings: Settings): number {
     if (!settings.useMealSpecificRatios) return settings.carbRatio;
     const period = getCurrentMealPeriod();
-    return settings.carbRatios[period];
+    return settings.carbRatios[period as keyof CarbRatios];
 }
 
 export type TimeBucket = 'morning' | 'lunch' | 'afternoon' | 'dinner';

@@ -1,221 +1,335 @@
+/**
+ * Mobile Food Analysis API - OpenAI Primary
+ * Uses unified AI Analysis Service with structured outputs
+ * Fallback endpoint when Perplexity is unavailable
+ */
+
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { getCarbRatioForCurrentMeal, MealPeriod } from '@/types';
-export const runtime = 'edge';
-/**
- * OpenAI-powered food analysis endpoint
- * Uses GPT-4o-mini for fast, cost-effective analysis
- * 
- * Environment variable required: OPENAI_API_KEY
- */
-export async function POST(request: NextRequest) {
-    const authPromise = auth();
-    const bodyPromise = request.json();
+import { 
+    analyzeFood, 
+    refineQuantity,
+    type AnalysisResult,
+    getCurrentMealPeriod 
+} from '@/lib/ai-analysis-service';
+import type { Settings } from '@/types';
+
+// Simple image validation
+function validateImage(imageData: string): { valid: boolean; error?: string } {
+    if (!imageData) return { valid: false, error: 'No image data' };
+
+    const dataUriPattern = /^data:image\/(jpeg|jpg|png|webp);base64,/;
+    if (!dataUriPattern.test(imageData)) {
+        return { valid: false, error: 'Invalid format. Use: data:image/jpeg;base64,...' };
+    }
+
+    const base64Data = imageData.split(',')[1];
+    if (!base64Data || base64Data.length < 100) {
+        return { valid: false, error: 'Image data too short' };
+    }
+
+    // ~5MB max (base64 encoded)
+    if (base64Data.length > 7000000) {
+        return { valid: false, error: 'Image too large (max 5MB)' };
+    }
+
+    return { valid: true };
+}
+
+export async function POST(req: NextRequest) {
+    const startTime = Date.now();
+    
     try {
-        const [{ userId }, body] = await Promise.all([authPromise, bodyPromise]);
-        // Check authentication
+        // Auth
+        const [{ userId }, body] = await Promise.all([
+            auth(),
+            req.json()
+        ]);
+
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
         const { text, image, userSettings, mealPeriod, previous_analysis } = body;
+
+        // Validate input
         if (!text && !image && !previous_analysis) {
-            return NextResponse.json({ error: 'Input required (text, image, or previous_analysis)' }, { status: 400 });
+            return NextResponse.json(
+                { error: 'Input required (text, image, or previous_analysis)' },
+                { status: 400 }
+            );
         }
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
-        }
-        const language = userSettings?.language === 'it' ? 'Italian' : 'English';
-        let carbRatio = userSettings?.carbRatio || 10;
-        if (userSettings?.useMealSpecificRatios && userSettings?.carbRatios) {
-            if (mealPeriod && ['breakfast', 'lunch', 'dinner'].includes(mealPeriod)) {
-                carbRatio = userSettings.carbRatios[mealPeriod as MealPeriod];
-            } else {
-                carbRatio = getCarbRatioForCurrentMeal(userSettings);
+
+        // Validate image if present
+        if (image) {
+            const validation = validateImage(image);
+            if (!validation.valid) {
+                return NextResponse.json(
+                    { error: 'Invalid image', details: validation.error },
+                    { status: 400 }
+                );
             }
         }
-        const type = image ? 'image' : 'text';
-        const previousContext = previous_analysis ?
-            `\nPREVIOUS ANALYSIS CONTEXT:
-            The user is Refining a previous analysis.
-            PREVIOUS RESULT: ${JSON.stringify(previous_analysis)}
-            USER FEEDBACK/UPDATE: "${text}"
-            
-            TASK ADJUSTMENT: Use the PREVIOUS RESULT as a starting point. Trust valid parts of it. Update only what needs changing based on USER FEEDBACK. If the user provides the missing info, remove the 'missing_info' flag.`
-            : "";
-        const instructions = `You are a diabetes nutrition assistant.
-LANGUAGE: ${language}
 
-TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
-${previousContext}
-
-STRATEGY:
-1. IDENTIFY & OCR: Identify food items, brands, and READ ALL VISIBLE TEXT (especially nutritional labels, packaging details, and weight specifications like "15g per biscuit").
-2. SEARCH & VERIFY: 
-   - If a brand or specific product name is found, use your knowledge base to find official nutritional values (e.g., "Barilla Penne carbs per 100g").
-   - DO NOT just stop at '/100g' values. Actively look for and report 'per item', 'per portion', or 'per biscuit' values to be more precise.
-3. PRIORITIZE DATA:
-   - GROUND TRUTH 1: Text read directly from a nutritional label or package in the image (OCR).
-   - GROUND TRUTH 2: Official "per item" data from your training data for specific branded products.
-   - ESTIMATION: Use visual volumetric estimation relative to tableware ONLY if no labels or specific data are available.
-4. MISSING INFO:
-   - If you are forced to make a rough guess because of missing details (brand, flavor), you MUST populate the 'missing_info' field.
-   - CRITICAL: If you have "per item" data (e.g. 1 biscuit = 7g) but DO NOT know the quantity/count (e.g. how many biscuits in the image), you MUST populate 'missing_info' with a question like "How many biscuits did you eat?".
-   - Ask the user specifically for what is missing.
-
-5. CALCULATE: 
-   - Use Ground Truth values if available. 
-   - If a label specifies weight per portion/unit, use that weight instead of visual eyeballing.
-   - If 'missing_info' is populated, set suggested_insulin to 0 and explain why in 'calculation_formula'.
-
-RULES:
-1. ALWAYS assume the input is food unless it's clearly unrelated. Be VERY lenient.
-2. OCR and specific data MUST override visual volumetric estimation. Do not eyeball size if text/labels provide facts.
-3. EXTRACT QUANTITY FROM USER IF UNKNOWN:
-   - Example JSON for "1 biscuit = 7g" but unknown count:
-     {
-       "missing_info": "I found Gocciole (7g carbs each), but how many did you eat?",
-       "suggested_insulin": 0,
-       "calculation_formula": "Carbs known (7g/item) * Unknown Qty = 0U",
-       ...
-     }
-4. CRITICAL LOGIC ENFORCEMENT for USER INTERACTION:
-   - IF suggested_insulin is 0 due to missing quantity: YOU MUST POPULATE 'missing_info'.
-   - EXPLAINING IT IN 'calculation_formula' OR 'reasoning' IS NOT ENOUGH. The 'missing_info' field controls the UI popup.
-   - Rule: (suggested_insulin == 0 && food_items.length > 0) => missing_info != null.
-5. Calculate insulin using 1:${carbRatio} carb ratio.
-6. Flag split bolus if fat>20g AND protein>25g.
-7. Preserve user's specific food name but fix typos. Respond in ${language}.
-8. Provide the exact math used for insulin in 'calculation_formula' (e.g. "50g carbs / 10 ratio = 5.0U").
-9. List nutritional data sources in 'sources' (e.g. "OCR from image label", "Knowledge Base [Brand]", "USDA").
-10. Set 'confidence_level' to "high", "medium", or "low" based on data source (High for OCR/Specific data, Medium for clear estimation, Low for ambiguous).
-11. If precise data is missing, set 'missing_info' to a helpful question string.
-12. Only return error if absolutely certain input is not food-related.
-13. FRIENDLY_DESCRIPTION RULE: Keep it EXTREMELY CONCISE (Max 3-5 words). Just the product name (e.g. "Gocciole Biscuits"). DO NOT include packaging details, weight info, or nutritional summaries in the title. Put those in 'reasoning'.`;
-        const messages: any[] = [
-            { role: "system", content: instructions }
-        ];
-        if (type === 'image' && image) {
-            messages.push({
-                role: "user",
-                content: [
-                    { type: "text", text: text && text.trim().length > 0 ? text : "Analyze this food." },
-                    { type: "image_url", image_url: { url: image } }
-                ]
-            });
-        } else {
-            messages.push({
-                role: "user",
-                content: `Food: ${text}`
-            });
+        // Check OpenAI API key
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json(
+                { error: 'OpenAI not configured on server' },
+                { status: 500 }
+            );
         }
-        // Call OpenAI with structured outputs
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
+
+        // Build settings object with defaults
+        const settings: Settings = {
+            apiKey: '',
+            carbRatio: userSettings?.carbRatio || 10,
+            carbRatios: userSettings?.carbRatios || { breakfast: 8, lunch: 10, dinner: 12 },
+            useMealSpecificRatios: userSettings?.useMealSpecificRatios ?? false,
+            correctionFactor: userSettings?.correctionFactor || 50,
+            targetGlucose: userSettings?.targetGlucose || 110,
+            highThreshold: userSettings?.highThreshold || 180,
+            lowThreshold: userSettings?.lowThreshold || 70,
+            smartHistory: userSettings?.smartHistory ?? true,
+            libreUsername: userSettings?.libreUsername || '',
+            librePassword: userSettings?.librePassword || '',
+            language: userSettings?.language === 'it' ? 'it' : 'en',
+            mealRemindersEnabled: userSettings?.mealRemindersEnabled ?? false,
+            reminderTimes: userSettings?.reminderTimes || {
+                breakfast: new Date().setHours(8, 30, 0, 0),
+                lunch: new Date().setHours(12, 30, 0, 0),
+                dinner: new Date().setHours(19, 30, 0, 0),
             },
-            body: JSON.stringify({
-                model: 'gpt-5-mini',
-                messages: messages,
-                max_completion_tokens: 2000,
-                response_format: {
-                    type: 'json_schema',
-                    json_schema: {
-                        name: 'food_analysis',
-                        strict: true,
-                        schema: {
-                            type: 'object',
-                            properties: {
-                                reasoning: { type: 'array', items: { type: 'string' } },
-                                friendly_description: { type: 'string' },
-                                confidence_level: { type: 'string', enum: ['high', 'medium', 'low'] },
-                                missing_info: {
-                                    type: ['string', 'null'],
-                                    description: 'Question to ask user if quantity is unknown, or null if all info is available'
-                                },
-                                food_items: {
-                                    type: 'array',
-                                    items: {
-                                        type: 'object',
-                                        properties: {
-                                            name: { type: 'string' },
-                                            carbs: { type: 'number' },
-                                            fat: { type: 'number' },
-                                            protein: { type: 'number' },
-                                            approx_weight: { type: ['string', 'null'] }
-                                        },
-                                        required: ['name', 'carbs', 'fat', 'protein', 'approx_weight'],
-                                        additionalProperties: false
-                                    }
-                                },
-                                total_carbs: { type: 'number' },
-                                total_fat: { type: 'number' },
-                                total_protein: { type: 'number' },
-                                suggested_insulin: { type: 'number' },
-                                calculation_formula: { type: 'string' },
-                                sources: { type: 'array', items: { type: 'string' } },
-                                split_bolus_recommendation: {
-                                    type: 'object',
-                                    properties: {
-                                        recommended: { type: 'boolean' },
-                                        split_percentage: { type: 'string' },
-                                        duration: { type: 'string' },
-                                        reason: { type: 'string' }
-                                    },
-                                    required: ['recommended', 'split_percentage', 'duration', 'reason'],
-                                    additionalProperties: false
-                                },
-                                warnings: { type: 'array', items: { type: 'string' } }
-                            },
-                            required: [
-                                'reasoning', 'friendly_description', 'confidence_level', 'missing_info',
-                                'food_items', 'total_carbs', 'total_fat', 'total_protein',
-                                'suggested_insulin', 'calculation_formula', 'sources',
-                                'split_bolus_recommendation', 'warnings'
-                            ],
-                            additionalProperties: false
-                        }
-                    }
-                }
-            })
-        });
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('OpenAI API Error:', errorText);
-            return NextResponse.json({ error: 'OpenAI Analysis failed', details: errorText }, { status: 500 });
-        }
-        const data = await response.json();
+            analysisMode: userSettings?.analysisMode || 'pplx_only',
+        };
 
-        // Handle OpenAI response - content is already JSON when using json_schema
-        let result;
-        const content = data.choices?.[0]?.message?.content;
-
-        if (typeof content === 'string') {
-            try {
-                result = JSON.parse(content);
-            } catch (e) {
-                console.error('Failed to parse OpenAI response:', content);
-                return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 });
+        // Override carb ratio for specific meal period if provided
+        if (mealPeriod && ['breakfast', 'lunch', 'dinner'].includes(mealPeriod)) {
+            if (settings.useMealSpecificRatios && settings.carbRatios) {
+                settings.carbRatio = settings.carbRatios[mealPeriod as keyof typeof settings.carbRatios];
             }
-        } else if (typeof content === 'object' && content !== null) {
-            // Sometimes OpenAI returns the object directly
-            result = content;
+        }
+
+        let result: AnalysisResult;
+        let provider: string;
+
+        // ========================================
+        // CASE 1: Quantity refinement (follow-up)
+        // ========================================
+        if (previous_analysis && text) {
+            console.log('[API/OpenAI] Quantity refinement request');
+            
+            // Try local parsing first
+            const parsed = parseQuantityLocally(text, previous_analysis, settings);
+            
+            if (parsed.success) {
+                result = parsed.result;
+                provider = 'local-calculation';
+            } else {
+                // Use AI refinement
+                result = await refineQuantity(
+                    previous_analysis,
+                    text,
+                    settings,
+                    process.env.OPENAI_API_KEY,
+                    'openai'
+                );
+                provider = 'openai-refinement';
+            }
         } else {
-            console.error('Unexpected OpenAI response format:', data);
-            return NextResponse.json({ error: 'Unexpected AI response format' }, { status: 500 });
+            // ========================================
+            // CASE 2: Initial analysis with OpenAI
+            // ========================================
+            console.log('[API/OpenAI] Initial analysis request:', {
+                hasImage: !!image,
+                hasText: !!text,
+                language: settings.language
+            });
+
+            const analysis = await analyzeFood({
+                text: text || '',
+                image: image || null,
+                settings,
+                provider: 'openai', // Force OpenAI
+                openaiApiKey: process.env.OPENAI_API_KEY,
+            });
+
+            result = analysis.result;
+            provider = analysis.provider;
         }
-        // Safety net: ensure missing_info is set if insulin is 0 with recognized food
-        if (result.suggested_insulin === 0 && result.food_items?.length > 0 && !result.missing_info) {
-            result.missing_info = language === 'Italian'
-                ? "Quantità mancante. Quanti pezzi o grammi hai mangiato?"
-                : "Quantity missing. How many pieces or grams did you eat?";
-            result.warnings = [...(result.warnings || []), "Auto-generated missing info request"];
+
+        const duration = Date.now() - startTime;
+        console.log(`[API/OpenAI] Analysis complete in ${duration}ms via ${provider}`);
+
+        return NextResponse.json({
+            ...result,
+            _meta: {
+                provider,
+                duration_ms: duration,
+                timestamp: new Date().toISOString()
+            }
+        });
+
+    } catch (error: any) {
+        console.error('[API/OpenAI] Error:', error);
+        
+        // Handle specific error types
+        if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+            return NextResponse.json(
+                { error: 'OpenAI API key invalid' },
+                { status: 401 }
+            );
         }
-        return NextResponse.json(result);
-    } catch (error) {
-        console.error('OpenAI Analysis error:', error);
-        return NextResponse.json({ error: 'Internal Server Error', details: String(error) }, { status: 500 });
+        
+        if (error.message?.includes('429') || error.message?.includes('Rate limit')) {
+            return NextResponse.json(
+                { error: 'OpenAI rate limit exceeded. Please try again later.' },
+                { status: 429 }
+            );
+        }
+
+        if (error.message?.includes('timeout') || error.message?.includes('fetch failed')) {
+            return NextResponse.json(
+                { error: 'Request timeout. Please check your connection.' },
+                { status: 504 }
+            );
+        }
+
+        return NextResponse.json(
+            { error: 'Analysis failed', details: error.message },
+            { status: 500 }
+        );
     }
+}
+
+// Local quantity parser for fast follow-up calculations
+function parseQuantityLocally(
+    text: string,
+    previous: AnalysisResult,
+    settings: Settings
+): { success: true; result: AnalysisResult } | { success: false } {
+    
+    const input = text.toLowerCase().trim();
+    const baseItem = previous.food_items[0];
+    if (!baseItem) return { success: false };
+
+    const baseCarbs = baseItem.carbs;
+    const baseFat = baseItem.fat;
+    const baseProtein = baseItem.protein;
+    const carbRatio = settings.useMealSpecificRatios && settings.carbRatios
+        ? settings.carbRatios[getCurrentMealPeriod()]
+        : settings.carbRatio;
+
+    let multiplier = 1;
+    let description = '1 serving';
+
+    // Try to parse various quantity formats
+    
+    // "Whole package" / "Tutta la confezione"
+    if (/\b(tutt[oa]|inter[oa]|whole|entire|full|tutto)\b/i.test(input)) {
+        const weightMatch = baseItem.approx_weight?.match(/(\d+(?:\.\d+)?)\s*g/i);
+        if (weightMatch) {
+            const totalG = parseFloat(weightMatch[1]);
+            multiplier = totalG / 100;
+            description = `${totalG}g (whole)`;
+        }
+    }
+    // "Half" / "Metà"
+    else if (/\b(metà|mezza|half|mezzo)\b/i.test(input)) {
+        multiplier = 0.5;
+        description = 'half';
+    }
+    // "Quarter" / "Un quarto"
+    else if (/\b(quarto|quarter|¼)\b/i.test(input)) {
+        multiplier = 0.25;
+        description = 'quarter';
+    }
+    // Grams: "150g" / "150 grammi"
+    else {
+        const gramsMatch = input.match(/(\d+(?:\.\d+)?)\s*(?:g|gr|grams?|grammi)\b/i);
+        if (gramsMatch) {
+            const grams = parseFloat(gramsMatch[1]);
+            multiplier = grams / 100;
+            description = `${grams}g`;
+        }
+        // Pieces: "3 pieces" / "3 pezzi"
+        else {
+            const piecesMatch = input.match(/(\d+)\s*(?:pezz[io]|pieces?|items?|unità|unit)/i);
+            if (piecesMatch) {
+                const pieces = parseInt(piecesMatch[1]);
+                // Try to get per-piece weight from approx_weight
+                const perPieceMatch = baseItem.approx_weight?.match(/(\d+(?:\.\d+)?)\s*g\s*(?:per|each|\/)/i);
+                if (perPieceMatch) {
+                    const perPieceG = parseFloat(perPieceMatch[1]);
+                    const totalG = pieces * perPieceG;
+                    multiplier = totalG / 100;
+                    description = `${pieces} pieces (${totalG}g)`;
+                } else {
+                    // Assume 1 piece = approx_weight or 100g
+                    const pieceWeight = baseItem.approx_weight?.includes('g') 
+                        ? parseFloat(baseItem.approx_weight.match(/(\d+)/)?.[1] || '100')
+                        : 100;
+                    multiplier = (pieces * pieceWeight) / 100;
+                    description = `${pieces} pieces`;
+                }
+            }
+            // Just a number: "2" or "0.5"
+            else {
+                const numMatch = input.match(/^(\d+(?:\.\d+)?)$/);
+                if (numMatch) {
+                    const num = parseFloat(numMatch[1]);
+                    if (num > 0 && num <= 50) {
+                        multiplier = num;
+                        description = num === 1 ? '1 piece' : `${num} pieces`;
+                    } else if (num > 50) {
+                        multiplier = num / 100;
+                        description = `${num}g`;
+                    }
+                } else {
+                    // Can't parse locally
+                    return { success: false };
+                }
+            }
+        }
+    }
+
+    // Calculate scaled values
+    const totalCarbs = Math.round(baseCarbs * multiplier * 10) / 10;
+    const totalFat = Math.round(baseFat * multiplier * 10) / 10;
+    const totalProtein = Math.round(baseProtein * multiplier * 10) / 10;
+    const suggestedInsulin = Math.round((totalCarbs / carbRatio) * 10) / 10;
+
+    const formula = `${totalCarbs}g carbs ÷ ${carbRatio} = ${suggestedInsulin}U`;
+
+    return {
+        success: true,
+        result: {
+            ...previous,
+            friendly_description: `${previous.friendly_description} (${description})`,
+            food_items: previous.food_items.map(item => ({
+                ...item,
+                carbs: Math.round(item.carbs * multiplier * 10) / 10,
+                fat: Math.round(item.fat * multiplier * 10) / 10,
+                protein: Math.round(item.protein * multiplier * 10) / 10,
+                approx_weight: description
+            })),
+            total_carbs: totalCarbs,
+            total_fat: totalFat,
+            total_protein: totalProtein,
+            suggested_insulin: suggestedInsulin,
+            missing_info: null,
+            calculation_formula: formula,
+            reasoning: [`Calculated: ${description} × base values`, formula],
+            confidence_level: 'high'
+        }
+    };
+}
+
+// Health check endpoint
+export async function GET(req: NextRequest) {
+    return NextResponse.json({
+        status: 'ok',
+        service: 'mobile-analyze-openai',
+        openaiConfigured: !!process.env.OPENAI_API_KEY,
+        timestamp: new Date().toISOString()
+    });
 }

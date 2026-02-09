@@ -1,112 +1,58 @@
-import { Settings, AnalysisResult, getCarbRatioForCurrentMeal } from "@/types";
+/**
+ * AI Service - Client-side wrapper
+ * Maintains backward compatibility while using new unified analysis service
+ * @deprecated Use ai-analysis-service.ts for new code
+ */
+
+import type { Settings, AnalysisResult } from "@/types";
+import { analyzeFood as unifiedAnalyze } from "./ai-analysis-service";
 
 export class AIService {
+    /**
+     * Analyze food using the unified analysis service
+     * This method maintains the old interface for backward compatibility
+     */
     static async analyze(
         input: string | File,
         type: 'image' | 'text',
         settings: Settings,
         historyContext: any[] = []
     ): Promise<AnalysisResult> {
-
-        const API_URL = '/api/analyze';
-        const model = 'sonar-pro';
-
-        // Get the appropriate carb ratio based on meal time
-        const currentCarbRatio = getCarbRatioForCurrentMeal(settings);
-
-        console.log("[v0] AI Service - useMealSpecificRatios:", settings.useMealSpecificRatios, "carbRatios:", settings.carbRatios, "currentCarbRatio:", currentCarbRatio);
-
-        // Optimized compact prompt for token efficiency
-        const instructions = `You are a diabetes nutrition assistant.
-        LANGUAGE: ${settings.language === 'it' ? 'Italian' : 'English'}
-
-        TASK: Analyze ${type === 'image' ? 'the food image' : 'this food description'} and calculate insulin dose.
-
-        RULES:
-        1. ALWAYS assume the input is food unless it's clearly unrelated (e.g., "car", "politics"). Be VERY lenient - if it could possibly be food, analyze it. Regional dishes, street food, ethnic cuisine, brand names, restaurant items, combos like "piadina kebab", "burger king whopper", "döner box" are ALL valid food.
-        2. Identify foods, estimate macros, calculate insulin using 1:${currentCarbRatio} carb ratio.
-        3. Flag split bolus if fat>20g AND protein>25g.
-        4. IMPORTANT: Preserve the user's specific food name - do NOT generalize "pasta alla carbonara" to "spaghetti". BUT fix obvious typos (e.g., "psta alw carbonara" → "Pasta alla carbonara"). Use proper capitalization. Respond in ${settings.language === 'it' ? 'Italian' : 'English'}.
-5. Only return error if absolutely certain input is not food-related.
-
-OUTPUT (valid JSON only, no markdown):
-{
-  "friendly_description":"User's food name with typos corrected and proper capitalization",
-  "food_items":[{"name":"Food name with typos corrected, properly capitalized","carbs":0,"fat":0,"protein":0,"approx_weight":"string"}],
-  "total_carbs":0,
-  "total_fat":0,
-  "total_protein":0,
-  "suggested_insulin":0,
-  "split_bolus_recommendation":{"recommended":false,"split_percentage":"","duration":"","reason":""},
-  "reasoning":["Step 1","Step 2"],
-  "warnings":[]
-}${settings.smartHistory && historyContext.length > 0 ? `
-
-USER HISTORY (adjust advice accordingly):
-${historyContext.slice(0, 3).map(h => `${h.food_items[0]?.name}:${h.total_carbs}g→${h.suggested_insulin}u`).join('; ')}` : ''}`;
-
-        // Construct messages
-        const messages: any[] = [
-            { role: "system", content: instructions }
-        ];
-
-        if (type === 'image' && typeof input === 'string') {
-            messages.push({
-                role: "user",
-                content: [
-                    { type: "text", text: "Analyze this food." },
-                    { type: "image_url", image_url: { url: input } }
-                ]
-            });
+        
+        // Convert input to text/image
+        let text = '';
+        let image: string | null = null;
+        
+        if (type === 'image') {
+            if (typeof input === 'string') {
+                image = input;
+            } else if (input instanceof File) {
+                // Convert File to base64
+                image = await fileToBase64(input);
+            }
         } else {
-            messages.push({
-                role: "user",
-                content: `Food: ${input}`
-            });
+            text = typeof input === 'string' ? input : '';
         }
 
-        const payload = { model, messages };
-
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${settings.apiKey}`
-            },
-            body: JSON.stringify(payload)
+        // Call unified service
+        const result = await unifiedAnalyze({
+            text,
+            image,
+            settings,
+            provider: 'auto',
         });
 
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error?.message || `Request failed: ${response.status}`);
+        // Apply smart history context if enabled
+        if (settings.smartHistory && historyContext.length > 0 && result.result.missing_info) {
+            // Could enhance missing_info with history context here
         }
 
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-
-        // Extract JSON
-        const jsonStart = content.indexOf('{');
-        const jsonEnd = content.lastIndexOf('}');
-
-        let result;
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-            result = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
-        } else {
-            result = JSON.parse(content.replace(/```json/g, '').replace(/```/g, '').trim());
-        }
-
-        if (result.error) {
-            throw new Error(result.message || "I can only analyze food.");
-        }
-
-        if (!result.food_items?.length) {
-            throw new Error("No food items identified. Please try again.");
-        }
-
-        return result;
+        return result.result;
     }
 
-    // Analyze multiple foods and combine results (for meal chaining)
+    /**
+     * Analyze multiple foods and combine results (for meal chaining)
+     */
     static combineResults(results: AnalysisResult[], lang = 'en'): AnalysisResult {
         const allFoodItems = results.flatMap(r => r.food_items);
         const totalCarbs = results.reduce((sum, r) => sum + r.total_carbs, 0);
@@ -129,9 +75,30 @@ ${historyContext.slice(0, 3).map(h => `${h.food_items[0]?.name}:${h.total_carbs}
                 split_percentage: "50% upfront, 50% extended",
                 duration: "2-3 hours",
                 reason: `Combined meal has ${Math.round(totalFat)}g fat and ${Math.round(totalProtein)}g protein.`
-            } : { recommended: false },
+            } : { recommended: false, split_percentage: "", duration: "", reason: "" },
             reasoning: [lang === 'it' ? `Combinati ${results.length} elementi per un totale di ${Math.round(totalCarbs)}g di carbo.` : `Combined ${results.length} items totaling ${Math.round(totalCarbs)}g carbs.`],
+            calculation_formula: "",
+            sources: results.flatMap(r => r.sources || []),
+            confidence_level: 'high',
+            missing_info: null,
             warnings: results.flatMap(r => r.warnings || [])
         };
     }
 }
+
+// Helper to convert File to base64
+async function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Re-export from unified service for convenience
+export { analyzeFood, refineQuantity, getCurrentMealPeriod } from './ai-analysis-service';
+export type { AnalysisResult as UnifiedAnalysisResult } from './ai-analysis-service';
