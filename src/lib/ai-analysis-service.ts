@@ -389,6 +389,13 @@ async function callPerplexity(
         ],
         max_tokens: 2048,
         temperature: 0.1,
+        // DEEP SEARCH: More context for better results
+        search_context_size: 'high',
+        web_search_options: {
+            search_context_size: 'high',
+            // Include recent results but not too restrictive
+            recency_days: 365
+        },
         response_format: {
             type: 'json_schema',
             json_schema: ANALYSIS_JSON_SCHEMA
