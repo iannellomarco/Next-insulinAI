@@ -14,6 +14,22 @@ export interface SplitBolusRecommendation {
     reason?: string;
 }
 
+// Structured quantity input for iOS UI
+export interface SuggestedQuantity {
+    label: string;      // Display text: "📦 Intera confezione"
+    value: string;      // Value to send: "360g" or "2"
+    type: 'grams' | 'pieces' | 'fraction';
+}
+
+export interface QuantityInfo {
+    input_type: 'grams' | 'pieces' | 'package_fraction';
+    total_weight?: number;        // Total grams consumed (if known)
+    pieces?: number;              // Number of pieces
+    weight_per_piece?: number;    // Grams per piece
+    total_package_weight?: number;// Total package weight in grams
+    suggested_inputs?: SuggestedQuantity[];
+}
+
 export interface AnalysisResult {
     friendly_description: string;
     food_items: FoodItem[];
@@ -29,6 +45,7 @@ export interface AnalysisResult {
     sources?: string[];
     confidence_level?: 'high' | 'medium' | 'low';
     missing_info?: string | null;
+    quantity_info?: QuantityInfo | null;  // Structured data for UI input
 }
 
 export interface HistoryItem extends AnalysisResult {
