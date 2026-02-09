@@ -696,19 +696,43 @@ Rules:
 
 Language: ${language}`;
 
-    // Use json_object for OpenAI compatibility (works with gpt-5-mini)
-    const responseFormat = provider === 'openai' 
-        ? { type: 'json_object' as const }
-        : { type: 'json_schema' as const, json_schema: ANALYSIS_JSON_SCHEMA };
+    // Build prompt with JSON example for OpenAI
+    const jsonExample = {
+        friendly_description: `Product name (${sanitizedQuantity})`,
+        food_items: [{
+            name: "Product name",
+            carbs: 53.2,
+            fat: 24.0,
+            protein: 30.0,
+            approx_weight: "380g"
+        }],
+        total_carbs: 53.2,
+        total_fat: 24.0,
+        total_protein: 30.0,
+        suggested_insulin: 5.3,
+        calculation_formula: "14g/100g × 3.8 = 53.2g ÷ 10 = 5.3U",
+        missing_info: null,
+        confidence_level: "high",
+        reasoning: ["Parsed quantity: 380g", "Calculated: (14÷100)×380=53.2g carbs"],
+        sources: ["Original analysis"],
+        warnings: [],
+        split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" }
+    };
+
+    const fullPrompt = `${prompt}
+
+=== REQUIRED JSON OUTPUT FORMAT ===
+${JSON.stringify(jsonExample, null, 2)}
+
+IMPORTANT: Return ONLY the JSON object above with calculated values. No extra text.`;
 
     const payload: any = {
         model: provider === 'openai' ? MODELS.openai.primary : MODELS.perplexity.primary,
         messages: [
-            { role: 'system', content: prompt },
-            { role: 'user', content: 'Calculate and return JSON.' }
+            { role: 'system', content: fullPrompt },
+            { role: 'user', content: `Calculate for: "${sanitizedQuantity}"` }
         ],
-        temperature: 0.1,
-        response_format: responseFormat
+        temperature: 0.1
     };
 
     const apiUrl = provider === 'openai' ? OPENAI_API_URL : PERPLEXITY_API_URL;
@@ -740,9 +764,17 @@ Language: ${language}`;
     
     let parsed;
     try {
-        parsed = typeof content === 'string' ? JSON.parse(content) : content;
+        // Try to extract JSON from response (handle markdown code blocks)
+        let jsonContent = content;
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                          content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            jsonContent = jsonMatch[1] || jsonMatch[0];
+        }
+        parsed = JSON.parse(jsonContent);
+        console.log('[RefineQuantity] Parsed JSON successfully:', JSON.stringify(parsed, null, 2).substring(0, 500));
     } catch (e) {
-        console.error('[RefineQuantity] JSON parse error:', content);
+        console.error('[RefineQuantity] JSON parse error, raw content:', content);
         throw new Error('Invalid JSON from AI');
     }
     
