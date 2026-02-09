@@ -105,32 +105,25 @@ export async function POST(req: NextRequest) {
 
         // ========================================
         // CASE 1: Quantity refinement (follow-up)
+        // Always use AI for accurate calculation with reasoning
         // ========================================
         if (previous_analysis && text) {
-            console.log('[API] Quantity refinement request');
+            console.log('[API] Quantity refinement request - using AI reasoning');
             
-            // Parse quantity locally first for speed
-            const parsed = parseQuantityLocally(text, previous_analysis, settings);
-            
-            if (parsed.success) {
-                result = parsed.result;
-                provider = 'local-calculation';
-            } else {
-                // Fallback to AI for complex quantities
-                const apiKey = process.env.OPENAI_API_KEY || process.env.PERPLEXITY_API_KEY;
-                if (!apiKey) {
-                    throw new Error('No API key configured for refinement');
-                }
-                
-                result = await refineQuantity(
-                    previous_analysis,
-                    text,
-                    settings,
-                    apiKey,
-                    process.env.OPENAI_API_KEY ? 'openai' : 'perplexity'
-                );
-                provider = 'ai-refinement';
+            // Use OpenAI for precise quantity interpretation and calculation
+            const apiKey = process.env.OPENAI_API_KEY;
+            if (!apiKey) {
+                throw new Error('OpenAI API key not configured for quantity refinement');
             }
+            
+            result = await refineQuantity(
+                previous_analysis,
+                text,
+                settings,
+                apiKey,
+                'openai'
+            );
+            provider = 'openai-refinement';
         } else {
             // ========================================
             // CASE 2: Initial analysis
@@ -196,129 +189,6 @@ export async function POST(req: NextRequest) {
             { status: 500 }
         );
     }
-}
-
-// Local quantity parser for fast follow-up calculations
-function parseQuantityLocally(
-    text: string,
-    previous: AnalysisResult,
-    settings: Settings
-): { success: true; result: AnalysisResult } | { success: false } {
-    
-    const input = text.toLowerCase().trim();
-    const baseItem = previous.food_items[0];
-    if (!baseItem) return { success: false };
-
-    const baseCarbs = baseItem.carbs;
-    const baseFat = baseItem.fat;
-    const baseProtein = baseItem.protein;
-    const carbRatio = settings.useMealSpecificRatios && settings.carbRatios
-        ? settings.carbRatios[getCurrentMealPeriod()]
-        : settings.carbRatio;
-
-    let multiplier = 1;
-    let description = '1 serving';
-
-    // Try to parse various quantity formats
-    
-    // "Whole package" / "Tutta la confezione"
-    if (/\b(tutt[oa]|inter[oa]|whole|entire|full|tutto)\b/i.test(input)) {
-        const weightMatch = baseItem.approx_weight?.match(/(\d+(?:\.\d+)?)\s*g/i);
-        if (weightMatch) {
-            const totalG = parseFloat(weightMatch[1]);
-            multiplier = totalG / 100;
-            description = `${totalG}g (whole)`;
-        }
-    }
-    // "Half" / "Metà"
-    else if (/\b(metà|mezza|half|mezzo)\b/i.test(input)) {
-        multiplier = 0.5;
-        description = 'half';
-    }
-    // "Quarter" / "Un quarto"
-    else if (/\b(quarto|quarter|¼)\b/i.test(input)) {
-        multiplier = 0.25;
-        description = 'quarter';
-    }
-    // Grams: "150g" / "150 grammi"
-    else {
-        const gramsMatch = input.match(/(\d+(?:\.\d+)?)\s*(?:g|gr|grams?|grammi)\b/i);
-        if (gramsMatch) {
-            const grams = parseFloat(gramsMatch[1]);
-            multiplier = grams / 100;
-            description = `${grams}g`;
-        }
-        // Pieces: "3 pieces" / "3 pezzi"
-        else {
-            const piecesMatch = input.match(/(\d+)\s*(?:pezz[io]|pieces?|items?|unità|unit)/i);
-            if (piecesMatch) {
-                const pieces = parseInt(piecesMatch[1]);
-                // Try to get per-piece weight from approx_weight
-                const perPieceMatch = baseItem.approx_weight?.match(/(\d+(?:\.\d+)?)\s*g\s*(?:per|each|\/)/i);
-                if (perPieceMatch) {
-                    const perPieceG = parseFloat(perPieceMatch[1]);
-                    const totalG = pieces * perPieceG;
-                    multiplier = totalG / 100;
-                    description = `${pieces} pieces (${totalG}g)`;
-                } else {
-                    // Assume 1 piece = approx_weight or 100g
-                    const pieceWeight = baseItem.approx_weight?.includes('g') 
-                        ? parseFloat(baseItem.approx_weight.match(/(\d+)/)?.[1] || '100')
-                        : 100;
-                    multiplier = (pieces * pieceWeight) / 100;
-                    description = `${pieces} pieces`;
-                }
-            }
-            // Just a number: "2" or "0.5"
-            else {
-                const numMatch = input.match(/^(\d+(?:\.\d+)?)$/);
-                if (numMatch) {
-                    const num = parseFloat(numMatch[1]);
-                    if (num > 0 && num <= 50) {
-                        multiplier = num;
-                        description = num === 1 ? '1 piece' : `${num} pieces`;
-                    } else if (num > 50) {
-                        multiplier = num / 100;
-                        description = `${num}g`;
-                    }
-                } else {
-                    // Can't parse locally
-                    return { success: false };
-                }
-            }
-        }
-    }
-
-    // Calculate scaled values
-    const totalCarbs = Math.round(baseCarbs * multiplier * 10) / 10;
-    const totalFat = Math.round(baseFat * multiplier * 10) / 10;
-    const totalProtein = Math.round(baseProtein * multiplier * 10) / 10;
-    const suggestedInsulin = Math.round((totalCarbs / carbRatio) * 10) / 10;
-
-    const formula = `${totalCarbs}g carbs ÷ ${carbRatio} = ${suggestedInsulin}U`;
-
-    return {
-        success: true,
-        result: {
-            ...previous,
-            friendly_description: `${previous.friendly_description} (${description})`,
-            food_items: previous.food_items.map(item => ({
-                ...item,
-                carbs: Math.round(item.carbs * multiplier * 10) / 10,
-                fat: Math.round(item.fat * multiplier * 10) / 10,
-                protein: Math.round(item.protein * multiplier * 10) / 10,
-                approx_weight: description
-            })),
-            total_carbs: totalCarbs,
-            total_fat: totalFat,
-            total_protein: totalProtein,
-            suggested_insulin: suggestedInsulin,
-            missing_info: null,
-            calculation_formula: formula,
-            reasoning: [`Calculated: ${description} × base values`, formula],
-            confidence_level: 'high'
-        }
-    };
 }
 
 // Health check endpoint

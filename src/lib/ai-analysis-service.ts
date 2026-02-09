@@ -629,6 +629,7 @@ export async function analyzeFood(options: AnalysisOptions): Promise<{
 }
 
 // Quantity refinement for follow-up requests
+// Uses AI reasoning instead of regex parsing for complex quantity understanding
 export async function refineQuantity(
     previousAnalysis: AnalysisResult,
     quantityText: string,
@@ -642,31 +643,79 @@ export async function refineQuantity(
         ? settings.carbRatios[getCurrentMealPeriod()]
         : settings.carbRatio;
 
-    const prompt = `You are a precise nutrition calculator.
+    const baseItem = previousAnalysis.food_items[0];
+    
+    // Detailed prompt with reasoning steps and examples
+    const prompt = `You are a precise nutrition calculator. Calculate nutritional values based on quantity consumed.
 
-PREVIOUS ANALYSIS:
-- Food: ${previousAnalysis.friendly_description}
-- Base nutrition per 100g: ${JSON.stringify(previousAnalysis.food_items[0])}
+LANGUAGE: ${language}
+INSULIN RATIO: 1 unit per ${carbRatio}g carbs
 
-USER INPUT: "${quantityText}"
+=== BASE PRODUCT DATA (from previous analysis) ===
+- Product: ${previousAnalysis.friendly_description}
+- Carbs per 100g: ${baseItem?.carbs || 'unknown'}g
+- Fat per 100g: ${baseItem?.fat || 'unknown'}g  
+- Protein per 100g: ${baseItem?.protein || 'unknown'}g
+- Reference weight: ${baseItem?.approx_weight || '100g'}
+- Package info from image: ${previousAnalysis.calculation_formula || 'N/A'}
 
-TASK: Calculate exact nutritional values based on quantity consumed.
+=== USER QUANTITY INPUT ===
+"${quantityText}"
 
-RULES:
-1. Parse quantity: "whole package", "half", "100g", "3 pieces", "2 biscuits"
-2. If "per piece" data is available (e.g., 7g carbs per biscuit), use it
-3. Scale ALL nutrients proportionally
-4. Round to 1 decimal place
-5. Calculate insulin: total_carbs / ${carbRatio}
-6. Show calculation formula clearly
+=== CALCULATION EXAMPLES ===
 
-Respond with the same JSON schema as before.`;
+Example 1 - Weight in grams:
+- Base: 14g carbs per 100g
+- Input: "380g" 
+- Calculation: (14g ÷ 100) × 380 = 53.2g carbs
+- Formula: "14g carbs/100g × 3.8 (380g) = 53.2g carbs ÷ ${carbRatio} = X.XU"
+
+Example 2 - Pieces:
+- Base: 7g carbs per biscuit (from label)
+- Input: "3 biscuits"
+- Calculation: 7g × 3 = 21g carbs
+- Formula: "7g carbs/biscuit × 3 = 21g carbs ÷ ${carbRatio} = X.XU"
+
+Example 3 - Whole package:
+- Base: 14g carbs per 100g, package is 380g
+- Input: "tutta la confezione" / "whole package"
+- Calculation: (14g ÷ 100) × 380 = 53.2g carbs
+- Formula: "14g carbs/100g × 380g (whole package) = 53.2g ÷ ${carbRatio} = X.XU"
+
+Example 4 - Fraction:
+- Base: 45g carbs per portion
+- Input: "metà" / "half"
+- Calculation: 45g × 0.5 = 22.5g carbs
+- Formula: "45g carbs × 0.5 (half) = 22.5g ÷ ${carbRatio} = X.XU"
+
+=== YOUR TASK ===
+1. INTERPRET the user's quantity text carefully
+   - "380gr", "380g", "380 grammi" = 380 grams
+   - "tutto", "intera", "whole", "entire" = use total package weight if known
+   - "metà", "half" = 50% of reference amount
+   - "3 pezzi", "3 pieces" = multiply by per-piece values if available
+
+2. CALCULATE using this formula:
+   total_carbs = (carbs_per_100g ÷ 100) × grams_consumed
+   OR
+   total_carbs = carbs_per_piece × number_of_pieces
+
+3. SCALE all nutrients proportionally (carbs, fat, protein)
+
+4. CALCULATE insulin: total_carbs ÷ ${carbRatio}
+
+5. FORMAT the response with:
+   - friendly_description: original name + quantity (e.g., "Pesce Gratinato (380g)")
+   - calculation_formula: Show the EXACT math (e.g., "14g carbs/100g × 3.8 = 53.2g ÷ 10 = 5.3U")
+   - missing_info: null (we have the quantity now)
+
+Respond with valid JSON following the schema.`;
 
     const payload = {
         model: provider === 'openai' ? MODELS.openai.primary : MODELS.perplexity.primary,
         messages: [
             { role: 'system', content: prompt },
-            { role: 'user', content: 'Calculate nutrition for this quantity.' }
+            { role: 'user', content: 'Calculate nutrition for this quantity with detailed reasoning.' }
         ],
         temperature: 0.1,
         response_format: {
@@ -676,6 +725,9 @@ Respond with the same JSON schema as before.`;
     };
 
     const apiUrl = provider === 'openai' ? OPENAI_API_URL : PERPLEXITY_API_URL;
+    
+    console.log(`[RefineQuantity] Using ${provider} for quantity: "${quantityText}"`);
+    const startTime = Date.now();
     
     const response = await fetch(apiUrl, {
         method: 'POST',
@@ -693,6 +745,9 @@ Respond with the same JSON schema as before.`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    
+    const duration = Date.now() - startTime;
+    console.log(`[RefineQuantity] Completed in ${duration}ms`);
     
     return validateAndFixResult(parsed, settings);
 }
