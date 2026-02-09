@@ -234,15 +234,17 @@ ${examples}
 5. CALCULATION_FORMULA: Always show the math clearly
 6. SOURCES: List where data came from (OCR, USDA, estimation, etc.)
 ${language === 'Italian' ? `
-=== LOCAL SUPERMARKET SOURCES ===
-${language === 'Italian' ? `For Italian products, search these official supermarket websites:
+=== ITALIAN SUPERMARKET SOURCES ===
+For Italian products, search these official supermarket websites:
 - TIGROS: https://www.tigros.it ("Spesa online" → "Ingredienti e valori nutrizionali")
 - ESSELUNGA: https://www.esselunga.it ("Spesa Online" → "Valori nutrizionali")
 - CONAD: https://spesaonline.conad.it ("Valori nutrizionali" block)
 - COOP: https://www.easycoop.com ("Valori nutrizionali" table)
 - IPER: https://it.everli.com/it/spesa/iper
 
-Priority: Supermarket site > Manufacturer > USDA > Estimation` : `For US products, search these official supermarket websites:
+Priority: Supermarket site > Manufacturer > USDA > Estimation` : `
+=== US SUPERMARKET SOURCES ===
+For US products, search these official supermarket websites:
 - WALMART: https://www.walmart.com/grocery (Pickup/Delivery) - "Nutrition Facts" under product photo
 - KROGER: https://www.kroger.com (Shop online) - "Nutrition Facts" section with detailed table
 - WHOLE FOODS: https://www.wholefoodsmarket.com (Delivery via Amazon) - FDA standard Nutrition Facts panel
