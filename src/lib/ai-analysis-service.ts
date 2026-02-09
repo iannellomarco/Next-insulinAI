@@ -1099,6 +1099,21 @@ export async function refineQuantity(
         split_bolus_recommendation: { recommended: false, split_percentage: "", duration: "", reason: "" }
     };
 
+    // Build calculation section based on type
+    const calcSection = usePieceCalculation && carbsPerPiece 
+        ? `CARBS PER PIECE: ${carbsPerPiece}g
+NUMBER OF PIECES: ${numPieces}
+CALCULATION: ${carbsPerPiece}g × ${numPieces} = ${calcCarbs}g carbs
+Total fat: ${calcFat}g
+Total protein: ${calcProtein}g
+Insulin: ${calcCarbs}g ÷ ${carbRatio} = ${calcInsulin}U`
+        : `Target weight: ${targetGrams}g
+Multiplier: ${targetGrams} ÷ 100 = ${(targetGrams/100).toFixed(4)}
+Total carbs: ${baseCarbs}g × ${(targetGrams/100).toFixed(4)} = ${calcCarbs}g
+Total fat: ${calcFat}g
+Total protein: ${calcProtein}g
+Insulin: ${calcCarbs}g ÷ ${carbRatio} = ${calcInsulin}U`;
+
     const fullPrompt = `You are a JSON formatter. Return the pre-calculated values in the exact JSON format below.
 
 === PRODUCT INFO ===
@@ -1109,14 +1124,7 @@ ${totalPackageWeight ? `Total package: ${totalPackageWeight}g` : ''}
 ${piecesInPackage ? `Pieces in pack: ${piecesInPackage}` : ''}
 
 === PRE-CALCULATED VALUES FOR "${sanitizedQuantity}" ===
-${usePieceCalculation && carbsPerPiece ? `CARBS PER PIECE: ${carbsPerPiece}g
-NUMBER OF PIECES: ${numPieces}
-CALCULATION: ${carbsPerPiece}g × ${numPieces} = ${calcCarbs}g carbs` : `Target weight: ${targetGrams}g
-Multiplier: ${targetGrams} ÷ 100 = ${(targetGrams/100).toFixed(4)}
-Total carbs: ${baseCarbs}g × ${(targetGrams/100).toFixed(4)} = ${calcCarbs}g`}
-Total fat: ${calcFat}g
-Total protein: ${calcProtein}g
-Insulin: ${calcCarbs}g ÷ ${carbRatio} = ${calcInsulin}U`
+${calcSection}
 
 === REQUIRED JSON OUTPUT ===
 ${JSON.stringify(specificExample, null, 2)}
