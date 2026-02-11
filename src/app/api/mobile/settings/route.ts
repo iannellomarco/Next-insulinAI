@@ -41,6 +41,7 @@ export async function GET() {
             aiProvider: row.aiProvider || 'perplexity',
             mealRemindersEnabled: row.mealRemindersEnabled ?? false,
             splitBolusReminderEnabled: row.splitBolusReminderEnabled ?? true,
+            medicalParamsConfigured: row.medicalParamsConfigured ?? false,
             reminderTimes: row.reminderTimes || null,
         });
     } catch (error) {
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
             aiProvider: settings.aiProvider,
             mealRemindersEnabled: settings.mealRemindersEnabled,
             splitBolusReminderEnabled: settings.splitBolusReminderEnabled,
+            medicalParamsConfigured: settings.medicalParamsConfigured,
             reminderTimes: settings.reminderTimes,
         }).onConflictDoUpdate({
             target: userSettings.userId,
@@ -98,6 +100,7 @@ export async function POST(request: NextRequest) {
                 aiProvider: settings.aiProvider,
                 mealRemindersEnabled: settings.mealRemindersEnabled,
                 splitBolusReminderEnabled: settings.splitBolusReminderEnabled,
+                medicalParamsConfigured: settings.medicalParamsConfigured,
                 reminderTimes: settings.reminderTimes,
                 updatedAt: new Date()
             }

@@ -28,6 +28,7 @@ export const userSettings = pgTable('user_settings', {
     aiProvider: text('ai_provider').default('perplexity').notNull(), // 'perplexity' or 'openai'
     mealRemindersEnabled: boolean('meal_reminders_enabled').default(false),
     splitBolusReminderEnabled: boolean('split_bolus_reminder_enabled').default(true),
+    medicalParamsConfigured: boolean('medical_params_configured').default(false),
     reminderTimes: jsonb('reminder_times'), // { breakfast: number, lunch: number, dinner: number }
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
