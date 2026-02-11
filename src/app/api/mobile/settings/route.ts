@@ -39,6 +39,9 @@ export async function GET() {
             language: row.language || 'en',
             analysisMode: row.analysisMode || 'pplx_only',
             aiProvider: row.aiProvider || 'perplexity',
+            mealRemindersEnabled: row.mealRemindersEnabled ?? false,
+            splitBolusReminderEnabled: row.splitBolusReminderEnabled ?? true,
+            reminderTimes: row.reminderTimes || null,
         });
     } catch (error) {
         console.error('Failed to fetch settings:', error);
@@ -74,6 +77,9 @@ export async function POST(request: NextRequest) {
             language: settings.language,
             analysisMode: settings.analysisMode,
             aiProvider: settings.aiProvider,
+            mealRemindersEnabled: settings.mealRemindersEnabled,
+            splitBolusReminderEnabled: settings.splitBolusReminderEnabled,
+            reminderTimes: settings.reminderTimes,
         }).onConflictDoUpdate({
             target: userSettings.userId,
             set: {
@@ -90,6 +96,9 @@ export async function POST(request: NextRequest) {
                 language: settings.language,
                 analysisMode: settings.analysisMode,
                 aiProvider: settings.aiProvider,
+                mealRemindersEnabled: settings.mealRemindersEnabled,
+                splitBolusReminderEnabled: settings.splitBolusReminderEnabled,
+                reminderTimes: settings.reminderTimes,
                 updatedAt: new Date()
             }
         });
