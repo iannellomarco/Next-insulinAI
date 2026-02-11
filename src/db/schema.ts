@@ -23,6 +23,9 @@ export const userSettings = pgTable('user_settings', {
     smartHistory: boolean('smart_history').default(true),
     libreUsername: text('libre_username'),
     librePassword: text('libre_password'),
+    dexcomUsername: text('dexcom_username'),
+    dexcomPassword: text('dexcom_password'),
+    dexcomRegion: text('dexcom_region'),
     language: text('language').default('en').notNull(),
     analysisMode: text('analysis_mode').default('pplx_only').notNull(),
     aiProvider: text('ai_provider').default('perplexity').notNull(), // 'perplexity' or 'openai'

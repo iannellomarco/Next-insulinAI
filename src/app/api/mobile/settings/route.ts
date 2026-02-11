@@ -22,8 +22,9 @@ export async function GET() {
         const row = result[0];
         const defaultCarbRatios = { breakfast: 8, lunch: 10, dinner: 12 };
 
-        // Decrypt password before sending to client
-        const decryptedPassword = row.librePassword ? decryptField(row.librePassword) : '';
+        // Decrypt passwords before sending to client
+        const decryptedLibrePassword = row.librePassword ? decryptField(row.librePassword) : '';
+        const decryptedDexcomPassword = row.dexcomPassword ? decryptField(row.dexcomPassword) : '';
 
         return NextResponse.json({
             carbRatio: row.carbRatio || 10,
@@ -35,7 +36,10 @@ export async function GET() {
             lowThreshold: row.lowThreshold || 70,
             smartHistory: row.smartHistory ?? true,
             libreUsername: row.libreUsername || '',
-            librePassword: decryptedPassword,
+            librePassword: decryptedLibrePassword,
+            dexcomUsername: row.dexcomUsername || '',
+            dexcomPassword: decryptedDexcomPassword,
+            dexcomRegion: row.dexcomRegion || 'International',
             language: row.language || 'en',
             analysisMode: row.analysisMode || 'pplx_only',
             aiProvider: row.aiProvider || 'perplexity',
@@ -60,8 +64,9 @@ export async function POST(request: NextRequest) {
     try {
         const settings = await request.json();
 
-        // Encrypt password before storing
-        const encryptedPassword = settings.librePassword ? encryptField(settings.librePassword) : '';
+        // Encrypt passwords before storing
+        const encryptedLibrePassword = settings.librePassword ? encryptField(settings.librePassword) : '';
+        const encryptedDexcomPassword = settings.dexcomPassword ? encryptField(settings.dexcomPassword) : '';
 
         await db.insert(userSettings).values({
             userId,
@@ -74,7 +79,10 @@ export async function POST(request: NextRequest) {
             lowThreshold: settings.lowThreshold,
             smartHistory: settings.smartHistory,
             libreUsername: settings.libreUsername,
-            librePassword: encryptedPassword,
+            librePassword: encryptedLibrePassword,
+            dexcomUsername: settings.dexcomUsername,
+            dexcomPassword: encryptedDexcomPassword,
+            dexcomRegion: settings.dexcomRegion,
             language: settings.language,
             analysisMode: settings.analysisMode,
             aiProvider: settings.aiProvider,
@@ -94,7 +102,10 @@ export async function POST(request: NextRequest) {
                 lowThreshold: settings.lowThreshold,
                 smartHistory: settings.smartHistory,
                 libreUsername: settings.libreUsername,
-                librePassword: encryptedPassword,
+                librePassword: encryptedLibrePassword,
+                dexcomUsername: settings.dexcomUsername,
+                dexcomPassword: encryptedDexcomPassword,
+                dexcomRegion: settings.dexcomRegion,
                 language: settings.language,
                 analysisMode: settings.analysisMode,
                 aiProvider: settings.aiProvider,
