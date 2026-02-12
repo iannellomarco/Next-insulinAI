@@ -46,6 +46,7 @@ export async function GET() {
             mealRemindersEnabled: row.mealRemindersEnabled ?? false,
             splitBolusReminderEnabled: row.splitBolusReminderEnabled ?? true,
             medicalParamsConfigured: row.medicalParamsConfigured ?? false,
+            isLegacyPro: row.isLegacyPro ?? false,
             reminderTimes: row.reminderTimes || null,
         });
     } catch (error) {
