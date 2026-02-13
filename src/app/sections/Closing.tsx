@@ -1,5 +1,3 @@
-'use client';
-
 import { Mail, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 

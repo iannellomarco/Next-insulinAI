@@ -1,7 +1,4 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -75,12 +72,12 @@ const Header = () => {
 
           {/* CTA Button */}
           <div className="opacity-0 animate-fade-in-up delay-300">
-            <Link
-              href="/app"
+            <button
+              onClick={() => scrollToSection('contact')}
               className="hidden sm:inline-flex items-center justify-center px-4 py-2 bg-brand-dark text-white text-sm font-medium rounded-lg hover:bg-brand-dark/90 transition-colors"
             >
               Get the app
-            </Link>
+            </button>
           </div>
         </div>
       </div>

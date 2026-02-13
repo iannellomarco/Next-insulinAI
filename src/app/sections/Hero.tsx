@@ -1,7 +1,3 @@
-'use client';
-
-import Link from 'next/link';
-
 const Hero = () => {
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -35,12 +31,12 @@ const Hero = () => {
 
             {/* CTAs */}
             <div className="flex flex-wrap items-center gap-4 opacity-0 animate-fade-in-up delay-300">
-              <Link
-                href="/app"
+              <button
+                onClick={() => scrollToSection('contact')}
                 className="btn-primary"
               >
                 Get the app
-              </Link>
+              </button>
               <button
                 onClick={() => scrollToSection('features')}
                 className="text-sm font-medium text-brand-accent hover:underline underline-offset-4 transition-all"

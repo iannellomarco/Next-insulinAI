@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Header from '@/components/marketing/sections/Header';
-import Hero from '@/components/marketing/sections/Hero';
-import FeaturePhoto from '@/components/marketing/sections/FeaturePhoto';
-import FeatureBolus from '@/components/marketing/sections/FeatureBolus';
-import FeatureCGM from '@/components/marketing/sections/FeatureCGM';
-import FeatureSplit from '@/components/marketing/sections/FeatureSplit';
-import FeatureInsights from '@/components/marketing/sections/FeatureInsights';
-import HowItWorks from '@/components/marketing/sections/HowItWorks';
-import Benefits from '@/components/marketing/sections/Benefits';
-import Closing from '@/components/marketing/sections/Closing';
+import Header from './sections/Header';
+import Hero from './sections/Hero';
+import FeaturePhoto from './sections/FeaturePhoto';
+import FeatureBolus from './sections/FeatureBolus';
+import FeatureCGM from './sections/FeatureCGM';
+import FeatureSplit from './sections/FeatureSplit';
+import FeatureInsights from './sections/FeatureInsights';
+import HowItWorks from './sections/HowItWorks';
+import Benefits from './sections/Benefits';
+import Closing from './sections/Closing';
 
-export default function MarketingPage() {
+function App() {
   const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function MarketingPage() {
   }, []);
 
   return (
-    <div ref={mainRef} className="relative min-h-screen bg-brand-light marketing-page">
+    <div ref={mainRef} className="relative min-h-screen bg-brand-light">
       {/* Noise overlay */}
       <div className="noise-overlay" aria-hidden="true" />
       
@@ -71,3 +71,5 @@ export default function MarketingPage() {
     </div>
   );
 }
+
+export default App;

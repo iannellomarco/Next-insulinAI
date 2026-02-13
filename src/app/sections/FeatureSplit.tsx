@@ -1,5 +1,3 @@
-'use client';
-
 const FeatureSplit = () => {
   return (
     <section className="relative min-h-screen flex items-center bg-brand-light overflow-hidden border-t border-brand-dark/5">

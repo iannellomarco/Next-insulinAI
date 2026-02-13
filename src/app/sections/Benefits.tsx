@@ -1,5 +1,3 @@
-'use client';
-
 import { Clock, Target, TrendingUp, Shield, Globe, WifiOff } from 'lucide-react';
 
 const Benefits = () => {

@@ -1,6 +1,4 @@
-'use client';
-
-const FeatureBolus = () => {
+const FeatureInsights = () => {
   return (
     <section className="relative min-h-screen flex items-center bg-brand-light overflow-hidden border-t border-brand-dark/5">
       <div className="w-full px-6 lg:px-12 py-20">
@@ -9,19 +7,19 @@ const FeatureBolus = () => {
           <div className="reveal-left">
             {/* Micro label */}
             <p className="font-mono text-xs uppercase tracking-widest text-brand-gray mb-6">
-              Bolus Calculator
+              Pattern Insights
             </p>
 
             {/* Headline */}
             <h2 className="font-display font-bold text-display-lg text-brand-dark mb-6">
-              Get a dose
+              Learn your patterns.
               <br />
-              that fits you.
+              Improve every day.
             </h2>
 
             {/* Body */}
             <p className="text-lg text-brand-gray max-w-md leading-relaxed">
-              Personalized recommendations using your I:C ratio, ISF, target glucose, and meal-specific settings.
+              AI analyzes your history to spot trends and adapt to your unique glucose response—without extra work.
             </p>
           </div>
 
@@ -29,8 +27,8 @@ const FeatureBolus = () => {
           <div className="flex justify-center lg:justify-end reveal-right">
             <div className="phone-frame w-[260px] sm:w-[300px] lg:w-[320px] xl:w-[340px]">
               <img
-                src="/screenshot-profile.jpg"
-                alt="insulinAI app showing bolus calculator with personalized settings"
+                src="/screenshot-insights.jpg"
+                alt="insulinAI app showing pattern insights and weekly trends"
                 className="w-full h-auto"
                 loading="lazy"
               />
@@ -42,4 +40,4 @@ const FeatureBolus = () => {
   );
 };
 
-export default FeatureBolus;
+export default FeatureInsights;
