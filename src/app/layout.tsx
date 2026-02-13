@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
 import { ClerkProvider } from '@clerk/nextjs';
@@ -10,10 +10,17 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-space-grotesk',
+  weight: ['500', '600', '700'],
+});
+
 export const metadata: Metadata = {
-  title: 'InsulinAI - Smart Carb Counting',
+  title: 'insulinAI - AI-Powered Diabetes Management',
   description: 'AI-powered diabetic carb counting and insulin calculator. Scan your meals, get accurate carb counts and insulin dosing suggestions.',
-  keywords: ['insulin', 'diabetes', 'carb counting', 'AI', 'health', 'glucose'],
+  keywords: ['insulin', 'diabetes', 'carb counting', 'AI', 'health', 'glucose', 'T1D'],
 };
 
 export const viewport: Viewport = {
@@ -34,7 +41,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={inter.variable}>
+      <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
         <body className="font-sans antialiased">
           <div className="app-container">
             {children}
