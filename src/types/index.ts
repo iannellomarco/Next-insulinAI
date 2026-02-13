@@ -84,8 +84,7 @@ export interface Settings {
     highThreshold: number;
     lowThreshold: number;
     smartHistory: boolean;
-    libreUsername?: string;
-    librePassword?: string;
+    // Credentials removed
     language: 'en' | 'it';
     mealRemindersEnabled: boolean;
     reminderTimes: ReminderTimes;
@@ -106,8 +105,7 @@ export const DEFAULT_SETTINGS: Settings = {
     highThreshold: 180,
     lowThreshold: 70,
     smartHistory: true,
-    libreUsername: '',
-    librePassword: '',
+    // Credentials removed
     language: 'en',
     mealRemindersEnabled: false,
     reminderTimes: {
