@@ -1,0 +1,35 @@
+# Database Migration Log
+**Date:** 2026-02-13
+**Goal:** Prepare database for production by removing unsecured credentials and adding new features.
+
+## 1. Backup
+- **Action:** Created full database export to JSON.
+- **Status:** ✅ SUCCESS
+- **File:** [backups/backup_data_2026-02-13T09-43-21-281Z.json](file:///Users/marcoiannello/Desktop/Progetti/backendinsulinai/backups/backup_data_2026-02-13T09-43-21-281Z.json)
+- **Content:**
+    - `user_settings`: 26 records
+    - `history_items`: 68 records
+    - `cookbook_items`: 0 records
+
+## 2. Migration Attempt 1 (Drizzle Kit Push)
+- **Action:** `npx drizzle-kit push`
+- **Result:** ❌ ABORTED
+- **Reason:** Interactive prompt for data loss (dropping columns) failed to receive confirmation input correctly in the environment.
+
+## 3. Migration Attempt 2 (Drizzle Kit Migrate)
+- **Action:** `npx drizzle-kit migrate`
+- **Result:** ❌ FAILED
+- **Reason:** Database state desync. Drizzle attempted to create `cookbook_items` table which already existed (likely from a partial previous push or manual creation), causing `duplicate_table` error.
+
+## 4. Manual Migration (Final)
+- **Action:** [scripts/manual_migrate.ts](file:///Users/marcoiannello/Desktop/Progetti/backendinsulinai/scripts/manual_migrate.ts) using raw SQL with `IF EXISTS` logic.
+- **Result:** ✅ SUCCESS
+- **Changes Applied:**
+    - `DROP COLUMN IF EXISTS`: `libre_password`, `libre_username`, `dexcom_password`, `dexcom_username` from `user_settings`.
+    - `CREATE TABLE IF NOT EXISTS`: `cookbook_items`.
+    - `CREATE INDEX IF NOT EXISTS`: Added indexes for `user_id` and `category` on `cookbook_items`.
+
+## Verification
+- Password columns have been removed.
+- `cookbook_items` table exists and is ready for use.
+- Secure credentials are now handled exclusively by iOS Keychain.

@@ -10,4 +10,5 @@ export default defineConfig({
     dbCredentials: {
         url: process.env.POSTGRES_URL!,
     },
+    tablesFilter: ["!pg_*", "!sql_*"],
 });

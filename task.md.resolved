@@ -1,0 +1,65 @@
+# Commercialization Audit Tasks
+- [x] Audit Backend (`backendinsulinai`) <!-- id: 0 -->
+    - [x] Check project structure and dependencies <!-- id: 1 -->
+    - [x] Scan for hardcoded secrets and environment variables <!-- id: 2 -->
+    - [x] Review API endpoints for security and validation <!-- id: 3 -->
+    - [x] Check database schema and migrations <!-- id: 4 -->
+    - [x] Search for TODOs/FIXMEs <!-- id: 5 -->
+- [x] Audit iOS App (`insulinAI`) <!-- id: 6 -->
+    - [x] Check project structure and dependencies <!-- id: 7 -->
+    - [x] Review API client configuration (Production URLs?) <!-- id: 8 -->
+    - [x] Check App Store compliance (Permissions, Privacy) <!-- id: 9 -->
+    - [x] Review UI/UX polish and error handling <!-- id: 10 -->
+    - [x] Search for TODOs/FIXMEs <!-- id: 11 -->
+- [x] Generate Commercialization Report <!-- id: 12 -->
+    - [x] Summarize findings <!-- id: 13 -->
+    - [x] List critical blockers <!-- id: 14 -->
+    - [x] Recommend next steps <!-- id: 15 -->
+
+# Commercialization Fixes
+- [x] Fix critical iOS blockers (`insulinAI`) <!-- id: 16 -->
+    - [x] Add `NSCameraUsageDescription` to [Info.plist](file:///Users/marcoiannello/Desktop/Progetti/insulinAI/insulinAI/Info.plist) <!-- id: 17 -->
+    - [x] Add `NSPhotoLibraryUsageDescription` to [Info.plist](file:///Users/marcoiannello/Desktop/Progetti/insulinAI/insulinAI/Info.plist) <!-- id: 18 -->
+- [x] Clean up codebase (`backendinsulinai` & `insulinAI`) <!-- id: 19 -->
+    - [x] Delete unused [backendinsulinai/server.py](file:///Users/marcoiannello/Desktop/Progetti/backendinsulinai/server.py) <!-- id: 20 -->
+    - [x] Delete placeholder Swift services ([PerplexityService.swift](file:///Users/marcoiannello/Desktop/Progetti/insulinAI/Services/PerplexityService.swift), etc.) <!-- id: 21 -->
+
+# RevenueCat Implementation
+- [x] Implement Forced Trial Flow <!-- id: 22 -->
+    - [x] Analyze [RevenueCatService.swift](file:///Users/marcoiannello/Desktop/Progetti/insulinAI/Services/RevenueCatService.swift) current state <!-- id: 23 -->
+    - [x] Verify `PaywallView` or onboarding integration <!-- id: 24 -->
+    - [x] Configure App Store Connect & RevenueCat (Instructions) <!-- id: 25 -->
+    - [x] Implement Paywall with Trial toggle in code <!-- id: 26 -->
+
+# Grandfathering Implementation
+- [x] Add `is_legacy_pro` to Backend <!-- id: 27 -->
+- [x] Update iOS App <!-- id: 30 -->
+
+# RevenueCat Re-configuration (Regression)
+- [x] Re-create Project & Get API Key <!-- id: 34 -->
+- [x] Update [RevenueCatService.swift](file:///Users/marcoiannello/Desktop/Progetti/insulinAI/Services/RevenueCatService.swift) with new Key <!-- id: 35 -->
+- [x] Re-configure Products & Entitlements in Dashboard <!-- id: 36 -->
+
+# Verification & Troubleshooting
+- [x] Troubleshoot "Error fetching offerings" (Error 1) <!-- id: 37 -->
+    - [x] Verify "Paid Applications Agreement" is signed <!-- id: 38 -->
+    - [x] Verify Bundle ID match <!-- id: 39 -->
+    - [x] Check Product IDs in RevenueCat match App Store Connect <!-- id: 40 -->
+    - [x] Wait for propagation (Sandbox delay) <!-- id: 41 -->
+
+# Local Testing (Bypass Propagation)
+- [x] Create [InsulinAI.storekit](file:///Users/marcoiannello/Desktop/Progetti/insulinAI/InsulinAI.storekit) file <!-- id: 42 -->
+- [x] Configure Scheme to use .storekit file <!-- id: 43 -->
+- [x] Verify Paywall works locally <!-- id: 44 -->
+
+# Production Readiness (New)
+- [x] Database Migration <!-- id: 45 -->
+    - [x] Backup Database (JSON) <!-- id: 46 -->
+    - [x] Run migration to drop plaintext password columns <!-- id: 47 -->
+    - [x] Create `cookbook_items` table <!-- id: 48 -->
+- [ ] Cookbook Implementation (Backend) <!-- id: 49 -->
+    - [x] Create API route (`/api/mobile/cookbook`) for CRUD <!-- id: 50 -->
+- [ ] Cookbook Implementation (iOS) <!-- id: 53 -->
+    - [ ] Sync `CookbookService` with remote API <!-- id: 54 -->
+- [ ] Security Improvements <!-- id: 51 -->
+    - [ ] Move RevenueCat API Key to [Info.plist](file:///Users/marcoiannello/Desktop/Progetti/insulinAI/insulinAI/Info.plist) or Env Var <!-- id: 52 -->
