@@ -1,107 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-@import "tailwindcss";
 
-@theme {
-  /* Colors */
-  --color-background: hsl(220 14% 97%);
-  --color-foreground: hsl(220 20% 6%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(220 20% 6%);
-  --color-primary: hsl(220 20% 6%);
-  --color-primary-foreground: hsl(0 0% 98%);
-  --color-secondary: hsl(220 9% 94%);
-  --color-secondary-foreground: hsl(220 20% 6%);
-  --color-muted: hsl(220 9% 94%);
-  --color-muted-foreground: hsl(220 9% 46%);
-  --color-accent: hsl(231 100% 62%);
-  --color-accent-foreground: hsl(0 0% 100%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(220 9% 88%);
-  --color-ring: hsl(231 100% 62%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(220 20% 6%);
-  
-  /* Brand colors */
-  --color-brand-light: #F6F7F9;
-  --color-brand-dark: #0B0C0F;
-  --color-brand-gray: #6B7280;
-  --color-brand-accent: #3F5DFF;
-  
-  /* Fonts */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
-  
-  /* Border radius */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-4xl: 36px;
-  
-  /* Shadows */
-  --shadow-phone: 0 0 0 1px rgba(11, 12, 15, 0.1), 0 25px 50px -12px rgba(11, 12, 15, 0.15);
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 14% 97%;
+    --foreground: 220 20% 6%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 6%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 6%;
+    --primary: 220 20% 6%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 220 9% 94%;
+    --secondary-foreground: 220 20% 6%;
+    --muted: 220 9% 94%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 231 100% 62%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 9% 88%;
+    --input: 220 9% 88%;
+    --ring: 231 100% 62%;
+    --radius: 0.5rem;
+  }
 }
 
-/* Base styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html {
-  height: auto;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-}
-
-body {
-  background-color: var(--color-brand-light);
-  color: var(--color-brand-dark);
-  font-family: var(--font-sans);
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
-  height: auto;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Typography classes */
-.font-sans {
-  font-family: var(--font-sans);
-}
-
-.font-display {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
-}
-
-.font-mono {
-  font-family: var(--font-mono);
-}
-
-.text-display-xl {
-  font-size: clamp(44px, 5.2vw, 76px);
-  line-height: 0.98;
-  letter-spacing: -0.02em;
-}
-
-.text-display-lg {
-  font-size: clamp(34px, 3.6vw, 52px);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-}
-
-.text-display-md {
-  font-size: clamp(28px, 2.8vw, 40px);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-brand-light text-brand-dark antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
 }
 
 /* Animation keyframes */
@@ -160,36 +98,37 @@ body {
   }
 }
 
-/* Animation utilities */
-.animate-fade-in-up {
-  animation: fadeInUp 0.7s ease-out forwards;
+@layer utilities {
+  .animate-fade-in-up {
+    animation: fadeInUp 0.7s ease-out forwards;
+  }
+
+  .animate-fade-in-left {
+    animation: fadeInLeft 0.7s ease-out forwards;
+  }
+
+  .animate-fade-in-right {
+    animation: fadeInRight 0.7s ease-out forwards;
+  }
+
+  .animate-slide-left {
+    animation: slideInFromLeft 0.8s ease-out forwards;
+  }
+
+  .animate-slide-right {
+    animation: slideInFromRight 0.8s ease-out forwards;
+  }
+
+  /* Stagger delays */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-600 { animation-delay: 600ms; }
 }
 
-.animate-fade-in-left {
-  animation: fadeInLeft 0.7s ease-out forwards;
-}
-
-.animate-fade-in-right {
-  animation: fadeInRight 0.7s ease-out forwards;
-}
-
-.animate-slide-left {
-  animation: slideInFromLeft 0.8s ease-out forwards;
-}
-
-.animate-slide-right {
-  animation: slideInFromRight 0.8s ease-out forwards;
-}
-
-/* Stagger delays */
-.delay-100 { animation-delay: 100ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
-.delay-600 { animation-delay: 600ms; }
-
-/* Intersection Observer states */
+/* Intersection Observer initial states */
 .reveal {
   opacity: 0;
   transform: translateY(20px);
@@ -250,27 +189,7 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
-/* Button styles */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1.5rem;
-  background-color: var(--color-brand-dark);
-  color: white;
-  font-weight: 500;
-  border-radius: 0.5rem;
-  transition: all 0.2s ease-out;
-  border: none;
-  cursor: pointer;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-/* Hover lift effect */
+/* Subtle hover states */
 .hover-lift {
   transition: transform 0.2s ease-out;
 }
@@ -279,13 +198,23 @@ body {
   transform: translateY(-2px);
 }
 
+/* Button styles */
+.btn-primary {
+  @apply inline-flex items-center justify-center px-6 py-3 bg-foreground text-background font-medium rounded-lg transition-all duration-200;
+}
+
+.btn-primary:hover {
+  @apply bg-foreground/90;
+  transform: translateY(-1px);
+}
+
 /* Hairline divider */
 .hairline {
   height: 1px;
   background: rgba(11, 12, 15, 0.1);
 }
 
-/* Background colors */
+/* Section backgrounds */
 .bg-primary-light {
   background-color: #F6F7F9;
 }
