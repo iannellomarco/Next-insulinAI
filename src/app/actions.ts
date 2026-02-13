@@ -34,6 +34,7 @@ export async function syncHistoryItemAction(item: HistoryItem) {
 
 export async function getRemoteHistoryAction() {
     const { userId } = await auth();
+    console.log('[getRemoteHistoryAction] UserID:', userId);
     if (!userId) return [];
 
     try {
@@ -41,6 +42,8 @@ export async function getRemoteHistoryAction() {
             .from(historyItems)
             .where(eq(historyItems.userId, userId))
             .orderBy(desc(historyItems.timestamp));
+
+        console.log(`[getRemoteHistoryAction] Found ${results.length} items for user ${userId}`);
 
         // Extract the JSON data
         return results.map(r => r.data as HistoryItem);

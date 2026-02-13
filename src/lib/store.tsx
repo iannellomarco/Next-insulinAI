@@ -129,6 +129,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
                 // 2. Fetch Remote History
                 const remoteHistory = await getRemoteHistoryAction();
+                console.log('[Store] Fetched remote history:', remoteHistory?.length);
                 if (remoteHistory && remoteHistory.length > 0) {
                     setHistory(remoteHistory);
                     localStorage.setItem('history', JSON.stringify(remoteHistory));
@@ -180,14 +181,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setHistory(prev => {
             const item = prev.find(h => h.id === id);
             let newHistory: HistoryItem[];
-            
+
             // If item has a chainId, delete the entire chain
             if (item?.chainId) {
                 newHistory = prev.filter(h => h.chainId !== item.chainId);
             } else {
                 newHistory = prev.filter(h => h.id !== id);
             }
-            
+
             localStorage.setItem('history', JSON.stringify(newHistory));
             return newHistory;
         });
