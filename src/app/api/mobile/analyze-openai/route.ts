@@ -6,11 +6,11 @@
 
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-    analyzeFood, 
+import {
+    analyzeFood,
     refineQuantity,
     type AnalysisResult,
-    getCurrentMealPeriod 
+    getCurrentMealPeriod
 } from '@/lib/ai-analysis-service';
 import type { Settings } from '@/types';
 
@@ -38,7 +38,7 @@ function validateImage(imageData: string): { valid: boolean; error?: string } {
 
 export async function POST(req: NextRequest) {
     const startTime = Date.now();
-    
+
     try {
         // Auth
         const [{ userId }, body] = await Promise.all([
@@ -90,8 +90,7 @@ export async function POST(req: NextRequest) {
             highThreshold: userSettings?.highThreshold || 180,
             lowThreshold: userSettings?.lowThreshold || 70,
             smartHistory: userSettings?.smartHistory ?? true,
-            libreUsername: userSettings?.libreUsername || '',
-            librePassword: userSettings?.librePassword || '',
+            // Credentials removed
             language: userSettings?.language === 'it' ? 'it' : 'en',
             mealRemindersEnabled: userSettings?.mealRemindersEnabled ?? false,
             reminderTimes: userSettings?.reminderTimes || {
@@ -118,7 +117,7 @@ export async function POST(req: NextRequest) {
         // ========================================
         if (previous_analysis && text) {
             console.log('[API/OpenAI] Quantity refinement request - using AI reasoning');
-            
+
             result = await refineQuantity(
                 previous_analysis,
                 text,
@@ -163,7 +162,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('[API/OpenAI] Error:', error);
-        
+
         // Handle specific error types
         if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
             return NextResponse.json(
@@ -171,7 +170,7 @@ export async function POST(req: NextRequest) {
                 { status: 401 }
             );
         }
-        
+
         if (error.message?.includes('429') || error.message?.includes('Rate limit')) {
             return NextResponse.json(
                 { error: 'OpenAI rate limit exceeded. Please try again later.' },

@@ -7,7 +7,6 @@ import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import GlucoseInputModal from '@/components/GlucoseInputModal';
 import { HistoryItem } from '@/types';
 import GlucoseGraph from './GlucoseGraph';
-import { fetchLibreDataAction, GlucoseReading } from '@/app/actions/libre';
 import { useTranslations } from '@/lib/translations';
 
 interface MealGroup {
@@ -50,55 +49,10 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
     const [glucoseModalItem, setGlucoseModalItem] = useState<string | null>(null);
     const [selectedMealGroup, setSelectedMealGroup] = useState<MealGroup | null>(null);
     const [deleteConfirmItem, setDeleteConfirmItem] = useState<string | null>(null);
-    const [glucoseData, setGlucoseData] = useState<GlucoseReading[]>([]);
-    const [isLoadingGlucose, setIsLoadingGlucose] = useState(false);
-    const [debugRange, setDebugRange] = useState<{ oldest: string; newest: string } | null>(null);
-
     // Scroll to top when component mounts
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'instant' });
     }, []);
-
-    // Fetch glucose data when a meal is selected
-    useEffect(() => {
-        if (selectedMealGroup && settings.libreUsername && settings.librePassword) {
-            const fetchGlucose = async () => {
-                setIsLoadingGlucose(true);
-                try {
-                    const result = await fetchLibreDataAction();
-                    if (result.success && result.data) {
-                        // Filter for meal window: -30 mins to +3 hours
-                        const mealTime = new Date(selectedMealGroup.timestamp);
-                        const startTime = new Date(mealTime.getTime() - 30 * 60000);
-                        const endTime = new Date(mealTime.getTime() + 180 * 60000);
-
-                        const relevantReadings = result.data.filter((h: GlucoseReading) => {
-                            const rt = new Date(h.timestamp);
-                            return rt >= startTime && rt <= endTime;
-                        });
-
-                        setGlucoseData(relevantReadings);
-
-                        if (relevantReadings.length === 0 && result.debug) {
-                            setDebugRange({
-                                oldest: result.debug.oldest,
-                                newest: result.debug.newest
-                            });
-                        } else {
-                            setDebugRange(null);
-                        }
-                    }
-                } catch (e) {
-                    console.error("Failed to fetch glucose data", e);
-                } finally {
-                    setIsLoadingGlucose(false);
-                }
-            };
-            fetchGlucose();
-        } else {
-            setGlucoseData([]);
-        }
-    }, [selectedMealGroup, settings.libreUsername, settings.librePassword]);
 
     const handleDeleteItem = (id: string) => {
         deleteHistoryItem(id);
@@ -350,39 +304,7 @@ export default function HistoryView({ onBack }: { onBack: () => void }) {
                             </div>
                         )}
 
-                        {/* Live Graph from Libre */}
-                        {settings.libreUsername && (
-                            <div className="meal-detail-glucose" style={{ marginTop: '16px' }}>
-                                <div className="glucose-graph-container" style={{
-                                    backgroundColor: '#f8fafc',
-                                    borderRadius: '12px',
-                                    padding: '12px',
-                                    height: '240px'
-                                }}>
-                                    {isLoadingGlucose ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px', gap: '8px', color: '#64748b' }}>
-                                            <Loader2 className="animate-spin" size={20} />
-                                            <span style={{ fontSize: '13px' }}>{t.history.loadingLibre}</span>
-                                        </div>
-                                    ) : glucoseData.length > 0 ? (
-                                        <GlucoseGraph
-                                            data={glucoseData}
-                                            mealTime={new Date(selectedMealGroup.timestamp)}
-                                            height={200}
-                                        />
-                                    ) : (
-                                        <div style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                                            <p>{t.history.noGlucoseData}</p>
-                                            {debugRange && (
-                                                <p style={{ fontSize: '11px', marginTop: '4px', color: '#94a3b8' }}>
-                                                    Data available from {new Date(debugRange.oldest).toLocaleString(settings.language === 'it' ? 'it-IT' : 'en-US')} to {new Date(debugRange.newest).toLocaleString(settings.language === 'it' ? 'it-IT' : 'en-US')}
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        {/* Live Graph from Libre - Removed (Mobile only feature now) */}
 
                         {/* Food Items */}
                         <div className="meal-detail-foods">

@@ -462,116 +462,19 @@ export default function SettingsView() {
                                 <p>{t.settings.libreSub}</p>
                             </div>
 
-                            <div className="api-card" style={{ position: 'relative', overflow: 'hidden' }}>
+                            <div className="api-card">
                                 <div className="api-icon">
                                     <Link size={20} />
                                 </div>
-                                <div className={`api-content ${!user ? 'blurred-content' : ''}`}>
-                                    <label htmlFor="libreUsername">{t.settings.email}</label>
-                                    <input
-                                        type="email"
-                                        id="libreUsername"
-                                        placeholder="email@example.com"
-                                        value={user ? (localSettings.libreUsername || '') : 'hidden@email.com'}
-                                        onChange={handleChange}
-                                        disabled={!user}
-                                    />
-
-                                    <label htmlFor="librePassword" style={{ marginTop: '12px' }}>{t.settings.password}</label>
-                                    <input
-                                        type="password"
-                                        id="librePassword"
-                                        placeholder="••••••••"
-                                        value={user ? (localSettings.librePassword || '') : 'password123'}
-                                        onChange={handleChange}
-                                        disabled={!user}
-                                    />
-
-                                    <div className="test-connection-wrapper" style={{ marginTop: '16px' }}>
-                                        <button
-                                            className="test-connection-btn"
-                                            onClick={handleTestConnection}
-                                            disabled={isTesting || !user || !localSettings.libreUsername || !localSettings.librePassword}
-                                            style={{
-                                                padding: '8px 16px',
-                                                borderRadius: '8px',
-                                                backgroundColor: '#fafdff',
-                                                border: '1px solid #e1e6eb',
-                                                color: '#0066cc',
-                                                fontWeight: 500,
-                                                fontSize: '14px',
-                                                cursor: isTesting ? 'wait' : 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '8px'
-                                            }}
-                                        >
-                                            {isTesting ? (
-                                                <>
-                                                    <Loader2 size={16} className="animate-spin" />
-                                                    {t.settings.connecting}
-                                                </>
-                                            ) : (
-                                                t.settings.test
-                                            )}
-                                        </button>
-
-                                        {testResult && (
-                                            <div style={{
-                                                marginTop: '12px',
-                                                fontSize: '13px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                color: testResult.success ? '#10b981' : '#ef4444'
-                                            }}>
-                                                {testResult.success ? <CheckCircle size={16} /> : <XCircle size={16} />}
-                                                {testResult.message}
-                                            </div>
-                                        )}
-                                    </div>
+                                <div className="api-content">
+                                    <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', marginBottom: '8px' }}>
+                                        {t.settings.connectLibre}
+                                    </h4>
+                                    <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
+                                        Credential storage has been moved to the iOS app for enhanced security.
+                                        Please configure LibreLink connection directly in the mobile app settings.
+                                    </p>
                                 </div>
-
-                                {/* Lock Overlay for Guest Users */}
-                                {!user && (
-                                    <div className="settings-lock-overlay" style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 0,
-                                        background: 'rgba(255, 255, 255, 0.6)',
-                                        backdropFilter: 'blur(4px)',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        zIndex: 10,
-                                        gap: '12px',
-                                        padding: '24px',
-                                        textAlign: 'center'
-                                    }}>
-                                        <div style={{
-                                            background: '#fff',
-                                            borderRadius: '50%',
-                                            padding: '12px',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                                        }}>
-                                            <Link size={24} className="text-primary" />
-                                        </div>
-                                        <div>
-                                            <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}>{t.settings.connectLibre}</h4>
-                                            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
-                                                {t.settings.connectLibreSub}
-                                            </p>
-                                            <SignInButton mode="modal">
-                                                <button className="btn primary" style={{ width: 'auto', padding: '8px 20px', fontSize: '14px' }}>
-                                                    {t.settings.signInConnect}
-                                                </button>
-                                            </SignInButton>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
 
                             <div className="divider" />

@@ -19,8 +19,7 @@ const DEFAULT_SETTINGS: Settings = {
     highThreshold: 180,
     lowThreshold: 70,
     smartHistory: true,
-    libreUsername: '',
-    librePassword: '',
+    // Credentials removed
     language: 'en',
     mealRemindersEnabled: false,
     reminderTimes: {
@@ -33,12 +32,12 @@ const DEFAULT_SETTINGS: Settings = {
 
 export async function POST(request: NextRequest) {
     const startTime = Date.now();
-    
+
     try {
         // Extract API Key from header (user-provided or server)
         const authHeader = request.headers.get('Authorization');
         let apiKey = authHeader?.replace('Bearer ', '') || '';
-        
+
         // Use server key if user key is invalid
         if (!apiKey || apiKey === 'invalid-key' || apiKey.length < 10) {
             apiKey = process.env.PERPLEXITY_API_KEY || '';
@@ -63,7 +62,7 @@ export async function POST(request: NextRequest) {
         // Extract text from messages
         const userMessage = messages.find((m: any) => m.role === 'user');
         const systemMessage = messages.find((m: any) => m.role === 'system');
-        
+
         if (!userMessage) {
             return NextResponse.json(
                 { error: { message: 'No user message found' } },
@@ -80,13 +79,13 @@ export async function POST(request: NextRequest) {
         // Extract text content (handle both string and array formats)
         let text = '';
         let image: string | null = null;
-        
+
         if (typeof userMessage.content === 'string') {
             text = userMessage.content;
         } else if (Array.isArray(userMessage.content)) {
             // Vision format with image
             const textPart = userMessage.content.find((c: any) => c.type === 'text');
-            const imagePart = userMessage.content.find((c: any) => 
+            const imagePart = userMessage.content.find((c: any) =>
                 c.type === 'image_url' || c.type === 'input_image'
             );
             text = textPart?.text || '';
@@ -114,18 +113,18 @@ export async function POST(request: NextRequest) {
 
         // Convert to OpenAI-compatible format for web client
         const openAIFormat = convertToOpenAIFormat(analysis.result, analysis.provider);
-        
+
         return NextResponse.json(openAIFormat);
 
     } catch (error: any) {
         console.error('[Web API] Error:', error);
-        
+
         return NextResponse.json(
-            { 
-                error: { 
+            {
+                error: {
                     message: error.message || 'Internal server error',
                     type: error.name || 'unknown_error'
-                } 
+                }
             },
             { status: error.status || 500 }
         );
@@ -136,7 +135,7 @@ export async function POST(request: NextRequest) {
 async function handleGreeting(body: any, apiKey: string) {
     const { firstName, timeOfDay } = body;
     const language = body.language === 'it' ? 'Italian' : 'English';
-    
+
     // Try Perplexity for creative greeting
     if (apiKey && apiKey.length > 10) {
         try {
@@ -146,7 +145,7 @@ async function handleGreeting(body: any, apiKey: string) {
             console.log('[Greeting] AI failed, using fallback');
         }
     }
-    
+
     // Fallback greetings
     const fallbackGreetings: Record<string, string[]> = {
         en: [
@@ -160,20 +159,20 @@ async function handleGreeting(body: any, apiKey: string) {
             `Buon${timeOfDay === 'morning' ? 'a' : timeOfDay === 'evening' ? 'a' : ''} ${timeOfDay || 'giorno'}, ${firstName || 'Utente'}. Pronto quando vuoi.`
         ]
     };
-    
+
     const greetings = fallbackGreetings[language === 'Italian' ? 'it' : 'en'];
     const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-    
+
     return NextResponse.json({ greeting: randomGreeting });
 }
 
 async function generateAIGreeting(
-    firstName: string, 
-    timeOfDay: string, 
+    firstName: string,
+    timeOfDay: string,
     language: string,
     apiKey: string
 ): Promise<string> {
-    const prompt = language === 'Italian' 
+    const prompt = language === 'Italian'
         ? `Genera un breve messaggio di benvenuto cyberpunk/futuristico per un'app di diabete. Utente: ${firstName || 'Utente'}. Momento: ${timeOfDay}. Max 10 parole.`
         : `Generate a short cyberpunk/futuristic welcome message for a diabetes app. User: ${firstName || 'User'}. Time: ${timeOfDay}. Max 10 words.`;
 
@@ -205,29 +204,29 @@ async function generateAIGreeting(
 // Parse settings from system message content
 function parseSettingsFromSystemMessage(content: string, userSettings?: any): Settings {
     const settings = { ...DEFAULT_SETTINGS };
-    
+
     // Override with explicit user settings if provided
     if (userSettings) {
         Object.assign(settings, userSettings);
         return settings;
     }
-    
+
     // Try to extract from system message
     if (content.includes('Italian') || content.includes('italiano')) {
         settings.language = 'it';
     }
-    
+
     // Extract carb ratio
     const ratioMatch = content.match(/1\s*:\s*(\d+)/) || content.match(/ratio.*?(:?\d+)/i);
     if (ratioMatch) {
         settings.carbRatio = parseInt(ratioMatch[1]) || 10;
     }
-    
+
     // Extract meal-specific ratios
     const breakfastMatch = content.match(/breakfast.*?(:?\d+)/i);
     const lunchMatch = content.match(/lunch.*?(:?\d+)/i);
     const dinnerMatch = content.match(/dinner.*?(:?\d+)/i);
-    
+
     if (breakfastMatch || lunchMatch || dinnerMatch) {
         settings.useMealSpecificRatios = true;
         settings.carbRatios = {
@@ -236,7 +235,7 @@ function parseSettingsFromSystemMessage(content: string, userSettings?: any): Se
             dinner: parseInt(dinnerMatch?.[1] || '12'),
         };
     }
-    
+
     return settings;
 }
 
@@ -244,13 +243,13 @@ function parseSettingsFromSystemMessage(content: string, userSettings?: any): Se
 function convertToOpenAIFormat(result: AnalysisResult, provider: string): any {
     // Build reasoning text
     const reasoningText = result.reasoning.join('\n') || result.calculation_formula;
-    
+
     // Build content with all information
     const content = JSON.stringify({
         ...result,
         _provider: provider,
     });
-    
+
     return {
         id: `chatcmpl-${Date.now()}`,
         object: 'chat.completion',

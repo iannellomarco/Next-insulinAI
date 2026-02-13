@@ -92,8 +92,7 @@ export async function syncSettingsAction(settings: Settings) {
             highThreshold: settings.highThreshold,
             lowThreshold: settings.lowThreshold,
             smartHistory: settings.smartHistory,
-            libreUsername: settings.libreUsername,
-            librePassword: settings.librePassword,
+            // Credentials removed
             language: settings.language,
             mealRemindersEnabled: settings.mealRemindersEnabled,
             reminderTimes: settings.reminderTimes,
@@ -109,8 +108,7 @@ export async function syncSettingsAction(settings: Settings) {
                 highThreshold: settings.highThreshold,
                 lowThreshold: settings.lowThreshold,
                 smartHistory: settings.smartHistory,
-                libreUsername: settings.libreUsername,
-                librePassword: settings.librePassword,
+                // Credentials removed
                 language: settings.language,
                 mealRemindersEnabled: settings.mealRemindersEnabled,
                 reminderTimes: settings.reminderTimes,
@@ -147,8 +145,7 @@ export async function getRemoteSettingsAction() {
             highThreshold: row.highThreshold || 180,
             lowThreshold: row.lowThreshold || 70,
             smartHistory: row.smartHistory ?? true,
-            libreUsername: row.libreUsername || '',
-            librePassword: row.librePassword || '',
+            // Credentials removed
             language: (row.language as 'en' | 'it') || 'en',
             mealRemindersEnabled: row.mealRemindersEnabled ?? false,
             reminderTimes: (row.reminderTimes as { breakfast: number; lunch: number; dinner: number }) || {
