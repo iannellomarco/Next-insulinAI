@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'insulinAI - AI-Powered Diabetes Management',
