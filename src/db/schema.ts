@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, jsonb, boolean, integer, doublePrecision } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, jsonb, boolean, integer, doublePrecision, index, unique } from 'drizzle-orm/pg-core';
 
 // Cookbook Items Table (for iOS Cookbook feature sync)
 export const cookbookItems = pgTable('cookbook_items', {
@@ -59,4 +59,23 @@ export const userSettings = pgTable('user_settings', {
     isLegacyPro: boolean('is_legacy_pro').default(false), // Grandfathered users
     reminderTimes: jsonb('reminder_times'), // { breakfast: number, lunch: number, dinner: number }
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Glucose Readings Table
+export const glucoseReadings = pgTable('glucose_readings', {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    value: integer('value').notNull(),
+    timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
+    trendType: text('trend_type').notNull(),
+    isHigh: boolean('is_high').default(false),
+    isLow: boolean('is_low').default(false),
+    source: text('source').default('libre'),
+    dayKey: text('day_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+    return {
+        userIdTimestampIdx: index('idx_glucose_readings_user_date').on(table.userId, table.timestamp),
+        userIdIdUnique: unique('user_id_id_unique').on(table.userId, table.id),
+    };
 });
